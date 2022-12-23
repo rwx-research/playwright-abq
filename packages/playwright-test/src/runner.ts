@@ -45,6 +45,8 @@ import { Suite } from './test';
 import type { Config, FullConfigInternal, FullProjectInternal, ReporterInternal } from './types';
 import { createFileMatcher, createFileMatcherFromFilters, createTitleMatcher, serializeError } from './util';
 import type { Matcher, TestFileFilter } from './util';
+import type { Socket } from 'net';
+import * as Abq from './abq';
 
 const removeFolderAsync = promisify(rimraf);
 const readDirAsync = promisify(fs.readdir);
@@ -445,6 +447,9 @@ export class Runner {
   private async _run(options: RunOptions): Promise<FullResult> {
     const config = this._loader.fullConfig();
     const fatalErrors: TestError[] = [];
+
+    fatalErrors.push(...Abq.checkForConfigurationIncompatibility(config, options.projectFilter || []));
+
     // Each entry is an array of test groups that can be run concurrently. All
     // test groups from the previos entries must finish before entry starts.
     const { rootSuite, projectSetupGroups, testGroups } = await this._collectTestGroups(options, fatalErrors);
@@ -475,6 +480,11 @@ export class Runner {
     if (!this._removeOutputDirs(options))
       return { status: 'failed' };
 
+    const abqInitialized = await Abq.initialize(rootSuite);
+    if (abqInitialized.exit) {
+      return { status: abqInitialized.status };
+    }
+
     // Run Global setup.
     const result: FullResult = { status: 'passed' };
     const globalTearDown = await this._performGlobalSetup(config, rootSuite, result);
@@ -492,15 +502,21 @@ export class Runner {
 
     // Run tests.
     try {
-      let dispatchResult = await this._dispatchToWorkers(projectSetupGroups);
-      if (dispatchResult === 'success') {
-        const failedSetupProjectIds = new Set<string>();
-        for (const testGroup of projectSetupGroups) {
-          if (testGroup.tests.some(test => !test.ok()))
-            failedSetupProjectIds.add(testGroup.projectId);
+      let dispatchResult;
+      if (abqInitialized.enabled) {
+        const dispatcher = new Abq.AbqDispatcher(this._loader, this._reporter, { testGroups, projectSetupGroups });
+        dispatchResult = await this._dispatchToWorkers(testGroups, dispatcher);
+      } else {
+        dispatchResult = await this._dispatchToWorkers(projectSetupGroups);
+        if (dispatchResult === 'success') {
+          const failedSetupProjectIds = new Set<string>();
+          for (const testGroup of projectSetupGroups) {
+            if (testGroup.tests.some(test => !test.ok()))
+              failedSetupProjectIds.add(testGroup.projectId);
+          }
+          const testGroupsToRun = this._skipTestsFromFailedProjects(testGroups, failedSetupProjectIds);
+          dispatchResult = await this._dispatchToWorkers(testGroupsToRun);
         }
-        const testGroupsToRun = this._skipTestsFromFailedProjects(testGroups, failedSetupProjectIds);
-        dispatchResult = await this._dispatchToWorkers(testGroupsToRun);
       }
       if (dispatchResult === 'signal') {
         result.status = 'interrupted';
@@ -517,8 +533,8 @@ export class Runner {
     return result;
   }
 
-  private async _dispatchToWorkers(stageGroups: TestGroup[]): Promise<'success'|'signal'|'workererror'> {
-    const dispatcher = new Dispatcher(this._loader, [...stageGroups], this._reporter);
+  private async _dispatchToWorkers(stageGroups: TestGroup[], dispatcher?: Dispatcher): Promise<'success'|'signal'|'workererror'> {
+    dispatcher ||= new Dispatcher(this._loader, [...stageGroups], this._reporter);
     const sigintWatcher = new SigIntWatcher();
     await Promise.race([dispatcher.run(), sigintWatcher.promise()]);
     if (!sigintWatcher.hadSignal()) {
