@@ -48,6 +48,7 @@ import { setFatalErrorSink } from './globals';
 import { buildFileSuiteForProject, filterOnly, filterSuite, filterSuiteWithOnlySemantics, filterTestsRemoveEmptySuites } from './suiteUtils';
 import { LoaderHost } from './loaderHost';
 import { loadTestFilesInProcess } from './testLoader';
+import * as Abq from './abq';
 
 const removeFolderAsync = promisify(rimraf);
 const readDirAsync = promisify(fs.readdir);
@@ -403,6 +404,9 @@ export class Runner {
 
   private async _run(options: RunOptions): Promise<FullResult> {
     const config = this._configLoader.fullConfig();
+
+    this._fatalErrors.push(...Abq.checkForConfigurationIncompatibility(config, options.projectFilter || []));
+
     // Each entry is an array of test groups that can be run concurrently. All
     // test groups from the previos entries must finish before entry starts.
     const { rootSuite, testGroups } = await this._collectTestGroups(options);
@@ -433,6 +437,11 @@ export class Runner {
     if (!await this._removeOutputDirs(options))
       return { status: 'failed' };
 
+    const abqInitialized = await Abq.initialize(rootSuite);
+    if (abqInitialized.exit) {
+      return { status: abqInitialized.status };
+    }
+
     // Run Global setup.
     const result: FullResult = { status: 'passed' };
     const globalTearDown = await this._performGlobalSetup(config, rootSuite, result);
@@ -450,7 +459,11 @@ export class Runner {
 
     // Run tests.
     try {
-      const dispatchResult = await this._dispatchToWorkers(testGroups);
+      let dispatcher: Dispatcher | undefined;
+      if (abqInitialized.enabled) {
+        dispatcher = new Abq.AbqDispatcher(this._configLoader, testGroups, this._reporter);
+      }
+      const dispatchResult = await this._dispatchToWorkers(testGroups, dispatcher);
       if (dispatchResult === 'signal') {
         result.status = 'interrupted';
       } else {
@@ -466,8 +479,8 @@ export class Runner {
     return result;
   }
 
-  private async _dispatchToWorkers(stageGroups: TestGroup[]): Promise<'success'|'signal'|'workererror'> {
-    const dispatcher = new Dispatcher(this._configLoader, [...stageGroups], this._reporter);
+  private async _dispatchToWorkers(stageGroups: TestGroup[], dispatcher?: Dispatcher): Promise<'success'|'signal'|'workererror'> {
+    dispatcher ||= new Dispatcher(this._configLoader, [...stageGroups], this._reporter);
     const sigintWatcher = new SigIntWatcher();
     await Promise.race([dispatcher.run(), sigintWatcher.promise()]);
     if (!sigintWatcher.hadSignal()) {
