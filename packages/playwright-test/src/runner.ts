@@ -45,6 +45,7 @@ import { Suite } from './test';
 import type { Config, FullConfigInternal, FullProjectInternal, ReporterInternal } from './types';
 import { createFileMatcher, createFileMatcherFromFilters, createTitleMatcher, serializeError } from './util';
 import type { Matcher, TestFileFilter } from './util';
+import * as Abq from '@rwx-research/abq';
 
 const removeFolderAsync = promisify(rimraf);
 const readDirAsync = promisify(fs.readdir);
@@ -442,9 +443,35 @@ export class Runner {
     }
   }
 
+  // Check if playwright-test is being called with abq-compatible flags
+  // if not, set one or more errors.
+  private _errorsFromAbqIncompatibility(config: FullConfigInternal): TestError[] {
+    // TODO: maybe instead of errors, we should just set these params?
+    const fatalErrors: TestError[] = []
+    if (!config.fullyParallel) {
+      fatalErrors.push(createStacklessError("abq only supports fullyParallel = true"))
+    }
+
+    if (config.shard) {
+      fatalErrors.push(createStacklessError("abq only supports running without shards"))
+    }
+
+    if (config.workers != 1) {
+      fatalErrors.push(createStacklessError("abq only supports 1 worker"))
+    }
+
+    return fatalErrors;
+  }
+
   private async _run(options: RunOptions): Promise<FullResult> {
     const config = this._loader.fullConfig();
     const fatalErrors: TestError[] = [];
+    const abqConfig = Abq.getAbqConfiguration();
+
+    if (abqConfig.enabled) {
+      fatalErrors.push(...this._errorsFromAbqIncompatibility(config))
+    }
+
     // Each entry is an array of test groups that can be run concurrently. All
     // test groups from the previos entries must finish before entry starts.
     const { rootSuite, projectSetupGroups, testGroups } = await this._collectTestGroups(options, fatalErrors);
