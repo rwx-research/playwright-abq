@@ -584,15 +584,20 @@ export class Runner {
 
     // Run tests.
     try {
-      let dispatchResult = await this._dispatchToWorkers(projectSetupGroups);
-      if (dispatchResult === 'success') {
-        const failedSetupProjectIds = new Set<string>();
-        for (const testGroup of projectSetupGroups) {
-          if (testGroup.tests.some(test => !test.ok()))
-            failedSetupProjectIds.add(testGroup.projectId);
+      let dispatchResult;
+      if (abqSocket) {
+        dispatchResult = await this._dispatchToWorkersAbq({testGroups, projectSetupGroups, abqSocket})
+      } else {
+        dispatchResult = await this._dispatchToWorkers(projectSetupGroups);
+        if (dispatchResult === 'success') {
+          const failedSetupProjectIds = new Set<string>();
+          for (const testGroup of projectSetupGroups) {
+            if (testGroup.tests.some(test => !test.ok()))
+              failedSetupProjectIds.add(testGroup.projectId);
+          }
+          const testGroupsToRun = this._skipTestsFromFailedProjects(testGroups, failedSetupProjectIds);
+          dispatchResult = await this._dispatchToWorkers(testGroupsToRun);
         }
-        const testGroupsToRun = this._skipTestsFromFailedProjects(testGroups, failedSetupProjectIds);
-        dispatchResult = await this._dispatchToWorkers(testGroupsToRun);
       }
       if (dispatchResult === 'signal') {
         result.status = 'interrupted';
@@ -607,6 +612,23 @@ export class Runner {
       await globalTearDown?.();
     }
     return result;
+  }
+
+  private async _dispatchToWorkersAbq({testGroups, projectSetupGroups, abqSocket}: {testGroups: TestGroup[], projectSetupGroups: TestGroup[], abqSocket: Socket}): Promise<'success'|'signal'|'workererror'> {
+    const dispatcher = new Dispatcher(this._loader, [...testGroups], this._reporter);
+    const sigintWatcher = new SigIntWatcher();
+    await Promise.race([dispatcher.runAbq(abqSocket, projectSetupGroups), sigintWatcher.promise()]);
+    if (!sigintWatcher.hadSignal()) {
+      // We know for sure there was no Ctrl+C, so we remove custom SIGINT handler
+      // as soon as we can.
+      sigintWatcher.disarm();
+    }
+    await dispatcher.stop();
+    if (sigintWatcher.hadSignal())
+      return 'signal';
+    if (dispatcher.hasWorkerErrors())
+      return 'workererror';
+    return 'success';
   }
 
   private async _dispatchToWorkers(stageGroups: TestGroup[]): Promise<'success'|'signal'|'workererror'> {

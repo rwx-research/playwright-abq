@@ -24,6 +24,8 @@ import type { Loader } from './loader';
 import { TestCase } from './test';
 import { ManualPromise } from 'playwright-core/lib/utils/manualPromise';
 import { TestTypeImpl } from './testType';
+import * as Abq from '@rwx-research/abq';
+import type { Socket } from 'net';
 
 export type TestGroup = {
   workerHash: string;
@@ -73,6 +75,52 @@ export class Dispatcher {
       for (const test of group.tests)
         this._testById.set(test.id, { test, resultByWorkerIndex: new Map() });
     }
+  }
+
+  private async _scheduleJobAbq(abqSocket: Socket, unusedProjectSetupGroupsByProjectId: Map<string, TestGroup[]>, queueIndexedByTestId: Map<string, TestGroup>) {
+    // 1. Find a job to run.
+
+    if (this._isStopped)
+      return;
+
+    const testCase = await Abq.protocolRead(abqSocket) as Abq.TestCaseMessage;
+
+    if (!testCase) {
+      this._queue = [];
+      return;
+    }
+
+    const testCaseId = testCase.test_case.id;
+
+    // find the job and remove it from the queue
+    // removing it from the queue is kind of arbitrary -- we don't expect the whole queue to be empty before we're done
+    const job = queueIndexedByTestId.get(testCaseId);
+    queueIndexedByTestId.delete(testCaseId);
+
+    if (!job) {
+      // eslint-disable-next-line no-console
+      console.error('could not find job for test case id', testCaseId);
+      return;
+    }
+
+
+    this._workerSlots[0].busy = true;
+    // find the & run setup group with the same project Id
+    for (const group of (unusedProjectSetupGroupsByProjectId.get(job.projectId) || []))
+      await this._startJobInWorker(0, group);
+    unusedProjectSetupGroupsByProjectId.delete(job.projectId);
+
+    // run the test group
+    await this._startJobInWorker(0, job);
+
+    this._workerSlots[0].busy = false;
+
+    // 4. Check the "finished" condition.
+    this._checkFinished();
+
+    // 5. We got a free worker - perhaps we can immediately start another job?
+    this._scheduleJobAbq(abqSocket, unusedProjectSetupGroupsByProjectId, queueIndexedByTestId);
+
   }
 
   private async _scheduleJob() {
@@ -154,6 +202,32 @@ export class Dispatcher {
         workersWithSameHash++;
     }
     return workersWithSameHash > this._queuedOrRunningHashCount.get(worker.hash())!;
+  }
+
+  async runAbq(abqSocket: Socket, projectSetupGroups: TestGroup[]) {
+    // 1. Allocate a single worker.
+    this._workerSlots = [{ busy: false }];
+
+    // 2. Schedule a single job.
+    const queueIndexedByTestId: Map<string, TestGroup> = new Map();
+    for (const testGroup of this._queue)
+      queueIndexedByTestId.set(testGroup.tests[0].id, testGroup);
+
+    const unusedProjectSetupGroupsByProjectId: Map<string, TestGroup[]> = new Map();
+    for (const setupGroup of projectSetupGroups) {
+      let groups = unusedProjectSetupGroupsByProjectId.get(setupGroup.projectId);
+      if (!groups) {
+        groups = [];
+        unusedProjectSetupGroupsByProjectId.set(setupGroup.projectId, groups);
+      }
+      groups.push(setupGroup);
+    }
+
+    this._scheduleJobAbq(abqSocket, unusedProjectSetupGroupsByProjectId, queueIndexedByTestId);
+    this._checkFinished();
+    // 3. More jobs are scheduled when the worker becomes free, or a new job is added.
+    // 4. Wait for all jobs to finish.
+    await this._finished;
   }
 
   async run() {
