@@ -46,6 +46,7 @@ import type { Config, FullConfigInternal, FullProjectInternal, ReporterInternal 
 import { createFileMatcher, createFileMatcherFromFilters, createTitleMatcher, serializeError } from './util';
 import type { Matcher, TestFileFilter } from './util';
 import * as Abq from '@rwx-research/abq';
+import type { Socket } from 'net';
 
 const removeFolderAsync = promisify(rimraf);
 const readDirAsync = promisify(fs.readdir);
@@ -447,20 +448,58 @@ export class Runner {
   // if not, set one or more errors.
   private _errorsFromAbqIncompatibility(config: FullConfigInternal): TestError[] {
     // TODO: maybe instead of errors, we should just set these params?
-    const fatalErrors: TestError[] = []
-    if (!config.fullyParallel) {
-      fatalErrors.push(createStacklessError("abq only supports fullyParallel = true"))
-    }
+    const fatalErrors: TestError[] = [];
+    if (!config.fullyParallel)
+      fatalErrors.push(createStacklessError('abq only supports fullyParallel = true'));
 
-    if (config.shard) {
-      fatalErrors.push(createStacklessError("abq only supports running without shards"))
-    }
+    if (config.shard)
+      fatalErrors.push(createStacklessError('abq only supports running without shards'));
 
-    if (config.workers != 1) {
-      fatalErrors.push(createStacklessError("abq only supports 1 worker"))
-    }
+    if (config.workers !== 1)
+      fatalErrors.push(createStacklessError('abq only supports 1 worker'));
 
     return fatalErrors;
+  }
+
+  private _extractTags(title: string): string[] {
+    // borrowed from JSONReporter._serializeTestSpec
+    return (title.match(/@[\S]+/g) || []).
+        map((t: string): string => t.substring(1));
+  }
+
+  private _generateManifestSuite(suite: Suite): Abq.Group {
+    return {
+      type: 'group',
+      name: suite.title,
+      tags: this._extractTags(suite.title),
+      meta: suite.location ? { fileName: suite.location.file } : {},
+      members: [
+        ...suite.suites.map(this._generateManifestSuite),
+        ...suite.tests.map(this._generateManifestTest)
+      ]
+    };
+  }
+
+  private _generateManifestTest(test: TestCase): Abq.Test {
+    const meta: Record<string, any> = { fileName: test.location.file, testName: test.title };
+    test.annotations.forEach(annotation => meta[annotation.type] = annotation.description);
+
+    return {
+      type: 'test',
+      id: test.id,
+      tags: this._extractTags(test.title),
+      meta: meta,
+    };
+  }
+
+
+  private async _sendManifest(rootSuite: Suite, socket: Socket) {
+    Abq.protocolWrite(socket, {
+      manifest: {
+        members: rootSuite.suites.map(this._generateManifestSuite),
+        init_meta: {}
+      }
+    });
   }
 
   private async _run(options: RunOptions): Promise<FullResult> {
@@ -468,9 +507,8 @@ export class Runner {
     const fatalErrors: TestError[] = [];
     const abqConfig = Abq.getAbqConfiguration();
 
-    if (abqConfig.enabled) {
-      fatalErrors.push(...this._errorsFromAbqIncompatibility(config))
-    }
+    if (abqConfig.enabled)
+      fatalErrors.push(...this._errorsFromAbqIncompatibility(config));
 
     // Each entry is an array of test groups that can be run concurrently. All
     // test groups from the previos entries must finish before entry starts.
@@ -501,6 +539,25 @@ export class Runner {
     // Remove output directores.
     if (!this._removeOutputDirs(options))
       return { status: 'failed' };
+
+    let socket: Socket | undefined;
+    if (abqConfig.enabled) {
+      socket = await Abq.connect(
+          abqConfig,
+          {
+            adapterName: 'abq-playwright',
+            adapterVersion: '1.29.1',
+            testFramework: 'playwright',
+            testFrameworkVersion: config.version
+          }
+      );
+
+      if (abqConfig.shouldGenerateManifest) {
+        await this._sendManifest(rootSuite, socket);
+        // we should quit and abq will relaunch the native runner
+        return { status: 'passed' };
+      }
+    }
 
     // Run Global setup.
     const result: FullResult = { status: 'passed' };
