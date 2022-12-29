@@ -493,8 +493,8 @@ export class Runner {
   }
 
 
-  private async _sendManifest(rootSuite: Suite, socket: Socket) {
-    Abq.protocolWrite(socket, {
+  private async _sendManifest(rootSuite: Suite, abqSocket: Socket) {
+    Abq.protocolWrite(abqSocket, {
       manifest: {
         members: rootSuite.suites.map(this._generateManifestSuite),
         init_meta: {}
@@ -540,9 +540,9 @@ export class Runner {
     if (!this._removeOutputDirs(options))
       return { status: 'failed' };
 
-    let socket: Socket | undefined;
+    let abqSocket: Socket | undefined;
     if (abqConfig.enabled) {
-      socket = await Abq.connect(
+      abqSocket = await Abq.connect(
           abqConfig,
           {
             adapterName: 'abq-playwright',
@@ -553,9 +553,17 @@ export class Runner {
       );
 
       if (abqConfig.shouldGenerateManifest) {
-        await this._sendManifest(rootSuite, socket);
+        await this._sendManifest(rootSuite, abqSocket);
         // we should quit and abq will relaunch the native runner
         return { status: 'passed' };
+      }
+
+      const initMsg: Abq.InitMessage = await Abq.protocolRead(abqSocket) as Abq.InitMessage;
+      if (initMsg.fast_exit) {
+        abqSocket.destroy();
+        return { status: 'passed' };
+      } else {
+        await Abq.protocolWrite(abqSocket, Abq.initSuccessMessage());
       }
     }
 
