@@ -481,8 +481,10 @@ export class Runner {
   }
 
   private _generateManifestTest(test: TestCase): Abq.Test {
-    const meta: Record<string, any> = { fileName: test.location.file, testName: test.title };
-    test.annotations.forEach(annotation => meta[annotation.type] = annotation.description);
+    const meta: Record<string, string|undefined> = {};
+    test.annotations.forEach(({ type, description }: { type: string, description?: string }): void => {
+      { meta[type] = description; }
+    });
 
     return {
       type: 'test',
@@ -546,11 +548,10 @@ export class Runner {
           abqConfig,
           {
             adapterName: 'abq-playwright',
-            adapterVersion: '1.29.1',
+            adapterVersion: '0.0.1',
             testFramework: 'playwright',
-            testFrameworkVersion: config.version
-          }
-      );
+            testFrameworkVersion: '1.29.1'
+          });
 
       if (abqConfig.shouldGenerateManifest) {
         await this._sendManifest(rootSuite, abqSocket);
@@ -586,7 +587,7 @@ export class Runner {
     try {
       let dispatchResult;
       if (abqSocket) {
-        dispatchResult = await this._dispatchToWorkersAbq(config, {testGroups, projectSetupGroups, abqSocket})
+        dispatchResult = await this._dispatchToWorkersAbq(config, { testGroups, projectSetupGroups, abqSocket });
       } else {
         dispatchResult = await this._dispatchToWorkers(projectSetupGroups);
         if (dispatchResult === 'success') {
@@ -614,7 +615,7 @@ export class Runner {
     return result;
   }
 
-  private async _dispatchToWorkersAbq(config: FullConfigInternal, {testGroups, projectSetupGroups, abqSocket}: {testGroups: TestGroup[], projectSetupGroups: TestGroup[], abqSocket: Socket}): Promise<'success'|'signal'|'workererror'> {
+  private async _dispatchToWorkersAbq(config: FullConfigInternal, { testGroups, projectSetupGroups, abqSocket }: {testGroups: TestGroup[], projectSetupGroups: TestGroup[], abqSocket: Socket}): Promise<'success'|'signal'|'workererror'> {
     const dispatcher = new Dispatcher(this._loader, [...testGroups], this._reporter);
     const sigintWatcher = new SigIntWatcher();
     await Promise.race([dispatcher.runAbq(config, abqSocket, projectSetupGroups), sigintWatcher.promise()]);
