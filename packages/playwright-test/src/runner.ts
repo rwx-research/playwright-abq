@@ -586,7 +586,7 @@ export class Runner {
     try {
       let dispatchResult;
       if (abqSocket) {
-        dispatchResult = await this._dispatchToWorkersAbq({testGroups, projectSetupGroups, abqSocket})
+        dispatchResult = await this._dispatchToWorkersAbq(config, {testGroups, projectSetupGroups, abqSocket})
       } else {
         dispatchResult = await this._dispatchToWorkers(projectSetupGroups);
         if (dispatchResult === 'success') {
@@ -614,10 +614,10 @@ export class Runner {
     return result;
   }
 
-  private async _dispatchToWorkersAbq({testGroups, projectSetupGroups, abqSocket}: {testGroups: TestGroup[], projectSetupGroups: TestGroup[], abqSocket: Socket}): Promise<'success'|'signal'|'workererror'> {
+  private async _dispatchToWorkersAbq(config: FullConfigInternal, {testGroups, projectSetupGroups, abqSocket}: {testGroups: TestGroup[], projectSetupGroups: TestGroup[], abqSocket: Socket}): Promise<'success'|'signal'|'workererror'> {
     const dispatcher = new Dispatcher(this._loader, [...testGroups], this._reporter);
     const sigintWatcher = new SigIntWatcher();
-    await Promise.race([dispatcher.runAbq(abqSocket, projectSetupGroups), sigintWatcher.promise()]);
+    await Promise.race([dispatcher.runAbq(config, abqSocket, projectSetupGroups), sigintWatcher.promise()]);
     if (!sigintWatcher.hadSignal()) {
       // We know for sure there was no Ctrl+C, so we remove custom SIGINT handler
       // as soon as we can.

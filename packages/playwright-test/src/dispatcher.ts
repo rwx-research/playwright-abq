@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+
+import { formatResultFailure } from './reporters/base';
 import child_process from 'child_process';
 import path from 'path';
 import { EventEmitter } from 'events';
@@ -26,6 +28,8 @@ import { ManualPromise } from 'playwright-core/lib/utils/manualPromise';
 import { TestTypeImpl } from './testType';
 import * as Abq from '@rwx-research/abq';
 import type { Socket } from 'net';
+import type { TestStatus } from '../types/test';
+import type { FullConfigInternal } from './types';
 
 export type TestGroup = {
   workerHash: string;
@@ -77,7 +81,7 @@ export class Dispatcher {
     }
   }
 
-  private async _scheduleJobAbq(abqSocket: Socket, unusedProjectSetupGroupsByProjectId: Map<string, TestGroup[]>, queueIndexedByTestId: Map<string, TestGroup>) {
+  private async _scheduleJobAbq(config: FullConfigInternal, abqSocket: Socket, unusedProjectSetupGroupsByProjectId: Map<string, TestGroup[]>, queueIndexedByTestId: Map<string, TestGroup>) {
     // 1. Find a job to run.
 
     if (this._isStopped)
@@ -103,15 +107,20 @@ export class Dispatcher {
       return;
     }
 
-
     this._workerSlots[0].busy = true;
-    // find the & run setup group with the same project Id
+    // find the setup groups with the same project Id
+    // If there are any that have not yet been run, run them
     for (const group of (unusedProjectSetupGroupsByProjectId.get(job.projectId) || []))
       await this._startJobInWorker(0, group);
+      // TODO if the setup group failed, record the failure
+      // fail other project groups with the same project ID
+    // TODO find any failed setup groups with the same project ID
+    // if a failed setup group was found, skip the test
+
     unusedProjectSetupGroupsByProjectId.delete(job.projectId);
 
     // run the test group
-    await this._startJobInWorker(0, job);
+    await this._startJobInWorker(0, job, abqSocket);
 
     this._workerSlots[0].busy = false;
 
@@ -119,8 +128,7 @@ export class Dispatcher {
     this._checkFinished();
 
     // 5. We got a free worker - perhaps we can immediately start another job?
-    this._scheduleJobAbq(abqSocket, unusedProjectSetupGroupsByProjectId, queueIndexedByTestId);
-
+    this._scheduleJobAbq(config, abqSocket, unusedProjectSetupGroupsByProjectId, queueIndexedByTestId);
   }
 
   private async _scheduleJob() {
@@ -150,7 +158,7 @@ export class Dispatcher {
     this._scheduleJob();
   }
 
-  private async _startJobInWorker(index: number, job: TestGroup) {
+  private async _startJobInWorker(index: number, job: TestGroup, abqSocket: Socket | undefined = undefined) {
     let worker = this._workerSlots[index].worker;
 
     // 1. Restart the worker if it has the wrong hash or is being stopped already.
@@ -172,7 +180,7 @@ export class Dispatcher {
     }
 
     // 3. Run the job.
-    await this._runJob(worker, job);
+    await this._runJob(worker, job, abqSocket);
   }
 
   private _checkFinished() {
@@ -204,7 +212,7 @@ export class Dispatcher {
     return workersWithSameHash > this._queuedOrRunningHashCount.get(worker.hash())!;
   }
 
-  async runAbq(abqSocket: Socket, projectSetupGroups: TestGroup[]) {
+  async runAbq(config: FullConfigInternal, abqSocket: Socket, projectSetupGroups: TestGroup[]) {
     // 1. Allocate a single worker.
     this._workerSlots = [{ busy: false }];
 
@@ -223,7 +231,7 @@ export class Dispatcher {
       groups.push(setupGroup);
     }
 
-    this._scheduleJobAbq(abqSocket, unusedProjectSetupGroupsByProjectId, queueIndexedByTestId);
+    this._scheduleJobAbq(config, abqSocket, unusedProjectSetupGroupsByProjectId, queueIndexedByTestId);
     this._checkFinished();
     // 3. More jobs are scheduled when the worker becomes free, or a new job is added.
     // 4. Wait for all jobs to finish.
@@ -244,7 +252,7 @@ export class Dispatcher {
     await this._finished;
   }
 
-  async _runJob(worker: Worker, testGroup: TestGroup) {
+  async _runJob(worker: Worker, testGroup: TestGroup, abqSocket: Socket | undefined = undefined) {
     worker.run(testGroup);
 
     let doneCallback = () => {};
@@ -307,6 +315,26 @@ export class Dispatcher {
       const isFailure = result.status !== 'skipped' && result.status !== test.expectedStatus;
       if (isFailure)
         failedTestIds.add(params.testId);
+      if (abqSocket) {
+        Abq.protocolWrite(abqSocket, {
+          test_result: {
+            status: ((status: TestStatus): Abq.TestResultStatus => {
+              switch (status) {
+                case 'passed': return { type: 'success' };
+                case 'timedOut': return { type: 'timed_out' };
+                case 'skipped': return { type: 'skipped' };
+                case 'failed': return { type: 'failure' }; // TODO find exception & backtrace if possible
+                case 'interrupted': return { type: 'error' }; // TODO find exception & backtrace if possible
+              }
+            })(result.status),
+            id: test.id,
+            display_name: test.title,
+            output: formatResultFailure(this._loader.fullConfig(), test, result, '', true).map(error => '\n' + error.message).join(''),
+            runtime: result.duration * 1000_000, // convert ms to ns
+            meta: {},
+          }
+        });
+      }
       this._reportTestEnd(test, result);
     };
     worker.addListener('testEnd', onTestEnd);
