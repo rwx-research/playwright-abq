@@ -90,6 +90,7 @@ export class Dispatcher {
     const testCase = await Abq.protocolRead(abqSocket) as Abq.TestCaseMessage;
 
     if (!testCase) {
+      // we're done
       this._queue = [];
       return;
     }

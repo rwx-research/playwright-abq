@@ -461,13 +461,13 @@ export class Runner {
     return fatalErrors;
   }
 
-  private _extractTags(title: string): string[] {
+  private _extractTags = (title: string): string[] => {
     // borrowed from JSONReporter._serializeTestSpec
     return (title.match(/@[\S]+/g) || []).
         map((t: string): string => t.substring(1));
-  }
+  };
 
-  private _generateManifestSuite(suite: Suite): Abq.Group {
+  private _generateManifestSuite = (suite: Suite): Abq.Group => {
     return {
       type: 'group',
       name: suite.title,
@@ -478,9 +478,9 @@ export class Runner {
         ...suite.tests.map(this._generateManifestTest)
       ]
     };
-  }
+  };
 
-  private _generateManifestTest(test: TestCase): Abq.Test {
+  private _generateManifestTest = (test: TestCase): Abq.Test => {
     const meta: Record<string, string|undefined> = {};
     test.annotations.forEach(({ type, description }: { type: string, description?: string }): void => {
       { meta[type] = description; }
@@ -492,7 +492,7 @@ export class Runner {
       tags: this._extractTags(test.title),
       meta: meta,
     };
-  }
+  };
 
 
   private async _sendManifest(rootSuite: Suite, abqSocket: Socket) {
