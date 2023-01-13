@@ -81,7 +81,7 @@ export class Dispatcher {
     }
   }
 
-  private async _scheduleJobAbq(config: FullConfigInternal, abqSocket: Socket, unusedProjectSetupGroupsByProjectId: Map<string, TestGroup[]>, queueIndexedByTestId: Map<string, TestGroup>) {
+  private async _scheduleJobAbq(config: FullConfigInternal, abqSocket: Socket, unusedProjectSetupGroupsByProjectId: Map<string, TestGroup[]>, queueIndexedByTestId: Map<string, TestGroup>, failedSetupProjectIds: Set<string> = new Set<string>()) {
     // 1. Find a job to run.
 
     if (this._isStopped)
@@ -108,20 +108,33 @@ export class Dispatcher {
       return;
     }
 
-    this._workerSlots[0].busy = true;
-    // find the setup groups with the same project Id
-    // If there are any that have not yet been run, run them
-    for (const group of (unusedProjectSetupGroupsByProjectId.get(job.projectId) || []))
-      await this._startJobInWorker(0, group);
-      // TODO if the setup group failed, record the failure
-      // fail other project groups with the same project ID
-    // TODO find any failed setup groups with the same project ID
-    // if a failed setup group was found, skip the test
+    if (!failedSetupProjectIds.has(job.projectId)) {
+      this._workerSlots[0].busy = true;
+      // find the setup groups with the same project Id
+      // If there are any that have not yet been run, run them
+      for (const setupGroup of (unusedProjectSetupGroupsByProjectId.get(job.projectId) || [])) {
+        await this._startJobInWorker(0, setupGroup);
+        if (setupGroup.tests.some(test => !test.ok())) {
+          failedSetupProjectIds.add(setupGroup.projectId);
+          break;
+        }
+      }
+      unusedProjectSetupGroupsByProjectId.delete(job.projectId);
+    }
 
-    unusedProjectSetupGroupsByProjectId.delete(job.projectId);
+    if (failedSetupProjectIds.has(job.projectId)) {
+      // if setup failed, skip the test
+      for (const test of job.tests) {
+        const result = test._appendTestResult();
+        this._reporter.onTestBegin?.(test, result);
+        result.status = 'skipped';
+        this._reporter.onTestEnd?.(test, result);
+      }
+    } else {
+      // run the test group
+      await this._startJobInWorker(0, job);
+    }
 
-    // run the test group
-    await this._startJobInWorker(0, job);
     const test = job.tests[0];
     const result = test.results[0];
     Abq.protocolWrite(abqSocket, {
