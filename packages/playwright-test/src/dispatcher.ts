@@ -152,6 +152,7 @@ export class Dispatcher {
         display_name: test.title,
         output: formatResultFailure(this._loader.fullConfig(), test, result, '', true).map(error => '\n' + error.message).join(''),
         runtime: result.duration * 1000_000, // convert ms to ns
+        // TODO: add flesh out results
         meta: {}
       }
     });
