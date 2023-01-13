@@ -121,7 +121,27 @@ export class Dispatcher {
     unusedProjectSetupGroupsByProjectId.delete(job.projectId);
 
     // run the test group
-    await this._startJobInWorker(0, job, abqSocket);
+    await this._startJobInWorker(0, job);
+    const test = job.tests[0];
+    const result = test.results[0];
+    Abq.protocolWrite(abqSocket, {
+      test_result: {
+        status: ((status: TestStatus): Abq.TestResultStatus => {
+          switch (status) {
+            case 'passed': return { type: 'success' };
+            case 'timedOut': return { type: 'timed_out' };
+            case 'skipped': return { type: 'skipped' };
+            case 'failed': return { type: 'failure' }; // TODO find exception & backtrace if possible
+            case 'interrupted': return { type: 'error' }; // TODO find exception & backtrace if possible
+          }
+        })(result.status),
+        id: test.id,
+        display_name: test.title,
+        output: formatResultFailure(this._loader.fullConfig(), test, result, '', true).map(error => '\n' + error.message).join(''),
+        runtime: result.duration * 1000_000, // convert ms to ns
+        meta: {}
+      }
+    });
 
     this._workerSlots[0].busy = false;
 
@@ -159,7 +179,7 @@ export class Dispatcher {
     this._scheduleJob();
   }
 
-  private async _startJobInWorker(index: number, job: TestGroup, abqSocket: Socket | undefined = undefined) {
+  private async _startJobInWorker(index: number, job: TestGroup) {
     let worker = this._workerSlots[index].worker;
 
     // 1. Restart the worker if it has the wrong hash or is being stopped already.
@@ -181,7 +201,7 @@ export class Dispatcher {
     }
 
     // 3. Run the job.
-    await this._runJob(worker, job, abqSocket);
+    await this._runJob(worker, job);
   }
 
   private _checkFinished() {
@@ -253,7 +273,7 @@ export class Dispatcher {
     await this._finished;
   }
 
-  async _runJob(worker: Worker, testGroup: TestGroup, abqSocket: Socket | undefined = undefined) {
+  async _runJob(worker: Worker, testGroup: TestGroup) {
     worker.run(testGroup);
 
     let doneCallback = () => {};
@@ -316,26 +336,6 @@ export class Dispatcher {
       const isFailure = result.status !== 'skipped' && result.status !== test.expectedStatus;
       if (isFailure)
         failedTestIds.add(params.testId);
-      if (abqSocket) {
-        Abq.protocolWrite(abqSocket, {
-          test_result: {
-            status: ((status: TestStatus): Abq.TestResultStatus => {
-              switch (status) {
-                case 'passed': return { type: 'success' };
-                case 'timedOut': return { type: 'timed_out' };
-                case 'skipped': return { type: 'skipped' };
-                case 'failed': return { type: 'failure' }; // TODO find exception & backtrace if possible
-                case 'interrupted': return { type: 'error' }; // TODO find exception & backtrace if possible
-              }
-            })(result.status),
-            id: test.id,
-            display_name: test.title,
-            output: formatResultFailure(this._loader.fullConfig(), test, result, '', true).map(error => '\n' + error.message).join(''),
-            runtime: result.duration * 1000_000, // convert ms to ns
-            meta: {},
-          }
-        });
-      }
       this._reportTestEnd(test, result);
     };
     worker.addListener('testEnd', onTestEnd);
@@ -500,7 +500,7 @@ export class Dispatcher {
       });
 
       for (const serialSuite of serialSuitesWithFailures) {
-        // Add all tests from faiiled serial suites for possible retry.
+        // Add all tests from failed serial suites for possible retry.
         // These will only be retried together, because they have the same
         // "retries" setting and the same number of previous runs.
         serialSuite.allTests().forEach(test => retryCandidates.add(test.id));
