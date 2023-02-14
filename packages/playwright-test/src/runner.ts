@@ -547,6 +547,7 @@ export class Runner {
       abqSocket = await Abq.connect(
           abqConfig,
           {
+            // TODO(doug): Dynamically find these versions.
             adapterName: 'abq-playwright',
             adapterVersion: '0.0.1',
             testFramework: 'playwright',
@@ -600,6 +601,7 @@ export class Runner {
           dispatchResult = await this._dispatchToWorkers(testGroupsToRun);
         }
       }
+      console.log(`dispatchResult: ${dispatchResult}`);
       if (dispatchResult === 'signal') {
         result.status = 'interrupted';
       } else {

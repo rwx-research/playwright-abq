@@ -219,6 +219,10 @@ export class Dispatcher {
   }
 
   private _checkFinished() {
+    console.log("_finished.isDone()", this._finished.isDone());
+    console.log("_queue.length", this._queue.length);
+    console.log("_isStopped", this._isStopped);
+    console.log("_workerSlots.some(w => w.busy)", this._workerSlots.some(w => w.busy));
     if (this._finished.isDone())
       return;
 
@@ -233,6 +237,7 @@ export class Dispatcher {
     for (const { test } of this._testById.values()) {
       // Emulate skipped test run if we have stopped early.
       if (!test.results.length)
+      console.log("no test results length");
         test._appendTestResult().status = 'skipped';
     }
     this._finished.resolve();
