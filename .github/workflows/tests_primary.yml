@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - release-*
+      - v*.*.*
   pull_request:
     paths-ignore:
       - 'browser_patches/**'
@@ -12,6 +13,7 @@ on:
     branches:
       - main
       - release-*
+      - v*.*.*
 
 concurrency:
   # For pull requests, cancel all currently-running jobs for this workflow
