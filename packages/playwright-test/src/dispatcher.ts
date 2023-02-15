@@ -152,7 +152,7 @@ export class Dispatcher {
         id: test.id,
         display_name: test.title,
         output: formatResultFailure(this._loader.fullConfig(), test, result, '', true).map(error => '\n' + error.message).join(''),
-        runtime: result.duration * 1_000_000, // convert ms to ns
+        runtime: Math.trunc(result.duration * 1_000_000), // convert ms to ns
         // TODO: add flesh out results
         meta: {}
       }
@@ -220,10 +220,6 @@ export class Dispatcher {
   }
 
   private _checkFinished() {
-    console.log("_finished.isDone()", this._finished.isDone());
-    console.log("_queue.length", this._queue.length);
-    console.log("_isStopped", this._isStopped);
-    console.log("_workerSlots.some(w => w.busy)", this._workerSlots.some(w => w.busy));
     if (this._finished.isDone())
       return;
 
@@ -237,7 +233,6 @@ export class Dispatcher {
 
     for (const { test } of this._testById.values()) {
       // Emulate skipped test run if we have stopped early.
-      console.log("no test results length");
       if (!test.results.length)
         test._appendTestResult().status = 'skipped';
     }

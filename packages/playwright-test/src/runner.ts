@@ -444,19 +444,40 @@ export class Runner {
     }
   }
 
+  private _applyAbqConfiguration(config: FullConfigInternal): FullConfigInternal {
+    if (config.workers !== 1) {
+      // eslint-disable-next-line no-console
+      console.warn(`Warning: ABQ only supports 1 worker. Overriding configuration value of '${config.workers}'.`);
+      config = {...config, workers: 1};
+    }
+
+    if (config.shard) {
+      // eslint-disable-next-line no-console
+      console.warn(`Warning: ABQ does not support Playwright sharding. Overriding configuration value of '${JSON.stringify(config.shard)}'.`);
+      config = {...config, shard: null};
+    }
+
+    return config;
+  }
+
   // Check if playwright-test is being called with abq-compatible flags
   // if not, set one or more errors.
-  private _errorsFromAbqIncompatibility(config: FullConfigInternal): TestError[] {
+  private _errorsFromAbqIncompatibility(config: FullConfigInternal, projectFilter: string[]): TestError[] {
     // TODO: maybe instead of errors, we should just set these params?
+    // TODO(doug): Test various configurations.
     const fatalErrors: TestError[] = [];
-    if (!config.fullyParallel)
-      fatalErrors.push(createStacklessError('abq only supports fullyParallel = true'));
 
-    if (config.shard)
-      fatalErrors.push(createStacklessError('abq only supports running without shards'));
+    if (config.projects.length > 1 && projectFilter.length !== 1) {
+      fatalErrors.push(createStacklessError(`${config.projects.length} projects are configured. Specify a single --project per ABQ run.`));
+      return fatalErrors;
+    }
 
-    if (config.workers !== 1)
-      fatalErrors.push(createStacklessError('abq only supports 1 worker'));
+    const projectConfig = config.projects.find(pc => pc.name === projectFilter[0]);
+    if (!projectConfig)
+      fatalErrors.push(createStacklessError(`Project configuration not found for project '${projectFilter[0]}'.`));
+
+    if (!config.fullyParallel || (projectConfig && !projectConfig._fullyParallel))
+      fatalErrors.push(createStacklessError('ABQ only supports fullyParallel = true'));
 
     return fatalErrors;
   }
@@ -505,12 +526,14 @@ export class Runner {
   }
 
   private async _run(options: RunOptions): Promise<FullResult> {
-    const config = this._loader.fullConfig();
+    let config = this._loader.fullConfig();
     const fatalErrors: TestError[] = [];
     const abqConfig = Abq.getAbqConfiguration();
 
-    if (abqConfig.enabled)
-      fatalErrors.push(...this._errorsFromAbqIncompatibility(config));
+    if (abqConfig.enabled) {
+      config = this._applyAbqConfiguration(config);
+      fatalErrors.push(...this._errorsFromAbqIncompatibility(config, options.projectFilter || []));
+    }
 
     // Each entry is an array of test groups that can be run concurrently. All
     // test groups from the previos entries must finish before entry starts.
@@ -601,7 +624,6 @@ export class Runner {
           dispatchResult = await this._dispatchToWorkers(testGroupsToRun);
         }
       }
-      console.log(`dispatchResult: ${dispatchResult}`);
       if (dispatchResult === 'signal') {
         result.status = 'interrupted';
       } else {
