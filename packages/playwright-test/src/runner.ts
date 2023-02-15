@@ -561,11 +561,11 @@ export class Runner {
       }
 
       const initMsg: Abq.InitMessage = await Abq.protocolRead(abqSocket) as Abq.InitMessage;
+      await Abq.protocolWrite(abqSocket, Abq.initSuccessMessage());
+
       if (initMsg.fast_exit) {
         abqSocket.destroy();
         return { status: 'passed' };
-      } else {
-        await Abq.protocolWrite(abqSocket, Abq.initSuccessMessage());
       }
     }
 

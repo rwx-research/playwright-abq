@@ -92,6 +92,7 @@ export class Dispatcher {
     if (!testCase) {
       // we're done
       this._queue = [];
+      this._checkFinished();
       return;
     }
 
@@ -137,7 +138,7 @@ export class Dispatcher {
 
     const test = job.tests[0];
     const result = test.results[0];
-    Abq.protocolWrite(abqSocket, {
+    await Abq.protocolWrite(abqSocket, {
       test_result: {
         status: ((status: TestStatus): Abq.TestResultStatus => {
           switch (status) {
@@ -151,7 +152,7 @@ export class Dispatcher {
         id: test.id,
         display_name: test.title,
         output: formatResultFailure(this._loader.fullConfig(), test, result, '', true).map(error => '\n' + error.message).join(''),
-        runtime: result.duration * 1000_000, // convert ms to ns
+        runtime: result.duration * 1_000_000, // convert ms to ns
         // TODO: add flesh out results
         meta: {}
       }
@@ -236,8 +237,8 @@ export class Dispatcher {
 
     for (const { test } of this._testById.values()) {
       // Emulate skipped test run if we have stopped early.
-      if (!test.results.length)
       console.log("no test results length");
+      if (!test.results.length)
         test._appendTestResult().status = 'skipped';
     }
     this._finished.resolve();
