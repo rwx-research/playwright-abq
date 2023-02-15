@@ -1,8 +1,8 @@
 {
-  "name": "@playwright/test",
+  "name": "@rwx-research/playwright-test-abq",
   "version": "1.29.1",
   "description": "A high-level API to automate web browsers",
-  "repository": "github:Microsoft/playwright",
+  "repository": "github:rwx-research/playwright",
   "homepage": "https://playwright.dev",
   "engines": {
     "node": ">=14"
