@@ -45,8 +45,8 @@ import { Suite } from './test';
 import type { Config, FullConfigInternal, FullProjectInternal, ReporterInternal } from './types';
 import { createFileMatcher, createFileMatcherFromFilters, createTitleMatcher, serializeError } from './util';
 import type { Matcher, TestFileFilter } from './util';
-import * as Abq from '@rwx-research/abq';
 import type { Socket } from 'net';
+import * as Abq from './abq';
 
 const removeFolderAsync = promisify(rimraf);
 const readDirAsync = promisify(fs.readdir);
@@ -444,96 +444,11 @@ export class Runner {
     }
   }
 
-  private _applyAbqConfiguration(config: FullConfigInternal): FullConfigInternal {
-    if (config.workers !== 1) {
-      // eslint-disable-next-line no-console
-      console.warn(`Warning: ABQ only supports 1 worker. Overriding configuration value of '${config.workers}'.`);
-      config = {...config, workers: 1};
-    }
-
-    if (config.shard) {
-      // eslint-disable-next-line no-console
-      console.warn(`Warning: ABQ does not support Playwright sharding. Overriding configuration value of '${JSON.stringify(config.shard)}'.`);
-      config = {...config, shard: null};
-    }
-
-    return config;
-  }
-
-  // Check if playwright-test is being called with abq-compatible flags
-  // if not, set one or more errors.
-  private _errorsFromAbqIncompatibility(config: FullConfigInternal, projectFilter: string[]): TestError[] {
-    // TODO: maybe instead of errors, we should just set these params?
-    // TODO(doug): Test various configurations.
-    const fatalErrors: TestError[] = [];
-
-    if (config.projects.length > 1 && projectFilter.length !== 1) {
-      fatalErrors.push(createStacklessError(`${config.projects.length} projects are configured. Specify a single --project per ABQ run.`));
-      return fatalErrors;
-    }
-
-    const projectConfig = config.projects.find(pc => pc.name === projectFilter[0]);
-    if (!projectConfig)
-      fatalErrors.push(createStacklessError(`Project configuration not found for project '${projectFilter[0]}'.`));
-
-    if (!config.fullyParallel || (projectConfig && !projectConfig._fullyParallel))
-      fatalErrors.push(createStacklessError('ABQ only supports fullyParallel = true'));
-
-    return fatalErrors;
-  }
-
-  private _extractTags = (title: string): string[] => {
-    // borrowed from JSONReporter._serializeTestSpec
-    return (title.match(/@[\S]+/g) || []).
-        map((t: string): string => t.substring(1));
-  };
-
-  private _generateManifestSuite = (suite: Suite): Abq.Group => {
-    return {
-      type: 'group',
-      name: suite.title,
-      tags: this._extractTags(suite.title),
-      meta: suite.location ? { fileName: suite.location.file } : {},
-      members: [
-        ...suite.suites.map(this._generateManifestSuite),
-        ...suite.tests.map(this._generateManifestTest)
-      ]
-    };
-  };
-
-  private _generateManifestTest = (test: TestCase): Abq.Test => {
-    const meta: Record<string, string|undefined> = {};
-    test.annotations.forEach(({ type, description }: { type: string, description?: string }): void => {
-      { meta[type] = description; }
-    });
-
-    return {
-      type: 'test',
-      id: test.id,
-      tags: this._extractTags(test.title),
-      meta: meta,
-    };
-  };
-
-
-  private async _sendManifest(rootSuite: Suite, abqSocket: Socket) {
-    Abq.protocolWrite(abqSocket, {
-      manifest: {
-        members: rootSuite.suites.map(this._generateManifestSuite),
-        init_meta: {}
-      }
-    });
-  }
-
   private async _run(options: RunOptions): Promise<FullResult> {
-    let config = this._loader.fullConfig();
+    const config = this._loader.fullConfig();
     const fatalErrors: TestError[] = [];
-    const abqConfig = Abq.getAbqConfiguration();
 
-    if (abqConfig.enabled) {
-      config = this._applyAbqConfiguration(config);
-      fatalErrors.push(...this._errorsFromAbqIncompatibility(config, options.projectFilter || []));
-    }
+    fatalErrors.push(...Abq.checkForConfigurationIncompatibility(config, options.projectFilter || []));
 
     // Each entry is an array of test groups that can be run concurrently. All
     // test groups from the previos entries must finish before entry starts.
@@ -565,31 +480,9 @@ export class Runner {
     if (!this._removeOutputDirs(options))
       return { status: 'failed' };
 
-    let abqSocket: Socket | undefined;
-    if (abqConfig.enabled) {
-      abqSocket = await Abq.connect(
-          abqConfig,
-          {
-            // TODO(doug): Dynamically find these versions.
-            adapterName: 'abq-playwright',
-            adapterVersion: '0.0.1',
-            testFramework: 'playwright',
-            testFrameworkVersion: '1.29.1'
-          });
-
-      if (abqConfig.shouldGenerateManifest) {
-        await this._sendManifest(rootSuite, abqSocket);
-        // we should quit and abq will relaunch the native runner
-        return { status: 'passed' };
-      }
-
-      const initMsg: Abq.InitMessage = await Abq.protocolRead(abqSocket) as Abq.InitMessage;
-      await Abq.protocolWrite(abqSocket, Abq.initSuccessMessage());
-
-      if (initMsg.fast_exit) {
-        abqSocket.destroy();
-        return { status: 'passed' };
-      }
+    const abqInitialized = await Abq.initialize(rootSuite);
+    if (abqInitialized.exit) {
+      return { status: abqInitialized.status };
     }
 
     // Run Global setup.
@@ -610,8 +503,9 @@ export class Runner {
     // Run tests.
     try {
       let dispatchResult;
-      if (abqSocket) {
-        dispatchResult = await this._dispatchToWorkersAbq(config, { testGroups, projectSetupGroups, abqSocket });
+      if (abqInitialized.enabled) {
+        const dispatcher = new Abq.AbqDispatcher(this._loader, this._reporter, { testGroups, projectSetupGroups });
+        dispatchResult = await this._dispatchToWorkers(testGroups, dispatcher);
       } else {
         dispatchResult = await this._dispatchToWorkers(projectSetupGroups);
         if (dispatchResult === 'success') {
@@ -639,25 +533,8 @@ export class Runner {
     return result;
   }
 
-  private async _dispatchToWorkersAbq(config: FullConfigInternal, { testGroups, projectSetupGroups, abqSocket }: {testGroups: TestGroup[], projectSetupGroups: TestGroup[], abqSocket: Socket}): Promise<'success'|'signal'|'workererror'> {
-    const dispatcher = new Dispatcher(this._loader, [...testGroups], this._reporter);
-    const sigintWatcher = new SigIntWatcher();
-    await Promise.race([dispatcher.runAbq(config, abqSocket, projectSetupGroups), sigintWatcher.promise()]);
-    if (!sigintWatcher.hadSignal()) {
-      // We know for sure there was no Ctrl+C, so we remove custom SIGINT handler
-      // as soon as we can.
-      sigintWatcher.disarm();
-    }
-    await dispatcher.stop();
-    if (sigintWatcher.hadSignal())
-      return 'signal';
-    if (dispatcher.hasWorkerErrors())
-      return 'workererror';
-    return 'success';
-  }
-
-  private async _dispatchToWorkers(stageGroups: TestGroup[]): Promise<'success'|'signal'|'workererror'> {
-    const dispatcher = new Dispatcher(this._loader, [...stageGroups], this._reporter);
+  private async _dispatchToWorkers(stageGroups: TestGroup[], dispatcher?: Dispatcher): Promise<'success'|'signal'|'workererror'> {
+    dispatcher ||= new Dispatcher(this._loader, [...stageGroups], this._reporter);
     const sigintWatcher = new SigIntWatcher();
     await Promise.race([dispatcher.run(), sigintWatcher.promise()]);
     if (!sigintWatcher.hadSignal()) {
