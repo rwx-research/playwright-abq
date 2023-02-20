@@ -18,10 +18,12 @@ Our `main` branch tracks upstream's `main`.
 
 Update `version` in the root `package.json`.
 
-Update the versions in [abq/version.ts](./packages/playwright-test/src/abq/version.ts).
+Update the versions in [abq/version.ts](./packages/playwright-test/src/abq/version.ts) to match.
 
 Commit the resulting `packages/*/package.json` changes.
-Perform the release from the `main` branch, after `pakcage.json` versions have been updated.
+
+Perform the release from the `abq/release-*` branch, after `package.json` versions
+have been updated and committed.
 
 Change the package name in [playwright-test/package.json](./packages/playwright-test/package.json) 
 from `@playwright/test` to `@rwx-research/playwright-test-abq`.
@@ -29,8 +31,7 @@ from `@playwright/test` to `@rwx-research/playwright-test-abq`.
 ```bash
 node ./utils/workspace.js --ensure-consistent
 npm run build
-npm run test
-npm publish --access=public packages/playwright-test
+npm publish --access=public ./packages/playwright-test
 ```
 
 ### Resolving conflicts
