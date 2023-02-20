@@ -2,7 +2,7 @@
   "name": "@playwright/test",
   "version": "1.30.0",
   "description": "A high-level API to automate web browsers",
-  "repository": "github:Microsoft/playwright",
+  "repository": "github:rwx-research/playwright",
   "homepage": "https://playwright.dev",
   "engines": {
     "node": ">=14"
@@ -32,6 +32,7 @@
   },
   "license": "Apache-2.0",
   "dependencies": {
+    "@rwx-research/abq": "0.1.0-alpha.11",
     "@types/node": "*",
     "playwright-core": "1.30.0"
   }

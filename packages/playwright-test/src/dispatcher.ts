@@ -42,15 +42,15 @@ type TestData = {
 };
 
 export class Dispatcher {
-  private _workerSlots: { busy: boolean, worker?: WorkerHost }[] = [];
-  private _queue: TestGroup[] = [];
+  protected _workerSlots: { busy: boolean, worker?: WorkerHost }[] = [];
+  protected _queue: TestGroup[] = [];
   private _queuedOrRunningHashCount = new Map<string, number>();
-  private _finished = new ManualPromise<void>();
-  private _isStopped = false;
+  protected _finished = new ManualPromise<void>();
+  protected _isStopped = false;
 
   private _testById = new Map<string, TestData>();
-  private _configLoader: ConfigLoader;
-  private _reporter: Reporter;
+  protected _configLoader: ConfigLoader;
+  protected _reporter: Reporter;
   private _hasWorkerErrors = false;
   private _failureCount = 0;
 
@@ -65,7 +65,7 @@ export class Dispatcher {
     }
   }
 
-  private async _scheduleJob() {
+  protected async _scheduleJob() {
     // 1. Find a job to run.
     if (this._isStopped || !this._queue.length)
       return;
@@ -92,7 +92,7 @@ export class Dispatcher {
     this._scheduleJob();
   }
 
-  private async _startJobInWorker(index: number, job: TestGroup) {
+  protected async _startJobInWorker(index: number, job: TestGroup) {
     let worker = this._workerSlots[index].worker;
 
     // 1. Restart the worker if it has the wrong hash or is being stopped already.
@@ -117,7 +117,7 @@ export class Dispatcher {
     await this._runJob(worker, job);
   }
 
-  private _checkFinished() {
+  protected _checkFinished() {
     if (this._finished.isDone())
       return;
 
@@ -391,7 +391,7 @@ export class Dispatcher {
       });
 
       for (const serialSuite of serialSuitesWithFailures) {
-        // Add all tests from faiiled serial suites for possible retry.
+        // Add all tests from failed serial suites for possible retry.
         // These will only be retried together, because they have the same
         // "retries" setting and the same number of previous runs.
         serialSuite.allTests().forEach(test => retryCandidates.add(test.id));
