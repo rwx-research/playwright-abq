@@ -17,7 +17,7 @@
 
 import type { Socket } from 'net';
 import type { FullConfig, FullResult, Suite, TestError } from '../../types/testReporter';
-import { FullConfigInternal } from '../types';
+import { FullConfigInternal, FullProjectInternal } from '../types';
 import { sendManifest } from './manifest';
 import { spawnedMessage } from './version';
 import * as Abq from '@rwx-research/abq';
@@ -47,14 +47,20 @@ export function checkForConfigurationIncompatibility(config: FullConfigInternal,
 
   const fatalErrors: TestError[] = [];
 
-  if (config.projects.length > 1 && projectFilter.length !== 1) {
+  let projectConfig: FullProjectInternal | undefined;
+  if (config.projects.length === 1) {
+    projectConfig = config.projects[0];
+  } else if (projectFilter.length === 1) {
+    projectConfig = config.projects.find(pc => pc.name === projectFilter[0]);
+
+    if (!projectConfig) {
+      fatalErrors.push(createStacklessError(`Project configuration not found for project '${projectFilter[0]}'.`));
+      return fatalErrors;
+    }
+  } else {
     fatalErrors.push(createStacklessError(`${config.projects.length} projects are configured. Specify a single --project per ABQ run.`));
     return fatalErrors;
   }
-
-  const projectConfig = config.projects.find(pc => pc.name === projectFilter[0]);
-  if (!projectConfig)
-    fatalErrors.push(createStacklessError(`Project configuration not found for project '${projectFilter[0]}'.`));
 
   if (!config.fullyParallel || (projectConfig && !projectConfig._fullyParallel))
     fatalErrors.push(createStacklessError('ABQ only supports fullyParallel = true'));
