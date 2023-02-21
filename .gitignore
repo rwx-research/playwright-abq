@@ -32,3 +32,4 @@ test-results
 .eslintcache
 .direnv
 playwright*.tgz
+/tmp/
