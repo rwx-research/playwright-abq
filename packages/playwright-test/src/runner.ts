@@ -461,7 +461,7 @@ export class Runner {
     try {
       let dispatcher: Dispatcher | undefined;
       if (abqInitialized.enabled) {
-        dispatcher = new Abq.AbqDispatcher(this._configLoader, testGroups, this._reporter);
+        dispatcher = new Abq.AbqDispatcher(this._configLoader, this._reporter, { testGroups });
       }
       const dispatchResult = await this._dispatchToWorkers(testGroups, dispatcher);
       if (dispatchResult === 'signal') {
