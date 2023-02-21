@@ -16,21 +16,29 @@ Our `main` branch tracks upstream's `main`.
 
 ### Releasing playwright-test-abq
 
-Update `version` in the root `package.json`.
+Update the versions in [abq/version.ts](./packages/playwright-test/src/abq/version.ts).
+`testFrameworkVersion` should be the `version` from the [root package.json](./package.json).
+`adapterVersion` should be the ABQ version to release.
 
-Update the versions in [abq/version.ts](./packages/playwright-test/src/abq/version.ts) to match.
+Commit the resulting [abq/version.ts](./packages/playwright-test/src/abq/version.ts) changes.
 
-Commit the resulting `packages/*/package.json` changes.
+Perform the release from the `abq/release-*` branch.
 
-Perform the release from the `abq/release-*` branch, after `package.json` versions
-have been updated and committed.
+Update the `version` in `package.json` for the packages we'll release to the **ABQ version**.
+This change will not be committed to git.
 
-Change the package name in [playwright-test/package.json](./packages/playwright-test/package.json) 
-from `@playwright/test` to `@rwx-research/playwright-test-abq`.
+- `playwright-core`
+- `playwright-test`
 
+Run [prepare_release.js](./utils/prepare_release.js):
 ```bash
-node ./utils/workspace.js --ensure-consistent
+node utils/prepare_release.js
+```
+
+Perform a build then release:
+```bash
 npm run build
+npm publish --access=public ./packages/playwright-core
 npm publish --access=public ./packages/playwright-test
 ```
 
