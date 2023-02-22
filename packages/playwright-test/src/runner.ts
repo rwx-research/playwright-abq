@@ -166,7 +166,7 @@ export class Runner {
       const prints = r.printsToStdio ? r.printsToStdio() : true;
       return prints;
     });
-    if (reporters.length && !someReporterPrintsToStdio) {
+    if (reporters.length && !someReporterPrintsToStdio && !Abq.isEnabled()) {
       // Add a line/dot/list-mode reporter for convenience.
       // Important to put it first, jsut in case some other reporter stalls onEnd.
       if (list)
@@ -178,8 +178,9 @@ export class Runner {
   }
 
   async runAllTests(options: RunOptions): Promise<FullResult> {
-    this._reporter = await this._createReporter(!!options.listOnly);
     const config = this._configLoader.fullConfig();
+    Abq.applyAbqConfiguration(config);
+    this._reporter = await this._createReporter(!!options.listOnly);
     const result = await raceAgainstTimeout(() => this._run(options), config.globalTimeout);
     let fullResult: FullResult;
     if (result.timedOut) {
