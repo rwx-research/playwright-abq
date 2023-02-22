@@ -84,9 +84,47 @@ export function applyAbqConfiguration(config: FullConfig) {
     console.warn(`Warning: ABQ does not support Playwright sharding. Overriding configuration value of '${JSON.stringify(config.shard)}'.`);
     config.shard = null;
   }
+}
 
-  // Disable built-in reporters to use ABQ's reporter.
-  config.reporter = [['null', undefined]];
+export function updateReporterArg(reporterName: string, arg: any) {
+  if (!process.env.ABQ_RUNNER) return;
+
+  const hasMultipleRunners = process.env.ABQ_RUNNER !== '1';
+
+  const warnNoMerge = (argField: string) => {
+    // eslint-disable-next-line no-console
+    console.warn(`ABQ with multiple workers does not support merging ${reporterName} results. Consider adding '$ABQ_RUNNER' to the ${reporterName} reporter's '${argField}'.`);
+  };
+
+  switch (reporterName) {
+    case 'html':
+      if (arg && typeof arg === 'object' && arg.outputFolder && arg.outputFolder.includes('$ABQ_RUNNER')) {
+        arg.outputFolder = arg.outputFolder.replace('$ABQ_RUNNER', process.env.ABQ_RUNNER);
+      } else if (process.env.PLAYWRIGHT_HTML_REPORT && process.env.PLAYWRIGHT_HTML_REPORT.includes('$ABQ_RUNNER')) {
+        process.env.PLAYWRIGHT_HTML_REPORT = process.env.PLAYWRIGHT_HTML_REPORT.replace('$ABQ_RUNNER', process.env.ABQ_RUNNER);
+      } else if (hasMultipleRunners) {
+        warnNoMerge('outputFolder');
+      }
+      break;
+    case 'json':
+      if (arg && typeof arg === 'object' && arg.outputFile && arg.outputFile.includes('$ABQ_RUNNER')) {
+        arg.outputFile = arg.outputFile.replace('$ABQ_RUNNER', process.env.ABQ_RUNNER);
+      } else if (process.env.PLAYWRIGHT_JSON_OUTPUT_NAME && process.env.PLAYWRIGHT_JSON_OUTPUT_NAME.includes('$ABQ_RUNNER')) {
+        process.env.PLAYWRIGHT_JSON_OUTPUT_NAME = process.env.PLAYWRIGHT_JSON_OUTPUT_NAME.replace('$ABQ_RUNNER', process.env.ABQ_RUNNER);
+      } else if (hasMultipleRunners) {
+        warnNoMerge('outputFile');
+      }
+      break;
+    case 'junit':
+      if (arg && typeof arg === 'object' && arg.outputFile && arg.outputFile.includes('$ABQ_RUNNER')) {
+        arg.outputFile = arg.outputFile.replace('$ABQ_RUNNER', process.env.ABQ_RUNNER);
+      } else if (process.env.PLAYWRIGHT_JUNIT_OUTPUT_NAME && process.env.PLAYWRIGHT_JUNIT_OUTPUT_NAME.includes('$ABQ_RUNNER')) {
+        process.env.PLAYWRIGHT_JUNIT_OUTPUT_NAME = process.env.PLAYWRIGHT_JUNIT_OUTPUT_NAME.replace('$ABQ_RUNNER', process.env.ABQ_RUNNER);
+      } else if (hasMultipleRunners) {
+        warnNoMerge('outputFile');
+      }
+      break;
+  }
 }
 
 export async function initialize(rootSuite: Suite): Promise<InitializeResult> {

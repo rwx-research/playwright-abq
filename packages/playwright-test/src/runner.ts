@@ -147,9 +147,13 @@ export class Runner {
       null: EmptyReporter,
       html: HtmlReporter,
     };
-    const reporters: Reporter[] = [];
+    let reporters: Reporter[] = [];
     for (const r of this._configLoader.fullConfig().reporter) {
       const [name, arg] = r;
+
+      if (Abq.isEnabled())
+        Abq.updateReporterArg(name, arg);
+
       if (name in defaultReporters) {
         reporters.push(new defaultReporters[name as keyof typeof defaultReporters](arg));
       } else {
@@ -166,6 +170,15 @@ export class Runner {
       const prints = r.printsToStdio ? r.printsToStdio() : true;
       return prints;
     });
+
+    if (Abq.isEnabled()) {
+      // Remove any reporters that may output to stdout.
+      reporters = reporters.filter(r => {
+        const prints = r.printsToStdio ? r.printsToStdio() : true;
+        return !prints;
+      });
+    }
+
     if (reporters.length && !someReporterPrintsToStdio && !Abq.isEnabled()) {
       // Add a line/dot/list-mode reporter for convenience.
       // Important to put it first, jsut in case some other reporter stalls onEnd.
