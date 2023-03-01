@@ -77,8 +77,15 @@ export class AbqDispatcher extends Dispatcher {
 
     this._workerSlots[0].busy = true;
 
+    const workerNumber = parseInt('' + process.env.ABQ_WORKER);
+    const runnerNumber = parseInt('' + process.env.ABQ_RUNNER);
+    let parallelIndex = 0;
+    if (!isNaN(workerNumber) && !isNaN(runnerNumber)) {
+      parallelIndex = (1_000 * workerNumber) + runnerNumber;
+    }
+
     // run the test group
-    await this._startJobInWorker(0, job);
+    await this._startJobInWorker(parallelIndex, job);
 
     const test = job.tests[0];
     const result = test.results[0];
