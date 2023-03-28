@@ -1,0 +1,16 @@
+{
+  "name": "abqtest-smoketest",
+  "version": "0.0.1",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "file:../../packages/playwright-test"
+  },
+  "overrides": {
+    "playwright-core": "file:../../packages/playwright-core"
+  }
+}

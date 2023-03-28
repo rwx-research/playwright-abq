@@ -1,0 +1,50 @@
+[
+  [
+    {
+      "source": {
+        "runner": [
+          0,
+          1
+        ],
+        "is_singleton": true,
+        "has_stdout_reporters": false
+      },
+      "result": {
+        "status": "Success",
+        "id": "afd76d7bd7b042a55940-50a2efd630ad4859976e",
+        "display_name": "homepage has title and links to intro page",
+        "output": "",
+        "runtime": {
+          "Nanoseconds": "STRIPPED"
+        },
+        "meta": {},
+        "stderr": "STRIPPED",
+        "stdout": "STRIPPED"
+      }
+    }
+  ],
+  [
+    {
+      "source": {
+        "runner": [
+          0,
+          1
+        ],
+        "is_singleton": true,
+        "has_stdout_reporters": false
+      },
+      "result": {
+        "status": "Success",
+        "id": "afd76d7bd7b042a55940-6efb1d0bf2188128ca22",
+        "display_name": "homepage has title and links to intro page 2",
+        "output": "",
+        "runtime": {
+          "Nanoseconds": "STRIPPED"
+        },
+        "meta": {},
+        "stderr": "STRIPPED",
+        "stdout": "STRIPPED"
+      }
+    }
+  ]
+]

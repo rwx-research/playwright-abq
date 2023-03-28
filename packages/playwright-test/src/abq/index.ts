@@ -33,15 +33,11 @@ const abqConfig = Abq.getAbqConfiguration();
 
 let abqSocket: Socket | null = null;
 
-export function getAbqSocket(): Socket {
+export function getAbqSocket() {
   if (!abqSocket)
     throw new Error('ABQ socket is not yet initialized.');
 
   return abqSocket;
-}
-
-export function isEnabled(): boolean {
-  return abqConfig.enabled;
 }
 
 export function checkForConfigurationIncompatibility(config: FullConfigInternal, projectFilter: string[]): TestError[] {
@@ -72,7 +68,7 @@ export function checkForConfigurationIncompatibility(config: FullConfigInternal,
   return fatalErrors;
 }
 
-export function applyAbqConfiguration(config: FullConfig) {
+function applyAbqConfiguration(config: FullConfig) {
   if (config.workers !== 1) {
     // eslint-disable-next-line no-console
     console.warn(`Warning: ABQ only supports 1 worker. Overriding configuration value of '${config.workers}'.`);
@@ -84,11 +80,7 @@ export function applyAbqConfiguration(config: FullConfig) {
     console.warn(`Warning: ABQ does not support Playwright sharding. Overriding configuration value of '${JSON.stringify(config.shard)}'.`);
     config.shard = null;
   }
-
-  // Disable built-in reporters to use ABQ's reporter.
-  config.reporter = [['null', undefined]];
 }
-
 export async function initialize(rootSuite: Suite): Promise<InitializeResult> {
   if (!abqConfig.enabled) {
     return { status: 'passed', enabled: false, exit: false };
