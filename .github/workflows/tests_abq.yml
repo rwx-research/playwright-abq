@@ -14,7 +14,7 @@ env:
 
 jobs:
   test:
-    runs-on: rwx-ubuntu-latest
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
