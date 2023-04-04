@@ -1,0 +1,52 @@
+{
+  "manifest": {
+    "members": [
+      {
+        "type": "group",
+        "name": "",
+        "members": [
+          {
+            "type": "group",
+            "name": "tests/test-api.spec.ts",
+            "members": [
+              {
+                "type": "test",
+                "id": "STRIPPED",
+                "tags": [],
+                "meta": {}
+              },
+              {
+                "type": "test",
+                "id": "STRIPPED",
+                "tags": [],
+                "meta": {}
+              }
+            ],
+            "tags": [],
+            "meta": {
+              "fileName": "tests/test-api.spec.ts"
+            }
+          }
+        ],
+        "tags": [],
+        "meta": {}
+      }
+    ],
+    "init_meta": {}
+  },
+  "native_runner_protocol": {
+    "type": "abq_protocol_version",
+    "major": 0,
+    "minor": 2
+  },
+  "native_runner_specification": {
+    "type": "abq_native_runner_specification",
+    "name": "playwright-abq",
+    "version": "1.30.0-next",
+    "test_framework": "playwright",
+    "test_framework_version": "1.30.0-next",
+    "language": "javascript",
+    "language_version": "STRIPPED",
+    "host": "STRIPPED"
+  }
+}
