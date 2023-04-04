@@ -19,7 +19,8 @@
         },
         "meta": {},
         "stderr": "STRIPPED",
-        "stdout": "STRIPPED"
+        "stdout": "STRIPPED",
+        "timestamp": 1234567890
       }
     }
   ],
@@ -43,7 +44,8 @@
         },
         "meta": {},
         "stderr": "STRIPPED",
-        "stdout": "STRIPPED"
+        "stdout": "STRIPPED",
+        "timestamp": 1234567890
       }
     }
   ]

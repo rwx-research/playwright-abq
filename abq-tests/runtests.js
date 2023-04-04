@@ -46,6 +46,7 @@ function cleanResults(results) {
       result["result"]["runtime"]["Nanoseconds"] = "STRIPPED";
       result["result"]["stderr"] = "STRIPPED";
       result["result"]["stdout"] = "STRIPPED";
+      result["result"]["timestamp"] = 1234567890;
     }
   }
   return results;
