@@ -17,24 +17,35 @@
 import path from 'path';
 import { createGuid } from 'playwright-core/lib/utils';
 import type { SuitePrivate } from '../../types/reporterPrivate';
-import type { FullConfig, FullResult, Location, Reporter, TestError, TestResult, TestStep } from '../../types/testReporter';
+import type { FullConfig, FullResult, Location, TestError, TestResult, TestStep } from '../../types/testReporter';
 import { FullConfigInternal, FullProjectInternal } from '../common/config';
 import type { Suite, TestCase } from '../common/test';
-import type { JsonConfig, JsonEvent, JsonProject, JsonSuite, JsonTestCase, JsonTestEnd, JsonTestResultEnd, JsonTestResultStart, JsonTestStepEnd, JsonTestStepStart } from '../isomorphic/teleReceiver';
+import type { JsonAttachment, JsonConfig, JsonEvent, JsonProject, JsonStdIOType, JsonSuite, JsonTestCase, JsonTestEnd, JsonTestResultEnd, JsonTestResultStart, JsonTestStepEnd, JsonTestStepStart } from '../isomorphic/teleReceiver';
 import { serializeRegexPatterns } from '../isomorphic/teleReceiver';
+import type { ReporterV2 } from './reporterV2';
 
-export class TeleReporterEmitter implements Reporter {
+export class TeleReporterEmitter implements ReporterV2 {
   private _messageSink: (message: JsonEvent) => void;
   private _rootDir!: string;
+  private _skipBuffers: boolean;
 
-  constructor(messageSink: (message: JsonEvent) => void) {
+  constructor(messageSink: (message: JsonEvent) => void, skipBuffers: boolean) {
     this._messageSink = messageSink;
+    this._skipBuffers = skipBuffers;
   }
 
-  onBegin(config: FullConfig, suite: Suite) {
+  version(): 'v2' {
+    return 'v2';
+  }
+
+  onConfigure(config: FullConfig) {
     this._rootDir = config.rootDir;
+    this._messageSink({ method: 'onConfigure', params: { config: this._serializeConfig(config) } });
+  }
+
+  onBegin(suite: Suite) {
     const projects = suite.suites.map(projectSuite => this._serializeProject(projectSuite));
-    this._messageSink({ method: 'onBegin', params: { config: this._serializeConfig(config), projects } });
+    this._messageSink({ method: 'onBegin', params: { projects } });
   }
 
   onTestBegin(test: TestCase, result: TestResult): void {
@@ -94,15 +105,15 @@ export class TeleReporterEmitter implements Reporter {
     });
   }
 
-  onStdOut(chunk: string | Buffer, test: void | TestCase, result: void | TestResult): void {
-    this._onStdIO('stdio', chunk, test, result);
+  onStdOut(chunk: string | Buffer, test?: TestCase, result?: TestResult): void {
+    this._onStdIO('stdout', chunk, test, result);
   }
 
-  onStdErr(chunk: string | Buffer, test: void | TestCase, result: void | TestResult): void {
+  onStdErr(chunk: string | Buffer, test?: TestCase, result?: TestResult): void {
     this._onStdIO('stderr', chunk, test, result);
   }
 
-  private _onStdIO(type: 'stdio' | 'stderr', chunk: string | Buffer, test: void | TestCase, result: void | TestResult): void {
+  private _onStdIO(type: JsonStdIOType, chunk: string | Buffer, test: void | TestCase, result: void | TestResult): void {
     const isBase64 = typeof chunk !== 'string';
     const data = isBase64 ? chunk.toString('base64') : chunk;
     this._messageSink({
@@ -118,6 +129,10 @@ export class TeleReporterEmitter implements Reporter {
   async onExit() {
   }
 
+  printsToStdio() {
+    return false;
+  }
+
   private _serializeConfig(config: FullConfig): JsonConfig {
     return {
       configFile: this._relativePath(config.configFile),
@@ -127,8 +142,7 @@ export class TeleReporterEmitter implements Reporter {
       rootDir: config.rootDir,
       version: config.version,
       workers: config.workers,
-
-      listOnly: FullConfigInternal.from(config)?.cliListOnly,
+      listOnly: !!FullConfigInternal.from(config)?.cliListOnly,
     };
   }
 
@@ -199,8 +213,14 @@ export class TeleReporterEmitter implements Reporter {
     };
   }
 
-  _serializeAttachments(attachments: TestResult['attachments']): TestResult['attachments'] {
-    return attachments;
+  _serializeAttachments(attachments: TestResult['attachments']): JsonAttachment[] {
+    return attachments.map(a => {
+      return {
+        ...a,
+        // There is no Buffer in the browser, so there is no point in sending the data there.
+        base64: (a.body && !this._skipBuffers) ? a.body.toString('base64') : undefined,
+      };
+    });
   }
 
   private _serializeStepStart(step: TestStep): JsonTestStepStart {

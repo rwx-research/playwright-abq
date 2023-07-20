@@ -112,13 +112,17 @@ export async function runWatchModeLoop(config: FullConfigInternal): Promise<Full
     p.project.retries = 0;
 
   // Perform global setup.
-  const reporter = new InternalReporter([new ListReporter()]);
+  const reporter = new InternalReporter(new ListReporter());
   const testRun = new TestRun(config, reporter);
   const taskRunner = createTaskRunnerForWatchSetup(config, reporter);
-  reporter.onConfigure(config);
+  reporter.onConfigure(config.config);
   const { status, cleanup: globalCleanup } = await taskRunner.runDeferCleanup(testRun, 0);
   if (status !== 'passed')
-    return await globalCleanup();
+    await globalCleanup();
+  await reporter.onEnd({ status });
+  await reporter.onExit();
+  if (status !== 'passed')
+    return status;
 
   // Prepare projects that will be watched, set up watcher.
   const failedTestIdCollector = new Set<string>();
@@ -248,7 +252,8 @@ export async function runWatchModeLoop(config: FullConfigInternal): Promise<Full
     }
   }
 
-  return result === 'passed' ? await globalCleanup() : result;
+  const cleanupStatus = await globalCleanup();
+  return result === 'passed' ? cleanupStatus : result;
 }
 
 async function runChangedTests(config: FullConfigInternal, failedTestIdCollector: Set<string>, filesByProject: Map<FullProjectInternal, Set<string>>, title?: string) {
@@ -275,11 +280,11 @@ async function runTests(config: FullConfigInternal, failedTestIdCollector: Set<s
     title?: string,
   }) {
   printConfiguration(config, options?.title);
-  const reporter = new InternalReporter([new ListReporter()]);
+  const reporter = new InternalReporter(new ListReporter());
   const taskRunner = createTaskRunnerForWatch(config, reporter, options?.additionalFileMatcher);
   const testRun = new TestRun(config, reporter);
   clearCompilationCache();
-  reporter.onConfigure(config);
+  reporter.onConfigure(config.config);
   const taskStatus = await taskRunner.run(testRun, 0);
   let status: FullResult['status'] = 'passed';
 
@@ -297,7 +302,8 @@ async function runTests(config: FullConfigInternal, failedTestIdCollector: Set<s
     status = 'failed';
   if (status === 'passed' && taskStatus !== 'passed')
     status = taskStatus;
-  await reporter.onExit({ status });
+  await reporter.onEnd({ status });
+  await reporter.onExit();
 }
 
 function affectedProjectsClosure(projectClosure: FullProjectInternal[], affected: FullProjectInternal[]): Set<FullProjectInternal> {

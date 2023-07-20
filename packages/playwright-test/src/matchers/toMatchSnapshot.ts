@@ -17,13 +17,12 @@
 import type { Locator, Page } from 'playwright-core';
 import type { Page as PageEx } from 'playwright-core/lib/client/page';
 import type { Locator as LocatorEx } from 'playwright-core/lib/client/locator';
-import type { Expect } from '../../types/test';
 import { currentTestInfo, currentExpectTimeout } from '../common/globals';
 import type { ImageComparatorOptions, Comparator } from 'playwright-core/lib/utils';
 import { getComparator } from 'playwright-core/lib/utils';
 import type { PageScreenshotOptions } from 'playwright-core/types/types';
 import {
-  addSuffixToFilePath, serializeError, sanitizeForFilePath,
+  serializeError, sanitizeForFilePath,
   trimLongString, callLogText,
   expectTypes  } from '../util';
 import { colors } from 'playwright-core/lib/utilsBundle';
@@ -31,7 +30,7 @@ import fs from 'fs';
 import path from 'path';
 import { mime } from 'playwright-core/lib/utilsBundle';
 import type { TestInfoImpl } from '../worker/testInfo';
-import type { SyncExpectationResult } from './expect';
+import type { ExpectMatcherContext, SyncExpectationResult } from './expect';
 
 type NameOrSegments = string | string[];
 const snapshotNamesSymbol = Symbol('snapshotNames');
@@ -242,7 +241,7 @@ class SnapshotHelper<T extends ImageComparatorOptions> {
 }
 
 export function toMatchSnapshot(
-  this: ReturnType<Expect['getState']>,
+  this: ExpectMatcherContext,
   received: Buffer | string,
   nameOrOptions: NameOrSegments | { name?: NameOrSegments } & ImageComparatorOptions = {},
   optOptions: ImageComparatorOptions = {}
@@ -301,7 +300,7 @@ export function toHaveScreenshotStepTitle(
 }
 
 export async function toHaveScreenshot(
-  this: ReturnType<Expect['getState']>,
+  this: ExpectMatcherContext,
   pageOrLocator: Page | Locator,
   nameOrOptions: NameOrSegments | { name?: NameOrSegments } & HaveScreenshotOptions = {},
   optOptions: HaveScreenshotOptions = {}
@@ -440,4 +439,15 @@ function determineFileExtension(file: string | Buffer): string {
 
 function compareMagicBytes(file: Buffer, magicBytes: number[]): boolean {
   return Buffer.compare(Buffer.from(magicBytes), file.slice(0, magicBytes.length)) === 0;
+}
+
+function addSuffixToFilePath(filePath: string, suffix: string, customExtension?: string, sanitize = false): string {
+  const dirname = path.dirname(filePath);
+  const ext = path.extname(filePath);
+  const name = path.basename(filePath, ext);
+  const base = path.join(dirname, name);
+  const sanitizeForSnapshotFilePath = (s: string) => {
+    return s.replace(/[\x00-\x2C\x2E-\x2F\x3A-\x40\x5B-\x60\x7B-\x7F]+/g, '-');
+  };
+  return (sanitize ? sanitizeForSnapshotFilePath(base) : base) + suffix + (customExtension || ext);
 }

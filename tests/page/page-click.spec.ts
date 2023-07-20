@@ -976,6 +976,36 @@ it('should click in a transformed iframe', async ({ page }) => {
   expect(await page.evaluate('window._clicked')).toBe(true);
 });
 
+it('should click a button that is overlayed by a permission popup', async ({ page, server }) => {
+  it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/23280' });
+  await page.setViewportSize({ width: 500, height: 500 });
+  await page.goto(server.EMPTY_PAGE);
+  await page.setContent(`
+    <style>body, html { padding: 0; margin: 0; }</style>
+    <script type='text/javascript'>
+      window.addEventListener('DOMContentLoaded', () => {
+        // Viewport filled with buttons.
+        for (let i = 0; i < 100; ++i) {
+          const button = document.createElement('button');
+          button.textContent = i;
+          button.style.setProperty('width', '50px');
+          button.style.setProperty('height', '50px');
+          document.body.append(button);
+        }
+      }, false);
+    </script>
+  `);
+  // Issue a geolocation request. This should show a browser popup.
+  // NOTE: this is a bit racy since we can't wait for the geolocation
+  // popup to be shown.
+  await page.evaluate(() => {
+    navigator.geolocation.getCurrentPosition(position => { });
+  });
+  // If popup blocks the click, then some of the `page.click` calls below will hang.
+  for (let i = 0; i < 100; ++i)
+    await page.click(`text=${i}`);
+});
+
 it('should click in a transformed iframe with force', async ({ page }) => {
   await page.setContent(`
     <style>
@@ -1065,4 +1095,26 @@ it('ensure events are dispatched in the individual tasks', async ({ page, browse
     'timeout inner',
     'timeout outer',
   ]);
+});
+
+it('should click if opened select covers the button', async ({ page }) => {
+  it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/23618' });
+  await page.setContent(`
+    <div>
+      <select>
+        <option>very long text #1</option>
+        <option>very long text #2</option>
+        <option>very long text #3</option>
+        <option>very long text #4</option>
+        <option>very long text #5</option>
+        <option>very long text #6</option>
+      </select>
+    </div>
+    <div>
+      <button onclick="javascript:window.__CLICKED=42">clickme</button>
+    </div>
+  `);
+  await page.click('select');
+  await page.click('button');
+  expect(await page.evaluate('window.__CLICKED')).toBe(42);
 });

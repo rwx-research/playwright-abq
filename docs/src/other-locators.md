@@ -894,16 +894,18 @@ We recommend [chaining locators](./locators.md#chaining-locators) instead.
 Selectors defined as `engine=body` or in short-form can be combined with the `>>` token, e.g. `selector1 >> selector2 >> selectors3`. When selectors are chained, the next one is queried relative to the previous one's result.
 
 For example,
-```
+
+```txt
 css=article >> css=.bar > .baz >> css=span[attr=value]
 ```
+
 is equivalent to
 
 ```js browser
 document
-  .querySelector('article')
-  .querySelector('.bar > .baz')
-  .querySelector('span[attr=value]')
+    .querySelector('article')
+    .querySelector('.bar > .baz')
+    .querySelector('span[attr=value]');
 ```
 
 If a selector needs to include `>>` in the body, it should be escaped inside a string to not be confused with chaining separator, e.g. `text="some >> text"`.

@@ -4,6 +4,29 @@ title: "Release notes"
 toc_max_heading_level: 2
 ---
 
+## Version 1.35
+
+### Highlights
+
+* New option `mask_color` for methods [`method: Page.screenshot`] and [`method: Locator.screenshot`] to change default masking color.
+
+* New `uninstall` CLI command to uninstall browser binaries:
+  ```bash
+  $ playwright uninstall # remove browsers installed by this installation
+  $ playwright uninstall --all # remove all ever-install Playwright browsers
+  ```
+
+### Browser Versions
+
+* Chromium 115.0.5790.13
+* Mozilla Firefox 113.0
+* WebKit 16.4
+
+This version was also tested against the following stable channels:
+
+* Google Chrome 114
+* Microsoft Edge 114
+
 ## Version 1.34
 
 ### Highlights
@@ -37,24 +60,23 @@ This version was also tested against the following stable channels:
   Consider a scenario where you'd like to click on a "New email" button, but sometimes a security settings dialog shows up instead.
   In this case, you can wait for either a "New email" button, or a dialog and act accordingly:
 
-    ```python
-    new_email = page.get_by_role("button", name="New email")
-    dialog = page.get_by_text("Confirm security settings")
-    expect(new_email.or_(dialog)).is_visible()
-    if (dialog.is_visible())
-      page.get_by_role("button", name="Dismiss").click()
-    new_email.click()
-    ```
+  ```python
+  new_email = page.get_by_role("button", name="New email")
+  dialog = page.get_by_text("Confirm security settings")
+  expect(new_email.or_(dialog)).is_visible()
+  if (dialog.is_visible()):
+    page.get_by_role("button", name="Dismiss").click()
+  new_email.click()
+  ```
 * Use new options [`option: hasNot`] and [`option: hasNotText`] in [`method: Locator.filter`]
   to find elements that **do not match** certain conditions.
 
-    ```python
-    row_locator = page.locator("tr")
-    row_locator
-        .filter(has_not_text="text in column 1")
-        .filter(has_not=page.get_by_role("button", name="column 2 button"))
-        .screenshot()
-    ```
+  ```python
+  row_locator = page.locator("tr")
+  row_locator.filter(has_not_text="text in column 1").filter(
+      has_not=page.get_by_role("button", name="column 2 button")
+  ).screenshot()
+  ```
 * Use new web-first assertion [`method: LocatorAssertions.toBeAttached`] to ensure that the element
   is present in the page's DOM. Do not confuse with the [`method: LocatorAssertions.toBeVisible`] that ensures that
   element is both attached & visible.
@@ -278,7 +300,7 @@ All the same methods are also available on [Locator], [FrameLocator] and [Frame]
 
 - [`method: LocatorAssertions.toHaveAttribute`] with an empty value does not match missing attribute anymore. For example, the following snippet will succeed when `button` **does not** have a `disabled` attribute.
 
-   ```js
+   ```python
    expect(page.get_by_role("button")).to_have_attribute("disabled", "")
    ```
 

@@ -18,6 +18,9 @@ import fs from 'fs';
 import { progress as ProgressBar } from '../../utilsBundle';
 import { httpRequest } from '../../utils/network';
 import { ManualPromise } from '../../utils/manualPromise';
+import { extract } from '../../zipBundle';
+import { getUserAgent } from '../../utils/userAgent';
+import { browserDirectoryToMarkerFilePath } from '.';
 
 type OnProgressCallback = (downloadedBytes: number, totalBytes: number) => void;
 type DownloadFileLogger = (message: string) => void;
@@ -63,12 +66,20 @@ function downloadFile(url: string, destinationPath: string, options: DownloadFil
           .on('error', handleError);
       return;
     }
-    const file = fs.createWriteStream(destinationPath);
-    file.on('finish', () => promise.resolve());
-    file.on('error', error => promise.reject(error));
-    response.pipe(file);
     totalBytes = parseInt(response.headers['content-length'] || '0', 10);
     log(`-- total bytes: ${totalBytes}`);
+    const file = fs.createWriteStream(destinationPath);
+    file.on('finish', () => {
+      if (downloadedBytes !== totalBytes) {
+        log(`-- download failed, size mismatch: ${downloadedBytes} != ${totalBytes}`);
+        promise.reject(new Error(`Download failed: size mismatch, file size: ${downloadedBytes}, expected size: ${totalBytes} URL: ${url}`));
+      } else {
+        log(`-- download complete, size: ${downloadedBytes}`);
+        promise.resolve();
+      }
+    });
+    file.on('error', error => promise.reject(error));
+    response.pipe(file);
     response.on('data', onData);
   }, (error: any) => promise.reject(error));
   return promise;
@@ -132,13 +143,24 @@ function toMegabytes(bytes: number) {
 }
 
 async function main() {
-  const [url, destination, userAgent, downloadConnectionTimeout] = process.argv.slice(2);
-  await downloadFile(url, destination, {
+  const log = (message: string) => process.send?.({ method: 'log', params: { message } });
+  const [title, browserDirectory, url, zipPath, executablePath, downloadConnectionTimeout] = process.argv.slice(2);
+  await downloadFile(url, zipPath, {
     progressCallback: getDownloadProgress(),
-    userAgent,
-    log: message => process.send?.({ method: 'log', params: { message } }),
+    userAgent: getUserAgent(),
+    log,
     connectionTimeout: +downloadConnectionTimeout,
   });
+  log(`SUCCESS downloading ${title}`);
+  log(`extracting archive`);
+  log(`-- zip: ${zipPath}`);
+  log(`-- location: ${browserDirectory}`);
+  await extract(zipPath, { dir: browserDirectory });
+  if (executablePath) {
+    log(`fixing permissions at ${executablePath}`);
+    await fs.promises.chmod(executablePath, 0o755);
+  }
+  await fs.promises.writeFile(browserDirectoryToMarkerFilePath(browserDirectory), '');
 }
 
 main().catch(error => {

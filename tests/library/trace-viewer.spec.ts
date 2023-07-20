@@ -19,6 +19,7 @@ import { traceViewerFixtures } from '../config/traceViewerFixtures';
 import fs from 'fs';
 import path from 'path';
 import { expect, playwrightTest } from '../config/browserTest';
+import type { FrameLocator } from '@playwright/test';
 
 const test = playwrightTest.extend<TraceViewerFixtures>(traceViewerFixtures);
 
@@ -229,7 +230,8 @@ test('should have network request overrides', async ({ page, server, runAndTrace
   await traceViewer.selectAction('http://localhost');
   await traceViewer.showNetworkTab();
   await expect(traceViewer.networkRequests).toContainText([/200GET\/frame.htmltext\/html/]);
-  await expect(traceViewer.networkRequests).toContainText([/abort.*style.cssx-unknown/]);
+  await expect(traceViewer.networkRequests).toContainText([/aborted.*style.cssx-unknown/]);
+  await expect(traceViewer.networkRequests).not.toContainText([/continued/]);
 });
 
 test('should have network request overrides 2', async ({ page, server, runAndTrace }) => {
@@ -240,7 +242,7 @@ test('should have network request overrides 2', async ({ page, server, runAndTra
   await traceViewer.selectAction('http://localhost');
   await traceViewer.showNetworkTab();
   await expect(traceViewer.networkRequests).toContainText([/200GET\/frame.htmltext\/html/]);
-  await expect(traceViewer.networkRequests).toContainText([/continue.*script.jsapplication\/javascript/]);
+  await expect(traceViewer.networkRequests).toContainText([/continued.*script.jsapplication\/javascript/]);
 });
 
 test('should show snapshot URL', async ({ page, runAndTrace, server }) => {
@@ -558,39 +560,51 @@ test('should register custom elements', async ({ page, server, runAndTrace }) =>
 test('should highlight target elements', async ({ page, runAndTrace, browserName }) => {
   const traceViewer = await runAndTrace(async () => {
     await page.setContent(`
-      <div>hello</div>
-      <div>world</div>
+      <div>t1</div>
+      <div>t2</div>
+      <div>t3</div>
+      <div>t4</div>
+      <div>t5</div>
+      <div>t6</div>
+      <div>multi</div>
+      <div>multi</div>
     `);
-    await page.click('text=hello');
-    await page.innerText('text=hello');
-    const handle = await page.$('text=hello');
-    await handle.click();
-    await handle.innerText();
-    await page.locator('text=hello').innerText();
-    await expect(page.locator('text=hello')).toHaveText(/hello/i);
-    await expect(page.locator('div')).toHaveText(['a', 'b'], { timeout: 1000 }).catch(() => {});
+    await page.click('text=t1');
+    await page.innerText('text=t2');
+    await (await page.$('text=t3')).click();
+    await (await page.$('text=t4')).innerText();
+    await page.locator('text=t5').innerText();
+    await expect(page.locator('text=t6')).toHaveText(/t6/i);
+    await expect(page.locator('text=multi')).toHaveText(['a', 'b'], { timeout: 1000 }).catch(() => {});
   });
 
+  async function highlightedDivs(frameLocator: FrameLocator) {
+    return frameLocator.locator('div').evaluateAll(divs => {
+      // See snapshotRenderer.ts for the exact color.
+      return divs.filter(div => getComputedStyle(div).backgroundColor === 'rgba(111, 168, 220, 0.498)').map(div => div.textContent);
+    });
+  }
+
   const framePageClick = await traceViewer.snapshotFrame('page.click');
-  await expect(framePageClick.locator('[__playwright_target__]')).toHaveText(['hello']);
+  await expect.poll(() => highlightedDivs(framePageClick)).toEqual(['t1']);
 
   const framePageInnerText = await traceViewer.snapshotFrame('page.innerText');
-  await expect(framePageInnerText.locator('[__playwright_target__]')).toHaveText(['hello']);
+  await expect.poll(() => highlightedDivs(framePageInnerText)).toEqual(['t2']);
 
   const frameHandleClick = await traceViewer.snapshotFrame('elementHandle.click');
-  await expect(frameHandleClick.locator('[__playwright_target__]')).toHaveText(['hello']);
+  await expect.poll(() => highlightedDivs(frameHandleClick)).toEqual(['t3']);
 
   const frameHandleInnerText = await traceViewer.snapshotFrame('elementHandle.innerText');
-  await expect(frameHandleInnerText.locator('[__playwright_target__]')).toHaveText(['hello']);
+  await expect.poll(() => highlightedDivs(frameHandleInnerText)).toEqual(['t4']);
 
   const frameLocatorInnerText = await traceViewer.snapshotFrame('locator.innerText');
-  await expect(frameLocatorInnerText.locator('[__playwright_target__]')).toHaveText(['hello']);
+  await expect.poll(() => highlightedDivs(frameLocatorInnerText)).toEqual(['t5']);
 
   const frameExpect1 = await traceViewer.snapshotFrame('expect.toHaveText', 0);
-  await expect(frameExpect1.locator('[__playwright_target__]')).toHaveText(['hello']);
+  await expect.poll(() => highlightedDivs(frameExpect1)).toEqual(['t6']);
 
   const frameExpect2 = await traceViewer.snapshotFrame('expect.toHaveText', 1);
-  await expect(frameExpect2.locator('[__playwright_target__]')).toHaveText(['hello', 'world']);
+  await expect.poll(() => highlightedDivs(frameExpect2)).toEqual(['multi', 'multi']);
 });
 
 test('should show action source', async ({ showTraceViewer }) => {
@@ -835,4 +849,39 @@ test('should open trace-1.31', async ({ showTraceViewer }) => {
   const traceViewer = await showTraceViewer([path.join(__dirname, '../assets/trace-1.31.zip')]);
   const snapshot = await traceViewer.snapshotFrame('locator.click');
   await expect(snapshot.locator('[__playwright_target__]')).toHaveText(['Submit']);
+});
+
+test('should prefer later resource request', async ({ page, server, runAndTrace }) => {
+  const html = `
+    <body>
+      <script>
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'style.css';
+        document.head.appendChild(link);
+
+        if (!window.location.href.includes('reloaded'))
+          window.location.href = window.location.href + '?reloaded';
+      </script>
+    </body>
+  `;
+
+  let reloadStartedCallback = () => {};
+  const reloadStartedPromise = new Promise<void>(f => reloadStartedCallback = f);
+  server.setRoute('/style.css', async (req, res) => {
+    // Make sure reload happens before style arrives.
+    await reloadStartedPromise;
+    res.end('body { background-color: rgb(123, 123, 123) }');
+  });
+  server.setRoute('/index.html', (req, res) => res.end(html));
+  server.setRoute('/index.html?reloaded', (req, res) => {
+    reloadStartedCallback();
+    res.end(html);
+  });
+
+  const traceViewer = await runAndTrace(async () => {
+    await page.goto(server.PREFIX + '/index.html');
+  });
+  const frame = await traceViewer.snapshotFrame('page.goto');
+  await expect(frame.locator('body')).toHaveCSS('background-color', 'rgb(123, 123, 123)');
 });

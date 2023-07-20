@@ -51,7 +51,7 @@ await page.route('**/*', (route, request) => {
     foo: 'foo-value', // set "foo" header
     bar: undefined, // remove "bar" header
   };
-  route.continue({headers});
+  route.continue({ headers });
 });
 ```
 
@@ -70,7 +70,7 @@ async def handle(route, request):
     # override headers
     headers = {
         **request.headers,
-        "foo": "foo-value" # set "foo" header
+        "foo": "foo-value", # set "foo" header
         "bar": None # remove "bar" header
     }
     await route.continue_(headers=headers)
@@ -83,7 +83,7 @@ def handle(route, request):
     # override headers
     headers = {
         **request.headers,
-        "foo": "foo-value" # set "foo" header
+        "foo": "foo-value", # set "foo" header
         "bar": None # remove "bar" header
     }
     route.continue_(headers=headers)
@@ -337,7 +337,7 @@ await page.route('**/*', (route, request) => {
     foo: 'foo-value', // set "foo" header
     bar: undefined, // remove "bar" header
   };
-  route.fallback({headers});
+  route.fallback({ headers });
 });
 ```
 
@@ -356,7 +356,7 @@ async def handle(route, request):
     # override headers
     headers = {
         **request.headers,
-        "foo": "foo-value" # set "foo" header
+        "foo": "foo-value", # set "foo" header
         "bar": None # remove "bar" header
     }
     await route.fallback(headers=headers)
@@ -369,7 +369,7 @@ def handle(route, request):
     # override headers
     headers = {
         **request.headers,
-        "foo": "foo-value" # set "foo" header
+        "foo": "foo-value", # set "foo" header
         "bar": None # remove "bar" header
     }
     route.fallback(headers=headers)
@@ -591,8 +591,8 @@ await page.RouteAsync("**/*", route => route.FulfillAsync(new ()
 {
     Status = 404,
     ContentType = "text/plain",
-    Body = "Not Found!")
-});
+    Body = "Not Found!"
+}));
 ```
 
 An example of serving static file:

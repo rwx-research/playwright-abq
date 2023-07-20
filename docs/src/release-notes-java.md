@@ -12,6 +12,29 @@ toc_max_heading_level: 2
 
 import LiteYouTube from '@site/src/components/LiteYouTube';
 
+## Version 1.35
+
+### Highlights
+
+* New option `maskColor` for methods [`method: Page.screenshot`] and [`method: Locator.screenshot`] to change default masking color.
+
+* New `uninstall` CLI command to uninstall browser binaries:
+  ```bash
+  $ mvn exec:java -e -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="uninstall" # remove browsers installed by this installation
+  $ mvn exec:java -e -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="uninstall --all" # remove all ever-install Playwright browsers
+  ```
+
+### Browser Versions
+
+* Chromium 115.0.5790.13
+* Mozilla Firefox 113.0
+* WebKit 16.4
+
+This version was also tested against the following stable channels:
+
+* Google Chrome 114
+* Microsoft Edge 114
+
 ## Version 1.34
 
 ### Highlights
@@ -282,7 +305,7 @@ All the same methods are also available on [Locator], [FrameLocator] and [Frame]
 
 - [`method: LocatorAssertions.toHaveAttribute`] with an empty value does not match missing attribute anymore. For example, the following snippet will succeed when `button` **does not** have a `disabled` attribute.
 
-   ```js
+   ```java
    assertThat(page.getByRole(AriaRole.BUTTON)).hasAttribute("disabled", "");
    ```
 
@@ -317,7 +340,7 @@ This version was also tested against the following stable channels:
 A bunch of Playwright APIs already support the `setWaitUntil(WaitUntilState.DOMCONTENTLOADED)` option.
 For example:
 
-```js
+```java
 page.navigate("https://playwright.dev", new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
 ```
 

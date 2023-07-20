@@ -179,6 +179,7 @@ export type SerializedValue = {
   v?: 'null' | 'undefined' | 'NaN' | 'Infinity' | '-Infinity' | '-0',
   d?: string,
   u?: string,
+  bi?: string,
   r?: {
     p: string,
     f: string,
@@ -4014,6 +4015,7 @@ export type ElectronLaunchParams = {
   },
   strictSelectors?: boolean,
   timezoneId?: string,
+  tracesDir?: string,
 };
 export type ElectronLaunchOptions = {
   executablePath?: string,
@@ -4048,6 +4050,7 @@ export type ElectronLaunchOptions = {
   },
   strictSelectors?: boolean,
   timezoneId?: string,
+  tracesDir?: string,
 };
 export type ElectronLaunchResult = {
   electronApplication: ElectronApplicationChannel,

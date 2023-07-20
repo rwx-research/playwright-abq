@@ -1125,18 +1125,18 @@ context.route("/api/**", route -> {
 
 ```python async
 def handle_route(route):
-  if ("my-string" in route.request.post_data)
+  if ("my-string" in route.request.post_data):
     route.fulfill(body="mocked-data")
-  else
+  else:
     route.continue_()
 await context.route("/api/**", handle_route)
 ```
 
 ```python sync
 def handle_route(route):
-  if ("my-string" in route.request.post_data)
+  if ("my-string" in route.request.post_data):
     route.fulfill(body="mocked-data")
-  else
+  else:
     route.continue_()
 context.route("/api/**", handle_route)
 ```
@@ -1307,7 +1307,7 @@ Sets the context's geolocation. Passing `null` or `undefined` emulates position 
 **Usage**
 
 ```js
-await browserContext.setGeolocation({latitude: 59.95, longitude: 30.31667});
+await browserContext.setGeolocation({ latitude: 59.95, longitude: 30.31667 });
 ```
 
 ```java

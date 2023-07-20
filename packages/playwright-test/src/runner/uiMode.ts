@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { showTraceViewer } from 'playwright-core/lib/server';
+import { openTraceViewerApp, openTraceInBrowser } from 'playwright-core/lib/server';
 import { isUnderTest, ManualPromise } from 'playwright-core/lib/utils';
 import type { FullResult } from '../../reporter';
 import { clearCompilationCache, collectAffectedTestFiles, dependenciesForTestFile } from '../transform/compilationCache';
@@ -27,7 +27,8 @@ import { chokidar } from '../utilsBundle';
 import type { FSWatcher } from 'chokidar';
 import { open } from 'playwright-core/lib/utilsBundle';
 import ListReporter from '../reporters/list';
-import type { Transport } from 'playwright-core/lib/server/trace/viewer/traceViewer';
+import type { OpenTraceViewerOptions, Transport } from 'playwright-core/lib/server/trace/viewer/traceViewer';
+import { Multiplexer } from '../reporters/multiplexer';
 
 class UIMode {
   private _config: FullConfigInternal;
@@ -67,12 +68,13 @@ class UIMode {
   }
 
   async runGlobalSetup(): Promise<FullResult['status']> {
-    const reporter = new InternalReporter([new ListReporter()]);
+    const reporter = new InternalReporter(new ListReporter());
     const taskRunner = createTaskRunnerForWatchSetup(this._config, reporter);
-    reporter.onConfigure(this._config);
+    reporter.onConfigure(this._config.config);
     const testRun = new TestRun(this._config, reporter);
     const { status, cleanup: globalCleanup } = await taskRunner.runDeferCleanup(testRun, 0);
-    await reporter.onExit({ status });
+    await reporter.onEnd({ status });
+    await reporter.onExit();
     if (status !== 'passed') {
       await globalCleanup();
       return status;
@@ -82,7 +84,6 @@ class UIMode {
   }
 
   async showUI(options: { host?: string, port?: number }) {
-    const exitPromise = new ManualPromise();
     let queue = Promise.resolve();
 
     this._transport = {
@@ -90,10 +91,6 @@ class UIMode {
         if (method === 'ping')
           return;
 
-        if (method === 'exit') {
-          exitPromise.resolve();
-          return;
-        }
         if (method === 'watch') {
           this._watchFiles(params.fileNames);
           return;
@@ -117,16 +114,22 @@ class UIMode {
         await queue;
       },
 
-      onclose: () => exitPromise.resolve(),
+      onclose: () => { },
     };
-    await showTraceViewer([], 'chromium', {
+    const openOptions: OpenTraceViewerOptions = {
       app: 'uiMode.html',
       headless: isUnderTest() && process.env.PWTEST_HEADED_FOR_TEST !== '1',
       transport: this._transport,
       host: options.host,
       port: options.port,
-      openInBrowser: options.host !== undefined || options.port !== undefined,
-    });
+    };
+    const exitPromise = new ManualPromise<void>();
+    if (options.host !== undefined || options.port !== undefined) {
+      await openTraceInBrowser([], openOptions);
+    } else {
+      const page = await openTraceViewerApp([], 'chromium', openOptions);
+      page.on('close', () => exitPromise.resolve());
+    }
 
     if (!process.env.PWTEST_DEBUG) {
       process.stdout.write = (chunk: string | Buffer) => {
@@ -158,16 +161,16 @@ class UIMode {
   }
 
   private async _listTests() {
-    const listReporter = new TeleReporterEmitter(e => this._dispatchEvent(e.method, e.params));
-    const reporter = new InternalReporter([listReporter]);
+    const reporter = new InternalReporter(new TeleReporterEmitter(e => this._dispatchEvent(e.method, e.params), true));
     this._config.cliListOnly = true;
     this._config.testIdMatcher = undefined;
     const taskRunner = createTaskRunnerForList(this._config, reporter, 'out-of-process', { failOnLoadErrors: false });
     const testRun = new TestRun(this._config, reporter);
     clearCompilationCache();
-    reporter.onConfigure(this._config);
+    reporter.onConfigure(this._config.config);
     const status = await taskRunner.run(testRun, 0);
-    await reporter.onExit({ status });
+    await reporter.onEnd({ status });
+    await reporter.onExit();
 
     const projectDirs = new Set<string>();
     for (const p of this._config.projects)
@@ -183,15 +186,16 @@ class UIMode {
     this._config.testIdMatcher = id => !testIdSet || testIdSet.has(id);
 
     const reporters = await createReporters(this._config, 'ui');
-    reporters.push(new TeleReporterEmitter(e => this._dispatchEvent(e.method, e.params)));
-    const reporter = new InternalReporter(reporters);
+    reporters.push(new TeleReporterEmitter(e => this._dispatchEvent(e.method, e.params), true));
+    const reporter = new InternalReporter(new Multiplexer(reporters));
     const taskRunner = createTaskRunnerForWatch(this._config, reporter);
     const testRun = new TestRun(this._config, reporter);
     clearCompilationCache();
-    reporter.onConfigure(this._config);
+    reporter.onConfigure(this._config.config);
     const stop = new ManualPromise();
     const run = taskRunner.run(testRun, 0, stop).then(async status => {
-      await reporter.onExit({ status });
+      await reporter.onEnd({ status });
+      await reporter.onExit();
       this._testRun = undefined;
       this._config.testIdMatcher = undefined;
       return status;
