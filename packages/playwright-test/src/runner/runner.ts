@@ -24,6 +24,7 @@ import { TestRun, createTaskRunner, createTaskRunnerForList } from './tasks';
 import type { FullConfigInternal } from '../common/config';
 import { colors } from 'playwright-core/lib/utilsBundle';
 import { runWatchModeLoop } from './watchMode';
+import * as Abq from './abq';
 import { runUIMode } from './uiMode';
 
 export class Runner {
@@ -62,20 +63,28 @@ export class Runner {
 
   async runAllTests(): Promise<FullResult['status']> {
     const config = this._config;
-    const listOnly = config.cliListOnly;
+    const configuredListOnly = config.cliListOnly;
+    let effectiveListOnly = configuredListOnly;
+
+    const abqConnected = await Abq.connect();
+    if (abqConnected.enabled) {
+      if (abqConnected.fastExit) return 'passed';
+      if (abqConnected.shouldGenerateManifestThenExit) effectiveListOnly = true;
+    }
+
     const deadline = config.config.globalTimeout ? monotonicTime() + config.config.globalTimeout : 0;
 
     // Legacy webServer support.
     webServerPluginsForConfig(config).forEach(p => config.plugins.push({ factory: p }));
 
-    const reporter = await createReporter(config, listOnly ? 'list' : 'run');
-    const taskRunner = listOnly ? createTaskRunnerForList(config, reporter, 'in-process')
+    const reporter = await createReporter(config, configuredListOnly ? 'list' : 'run');
+    const taskRunner = effectiveListOnly ? createTaskRunnerForList(config, reporter, 'in-process')
       : createTaskRunner(config, reporter);
 
     const testRun = new TestRun(config, reporter);
     reporter.onConfigure(config);
 
-    if (!listOnly && config.ignoreSnapshots) {
+    if (!configuredListOnly && config.ignoreSnapshots) {
       reporter.onStdOut(colors.dim([
         'NOTE: running with "ignoreSnapshots" option. All of the following asserts are silently ignored:',
         '- expect().toMatchSnapshot()',

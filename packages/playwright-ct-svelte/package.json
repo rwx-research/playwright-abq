@@ -2,7 +2,7 @@
   "name": "@playwright/experimental-ct-svelte",
   "version": "1.33.0",
   "description": "Playwright Component Testing for Svelte",
-  "repository": "github:Microsoft/playwright",
+  "repository": "github:rwx-research/playwright",
   "homepage": "https://playwright.dev",
   "engines": {
     "node": ">=14"

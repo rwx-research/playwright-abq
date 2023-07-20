@@ -2,7 +2,7 @@
   "name": "playwright",
   "version": "1.33.0",
   "description": "A high-level API to automate web browsers",
-  "repository": "github:Microsoft/playwright",
+  "repository": "github:rwx-research/playwright",
   "homepage": "https://playwright.dev",
   "engines": {
     "node": ">=14"

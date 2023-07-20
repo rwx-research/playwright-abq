@@ -303,7 +303,9 @@ if (!process.env.PW_LANG_NAME) {
       paths: resolvePwTestPaths,
     })).version;
     const pwCoreVersion = require(path.join(__dirname, '../../package.json')).version;
-    if (pwTestVersion !== pwCoreVersion) {
+    // ABQ only releases the playwright-test package, so only check MAJOR.MINOR and ignore PATCH versions.
+    const majorMinorMatch = pwTestVersion.split('.').slice(0, 2).join('.') === pwCoreVersion.split('.').slice(0, 2).join('.');
+    if (!majorMinorMatch) {
       let hasPlaywrightPackage = false;
       try {
         require('playwright');

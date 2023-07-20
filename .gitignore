@@ -30,3 +30,6 @@ test-results
 /tests/installation/.registry.json
 .cache/
 .eslintcache
+.direnv
+playwright*.tgz
+/tmp/
