@@ -30,6 +30,7 @@ import type { FullConfigInternal, FullProjectInternal } from '../common/types';
 import { loadAllTests, loadGlobalHook } from './loadUtils';
 import { createFileMatcherFromArguments } from '../util';
 import type { Matcher } from '../util';
+import * as Abq from './abq';
 
 const removeFolderAsync = promisify(rimraf);
 const readDirAsync = promisify(fs.readdir);
@@ -96,6 +97,10 @@ export function createTaskRunnerForList(config: FullConfigInternal, reporter: Mu
   const taskRunner = new TaskRunner<TaskRunnerState>(reporter, config.globalTimeout);
   taskRunner.addTask('load tests', createLoadTask('in-process', false));
   taskRunner.addTask('report begin', async ({ reporter, rootSuite }) => {
+    if (Abq.shouldGenerateManifest()) {
+      Abq.sendManifest(rootSuite!);
+      return;
+    }
     reporter.onBegin?.(config, rootSuite!);
     return () => reporter.onEnd();
   });
@@ -164,6 +169,11 @@ function createLoadTask(mode: 'out-of-process' | 'in-process', shouldFilterOnly:
     // Fail when no tests.
     if (!context.rootSuite.allTests().length && !config._internal.passWithNoTests && !config.shard)
       throw new Error(`No tests found`);
+
+    const abqIncompatibilityErrors = Abq.checkForConfigurationIncompatibility(config, config._internal.cliProjectFilter ?? []);
+    if (abqIncompatibilityErrors.length) {
+      throw new Error(abqIncompatibilityErrors.join('\n'));
+    }
   };
 }
 
@@ -185,7 +195,8 @@ function createTestGroupsTask(): Task<TaskRunnerState> {
 
       const testGroupsInPhase = projects.reduce((acc, project) => acc + project.testGroups.length, 0);
       debug('pw:test:task')(`running phase with ${projects.map(p => p.project.name).sort()} projects, ${testGroupsInPhase} testGroups`);
-      context.phases.push({ dispatcher: new Dispatcher(config, reporter), projects });
+      const dispatcher = Abq.enabled() ? new Abq.AbqDispatcher(config, reporter) : new Dispatcher(config, reporter);
+      context.phases.push({ dispatcher, projects });
       context.config._internal.maxConcurrentTestGroups = Math.max(context.config._internal.maxConcurrentTestGroups, testGroupsInPhase);
     }
   };

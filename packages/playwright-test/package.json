@@ -33,6 +33,7 @@
   },
   "license": "Apache-2.0",
   "dependencies": {
+    "@rwx-research/abq": "^1.0.0",
     "@types/node": "*",
     "playwright-core": "1.31.0"
   },
