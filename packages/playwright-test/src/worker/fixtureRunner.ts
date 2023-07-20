@@ -15,11 +15,12 @@
  */
 
 import { formatLocation, debugTest } from '../util';
-import type { Location, WorkerInfo } from '../common/types';
 import { ManualPromise } from 'playwright-core/lib/utils';
 import type { TestInfoImpl } from './testInfo';
 import type { FixtureDescription, TimeoutManager } from './timeoutManager';
 import { fixtureParameterNames, type FixturePool, type FixtureRegistration, type FixtureScope } from '../common/fixtures';
+import type { WorkerInfo } from '../../types/test';
+import type { Location } from '../../types/testReporter';
 
 class Fixture {
   runner: FixtureRunner;
@@ -88,13 +89,23 @@ class Fixture {
     const workerInfo: WorkerInfo = { config: testInfo.config, parallelIndex: testInfo.parallelIndex, workerIndex: testInfo.workerIndex, project: testInfo.project };
     const info = this.registration.scope === 'worker' ? workerInfo : testInfo;
     testInfo._timeoutManager.setCurrentFixture(this._runnableDescription);
-    this._selfTeardownComplete = Promise.resolve().then(() => this.registration.fn(params, useFunc, info)).catch((e: any) => {
+
+    const handleError = (e: any) => {
       this.failed = true;
       if (!useFuncStarted.isDone())
         useFuncStarted.reject(e);
       else
         throw e;
-    });
+    };
+    try {
+      const result = this.registration.fn(params, useFunc, info);
+      if (result instanceof Promise)
+        this._selfTeardownComplete = result.catch(handleError);
+      else
+        this._selfTeardownComplete = Promise.resolve();
+    } catch (e) {
+      handleError(e);
+    }
     await useFuncStarted;
     testInfo._timeoutManager.setCurrentFixture(undefined);
   }

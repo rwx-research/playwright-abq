@@ -17,7 +17,6 @@
 
 import http from 'http';
 import https from 'https';
-import net from 'net';
 import { getProxyForUrl } from '../utilsBundle';
 import { HttpsProxyAgent } from '../utilsBundle';
 import * as URL from 'url';
@@ -25,14 +24,6 @@ import type { URLMatch } from '../common/types';
 import { isString, isRegExp } from './rtti';
 import { globToRegex } from './glob';
 import { httpHappyEyeballsAgent, httpsHappyEyeballsAgent } from './happy-eyeballs';
-
-export async function createSocket(host: string, port: number): Promise<net.Socket> {
-  return new Promise((resolve, reject) => {
-    const socket = net.createConnection({ host, port });
-    socket.on('connect', () => resolve(socket));
-    socket.on('error', error => reject(error));
-  });
-}
 
 export type HTTPRequestParams = {
   url: string,
@@ -80,7 +71,7 @@ export function httpRequest(params: HTTPRequestParams, onResponse: (r: http.Inco
   const requestCallback = (res: http.IncomingMessage) => {
     const statusCode = res.statusCode || 0;
     if (statusCode >= 300 && statusCode < 400 && res.headers.location)
-      httpRequest({ ...params, url: res.headers.location }, onResponse, onError);
+      httpRequest({ ...params, url: new URL.URL(res.headers.location, params.url).toString() }, onResponse, onError);
     else
       onResponse(res);
   };

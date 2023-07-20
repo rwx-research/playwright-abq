@@ -288,3 +288,9 @@ it('should emulate media in cross-process iframe', async ({ browser, server }) =
   expect(await frame.evaluate(() => matchMedia('(prefers-color-scheme: dark)').matches)).toBe(true);
   await page.close();
 });
+
+it('default user agent', async ({ launchPersistent, browser, page, mode }) => {
+  it.skip(mode !== 'default');
+  const { userAgent } = await (browser as any)._channel.defaultUserAgentForTest();
+  expect(await page.evaluate(() => navigator.userAgent)).toBe(userAgent);
+});

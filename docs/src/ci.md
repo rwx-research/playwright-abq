@@ -13,7 +13,7 @@ configurations for common CI providers.
 3 steps to get your tests running on CI:
 
 1. **Ensure CI agent can run browsers**: Use [our Docker image](./docker.md)
-   in Linux agents or install your dependencies using the [CLI](./cli.md#install-system-dependencies).
+   in Linux agents or install your dependencies using the [CLI](./browsers#install-system-dependencies).
 1. **Install Playwright**:
    ```bash js
    # Install NPM packages
@@ -51,7 +51,7 @@ configurations for common CI providers.
 
 ## CI configurations
 
-The [Command line tools](./cli.md#install-system-dependencies) can be used to install all operating system dependencies on GitHub Actions.
+The [Command line tools](./browsers#install-system-dependencies) can be used to install all operating system dependencies on GitHub Actions.
 
 ### GitHub Actions
 
@@ -176,7 +176,7 @@ jobs:
     name: 'Playwright Tests'
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright:v1.32.0-focal
+      image: mcr.microsoft.com/playwright:v1.33.0-jammy
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
@@ -194,7 +194,7 @@ jobs:
     name: 'Playwright Tests'
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright:v1.32.0-focal
+      image: mcr.microsoft.com/playwright:v1.33.0-jammy
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python
@@ -218,7 +218,7 @@ jobs:
     name: 'Playwright Tests'
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright:v1.32.0-focal
+      image: mcr.microsoft.com/playwright:v1.33.0-jammy
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-java@v3
@@ -239,7 +239,7 @@ jobs:
     name: 'Playwright Tests'
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright:v1.32.0-focal
+      image: mcr.microsoft.com/playwright:v1.33.0-jammy
     steps:
       - uses: actions/checkout@v3
       - name: Setup dotnet
@@ -264,7 +264,7 @@ jobs:
     name: 'Playwright Tests - ${{ matrix.project }} - Shard ${{ matrix.shardIndex }} of ${{ matrix.shardTotal }}'
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright:v1.32.0-focal
+      image: mcr.microsoft.com/playwright:v1.33.0-jammy
     strategy:
       fail-fast: false
       matrix:
@@ -291,7 +291,7 @@ For Windows or macOS agents, no additional configuration required, just install 
 For Linux agents, you can use [our Docker container](./docker.md) with Azure
 Pipelines support [running containerized
 jobs](https://docs.microsoft.com/en-us/azure/devops/pipelines/process/container-phases?view=azure-devops).
-Alternatively, you can use [Command line tools](./cli.md#install-system-dependencies) to install all necessary dependencies.
+Alternatively, you can use [Command line tools](./browsers#install-system-dependencies) to install all necessary dependencies.
 
 For running the Playwright tests use this pipeline task:
 ```yml
@@ -299,7 +299,7 @@ jobs:
     - deployment: Run_E2E_Tests
       pool:
         vmImage: ubuntu-20.04
-      container: mcr.microsoft.com/playwright:v1.32.0-focal
+      container: mcr.microsoft.com/playwright:v1.33.0-jammy
       environment: testing
       strategy:
         runOnce:
@@ -325,7 +325,7 @@ jobs:
     - deployment: Run_E2E_Tests
       pool:
         vmImage: ubuntu-20.04
-      container: mcr.microsoft.com/playwright:v1.32.0-focal
+      container: mcr.microsoft.com/playwright:v1.33.0-jammy
       environment: testing
       strategy:
         runOnce:
@@ -367,9 +367,9 @@ Running Playwright on CircleCI is very similar to running on GitHub Actions. In 
 
    ```yml
    executors:
-      pw-focal-development:
+      pw-jammy-development:
         docker:
-          - image: mcr.microsoft.com/playwright:v1.32.0-focal
+          - image: mcr.microsoft.com/playwright:v1.33.0-jammy
    ```
 
 Note: When using the docker agent definition, you are specifying the resource class of where playwright runs to the 'medium' tier [here](https://circleci.com/docs/configuration-reference?#docker-execution-environment). The default behavior of Playwright is to set the number of workers to the detected core count (2 in the case of the medium tier). Overriding the number of workers to greater than this number will cause unnecessary timeouts and failures.
@@ -390,7 +390,7 @@ Sharding in CircleCI is indexed with 0 which means that you will need to overrid
 
   ```yml
     playwright-job-name:
-      executor: pw-focal-development
+      executor: pw-jammy-development
       parallelism: 4
       steps:
         - run: SHARD="$((${CIRCLE_NODE_INDEX}+1))"; npx playwright test -- --shard=${SHARD}/${CIRCLE_NODE_TOTAL}      
@@ -403,7 +403,7 @@ to run tests on Jenkins.
 
 ```groovy
 pipeline {
-   agent { docker { image 'mcr.microsoft.com/playwright:v1.32.0-focal' } }
+   agent { docker { image 'mcr.microsoft.com/playwright:v1.33.0-jammy' } }
    stages {
       stage('e2e-tests') {
          steps {
@@ -421,7 +421,7 @@ pipeline {
 Bitbucket Pipelines can use public [Docker images as build environments](https://confluence.atlassian.com/bitbucket/use-docker-images-as-build-environments-792298897.html). To run Playwright tests on Bitbucket, use our public Docker image ([see Dockerfile](./docker.md)).
 
 ```yml
-image: mcr.microsoft.com/playwright:v1.32.0-focal
+image: mcr.microsoft.com/playwright:v1.33.0-jammy
 ```
 
 ### GitLab CI
@@ -434,7 +434,7 @@ stages:
 
 tests:
   stage: test
-  image: mcr.microsoft.com/playwright:v1.32.0-focal
+  image: mcr.microsoft.com/playwright:v1.33.0-jammy
   script:
   ...
 ```
@@ -450,7 +450,7 @@ stages:
 
 tests:
   stage: test
-  image: mcr.microsoft.com/playwright:v1.32.0-focal
+  image: mcr.microsoft.com/playwright:v1.33.0-jammy
   parallel: 7
   script:
     - npm ci
@@ -465,7 +465,7 @@ stages:
 
 tests:
   stage: test
-  image: mcr.microsoft.com/playwright:v1.32.0-focal
+  image: mcr.microsoft.com/playwright:v1.33.0-jammy
   parallel:
     matrix:
       - PROJECT: ['chromium', 'webkit']

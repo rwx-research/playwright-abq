@@ -21,7 +21,8 @@ import util from 'util';
 import path from 'path';
 import url from 'url';
 import { colors, debug, minimatch, parseStackTraceLine } from 'playwright-core/lib/utilsBundle';
-import type { TestInfoError, Location } from './common/types';
+import type { TestInfoError } from './../types/test';
+import type { Location } from './../types/testReporter';
 import { calculateSha1, isRegExp, isString } from 'playwright-core/lib/utils';
 import type { RawStack } from 'playwright-core/lib/utils';
 
@@ -150,10 +151,10 @@ export function createTitleMatcher(patterns: RegExp | RegExp[]): Matcher {
   };
 }
 
-export function mergeObjects<A extends object, B extends object>(a: A | undefined | void, b: B | undefined | void): A & B {
+export function mergeObjects<A extends object, B extends object, C extends object>(a: A | undefined | void, b: B | undefined | void, c: B | undefined | void): A & B & C {
   const result = { ...a } as any;
-  if (!Object.is(b, undefined)) {
-    for (const [name, value] of Object.entries(b as B)) {
+  for (const x of [b, c].filter(Boolean)) {
+    for (const [name, value] of Object.entries(x as any)) {
       if (!Object.is(value, undefined))
         result[name] = value;
     }
@@ -304,4 +305,16 @@ export function envWithoutExperimentalLoaderOptions(): NodeJS.ProcessEnv {
   if (result.NODE_OPTIONS)
     result.NODE_OPTIONS = result.NODE_OPTIONS.replace(substring, '').trim() || undefined;
   return result;
+}
+
+export function js2ts(resolved: string): string | undefined {
+  const match = resolved.match(/(.*)(\.js|\.jsx|\.mjs)$/);
+  if (!match || fs.existsSync(resolved))
+    return;
+  const tsResolved = match[1] + match[2].replace('js', 'ts');
+  if (fs.existsSync(tsResolved))
+    return tsResolved;
+  const tsxResolved = match[1] + match[2].replace('js', 'tsx');
+  if (fs.existsSync(tsxResolved))
+    return tsxResolved;
 }

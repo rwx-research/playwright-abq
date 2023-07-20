@@ -400,6 +400,29 @@ it('should work with internal:has=', async ({ page, server }) => {
   expect(error4.message).toContain('Unexpected token "!" while parsing selector "span!"');
 });
 
+it('should work with internal:has-not=', async ({ page }) => {
+  await page.setContent(`<section><span></span><div></div></section><section><br></section>`);
+  expect(await page.$$eval(`section >> internal:has-not="span"`, els => els.length)).toBe(1);
+  expect(await page.$$eval(`section >> internal:has-not="span, div, br"`, els => els.length)).toBe(0);
+  expect(await page.$$eval(`section >> internal:has-not="br"`, els => els.length)).toBe(1);
+  expect(await page.$$eval(`section >> internal:has-not="span, div"`, els => els.length)).toBe(1);
+  expect(await page.$$eval(`section >> internal:has-not="article"`, els => els.length)).toBe(2);
+});
+
+it('should work with internal:or=', async ({ page, server }) => {
+  await page.setContent(`
+    <div>hello</div>
+    <span>world</span>
+  `);
+  expect(await page.$$eval(`div >> internal:or="span"`, els => els.map(e => e.textContent))).toEqual(['hello', 'world']);
+  expect(await page.$$eval(`span >> internal:or="div"`, els => els.map(e => e.textContent))).toEqual(['hello', 'world']);
+  expect(await page.$$eval(`article >> internal:or="something"`, els => els.length)).toBe(0);
+  expect(await page.locator(`article >> internal:or="div"`).textContent()).toBe('hello');
+  expect(await page.locator(`article >> internal:or="span"`).textContent()).toBe('world');
+  expect(await page.locator(`div >> internal:or="article"`).textContent()).toBe('hello');
+  expect(await page.locator(`span >> internal:or="article"`).textContent()).toBe('world');
+});
+
 it('chaining should work with large DOM @smoke', async ({ page, server }) => {
   await page.evaluate(() => {
     let last = document.body;

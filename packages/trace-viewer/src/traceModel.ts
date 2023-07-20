@@ -22,14 +22,26 @@ import type zip from '@zip.js/zip.js';
 import zipImport from '@zip.js/zip.js/dist/zip-no-worker-inflate.min.js';
 import type { ContextEntry, PageEntry } from './entries';
 import { createEmptyContext } from './entries';
-import { BaseSnapshotStorage } from './snapshotStorage';
+import { SnapshotStorage } from './snapshotStorage';
 
 const zipjs = zipImport as typeof zip;
+
+type Progress = (done: number, total: number) => void;
+
+const splitProgress = (progress: Progress, weights: number[]): Progress[] => {
+  const doneList = new Array(weights.length).fill(0);
+  return new Array(weights.length).fill(0).map((_, i) => {
+    return (done: number, total: number) => {
+      doneList[i] = done / total * weights[i] * 1000;
+      progress(doneList.reduce((a, b) => a + b, 0), 1000);
+    };
+  });
+};
 
 export class TraceModel {
   contextEntries: ContextEntry[] = [];
   pageEntries = new Map<string, PageEntry>();
-  private _snapshotStorage: BaseSnapshotStorage | undefined;
+  private _snapshotStorage: SnapshotStorage | undefined;
   private _version: number | undefined;
   private _backend!: TraceModelBackend;
 
@@ -38,12 +50,14 @@ export class TraceModel {
 
   async load(traceURL: string, progress: (done: number, total: number) => void) {
     const isLive = traceURL.endsWith('json');
-    this._backend = isLive ? new FetchTraceModelBackend(traceURL) : new ZipTraceModelBackend(traceURL, progress);
+    // Allow 10% to hop from sw to page.
+    const [fetchProgress, unzipProgress] = splitProgress(progress, [0.5, 0.4, 0.1]);
+    this._backend = isLive ? new FetchTraceModelBackend(traceURL) : new ZipTraceModelBackend(traceURL, fetchProgress);
 
     const ordinals: string[] = [];
     let hasSource = false;
     for (const entryName of await this._backend.entryNames()) {
-      const match = entryName.match(/(.+-)?trace\.trace/);
+      const match = entryName.match(/(.+)\.trace/);
       if (match)
         ordinals.push(match[1] || '');
       if (entryName.includes('src@'))
@@ -52,21 +66,26 @@ export class TraceModel {
     if (!ordinals.length)
       throw new Error('Cannot find .trace file');
 
-    this._snapshotStorage = new PersistentSnapshotStorage(this._backend);
+    this._snapshotStorage = new SnapshotStorage();
 
+    // 3 * ordinals progress increments below.
+    const total = ordinals.length * 3;
+    let done = 0;
     for (const ordinal of ordinals) {
       const contextEntry = createEmptyContext();
       const actionMap = new Map<string, trace.ActionTraceEvent>();
       contextEntry.traceUrl = traceURL;
       contextEntry.hasSource = hasSource;
 
-      const trace = await this._backend.readText(ordinal + 'trace.trace') || '';
+      const trace = await this._backend.readText(ordinal + '.trace') || '';
       for (const line of trace.split('\n'))
         this.appendEvent(contextEntry, actionMap, line);
+      unzipProgress(++done, total);
 
-      const network = await this._backend.readText(ordinal + 'trace.network') || '';
+      const network = await this._backend.readText(ordinal + '.network') || '';
       for (const line of network.split('\n'))
         this.appendEvent(contextEntry, actionMap, line);
+      unzipProgress(++done, total);
 
       contextEntry.actions = [...actionMap.values()].sort((a1, a2) => a1.startTime - a2.startTime);
       if (!isLive) {
@@ -76,12 +95,13 @@ export class TraceModel {
         }
       }
 
-      const stacks = await this._backend.readText(ordinal + 'trace.stacks');
+      const stacks = await this._backend.readText(ordinal + '.stacks');
       if (stacks) {
         const callMetadata = parseClientSideCallMetadata(JSON.parse(stacks));
         for (const action of contextEntry.actions)
           action.stack = action.stack || callMetadata.get(action.callId);
       }
+      unzipProgress(++done, total);
 
       this.contextEntries.push(contextEntry);
     }
@@ -95,7 +115,7 @@ export class TraceModel {
     return this._backend.readBlob('resources/' + sha1);
   }
 
-  storage(): BaseSnapshotStorage {
+  storage(): SnapshotStorage {
     return this._snapshotStorage!;
   }
 
@@ -279,9 +299,9 @@ export class TraceModel {
       params: metadata.params,
       wallTime: metadata.wallTime || Date.now(),
       log: metadata.log,
-      beforeSnapshot: metadata.snapshots.find(s => s.snapshotName === 'before')?.snapshotName,
-      inputSnapshot: metadata.snapshots.find(s => s.snapshotName === 'input')?.snapshotName,
-      afterSnapshot: metadata.snapshots.find(s => s.snapshotName === 'after')?.snapshotName,
+      beforeSnapshot: metadata.snapshots.find(s => s.title === 'before')?.snapshotName,
+      inputSnapshot: metadata.snapshots.find(s => s.title === 'input')?.snapshotName,
+      afterSnapshot: metadata.snapshots.find(s => s.title === 'after')?.snapshotName,
       error: metadata.error?.error,
       result: metadata.result,
       point: metadata.point,
@@ -384,19 +404,6 @@ class FetchTraceModelBackend implements TraceModelBackend {
     if (!fileName)
       return;
     return fetch('/trace/file?path=' + encodeURI(fileName));
-  }
-}
-
-export class PersistentSnapshotStorage extends BaseSnapshotStorage {
-  private _backend: TraceModelBackend;
-
-  constructor(backend: TraceModelBackend) {
-    super();
-    this._backend = backend;
-  }
-
-  async resourceContent(sha1: string): Promise<Blob | undefined> {
-    return this._backend.readBlob('resources/' + sha1);
   }
 }
 

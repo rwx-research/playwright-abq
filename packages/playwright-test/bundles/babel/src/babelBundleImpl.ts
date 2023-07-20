@@ -26,15 +26,26 @@ export { parse } from '@babel/parser';
 import traverseFunction from '@babel/traverse';
 export const traverse = traverseFunction;
 
-export function babelTransform(filename: string, isTypeScript: boolean, isModule: boolean, scriptPreprocessor: string | undefined, additionalPlugin: babel.PluginObj): BabelFileResult {
+
+let additionalPlugins: [string, any?][] = [];
+
+export function setBabelPlugins(plugins: [string, any?][]) {
+  additionalPlugins = plugins;
+}
+
+export function babelTransform(filename: string, isTypeScript: boolean, isModule: boolean, scriptPreprocessor: string | undefined): BabelFileResult {
   const plugins = [];
 
   if (isTypeScript) {
     plugins.push(
+        [require('@babel/plugin-proposal-decorators'), { version: '2022-03' }],
+        [require('@babel/plugin-proposal-class-properties')],
+        [require('@babel/plugin-proposal-class-static-block')],
         [require('@babel/plugin-proposal-numeric-separator')],
         [require('@babel/plugin-proposal-logical-assignment-operators')],
         [require('@babel/plugin-proposal-nullish-coalescing-operator')],
         [require('@babel/plugin-proposal-optional-chaining')],
+        [require('@babel/plugin-proposal-private-methods')],
         [require('@babel/plugin-syntax-json-strings')],
         [require('@babel/plugin-syntax-optional-catch-binding')],
         [require('@babel/plugin-syntax-async-generators')],
@@ -54,10 +65,7 @@ export function babelTransform(filename: string, isTypeScript: boolean, isModule
               }
             }
           })
-        ],
-        [require('@babel/plugin-transform-typescript'), { onlyRemoveTypeImports: false, allowDeclareFields: true, isTSX: true }],
-        [require('@babel/plugin-proposal-class-properties')],
-        [require('@babel/plugin-proposal-private-methods')],
+        ]
     );
   }
 
@@ -71,7 +79,7 @@ export function babelTransform(filename: string, isTypeScript: boolean, isModule
     plugins.push([require('@babel/plugin-syntax-import-assertions')]);
   }
 
-  plugins.unshift(additionalPlugin);
+  plugins.unshift(...additionalPlugins.map(([name, options]) => [require(name), options]));
 
   if (scriptPreprocessor)
     plugins.push([scriptPreprocessor]);
@@ -84,7 +92,9 @@ export function babelTransform(filename: string, isTypeScript: boolean, isModule
       // breaks playwright evaluates.
       setPublicClassFields: true,
     },
-    presets: [],
+    presets: [
+      [require('@babel/preset-typescript'), { onlyRemoveTypeImports: false }],
+    ],
     plugins,
     sourceMaps: 'both',
   } as babel.TransformOptions)!;

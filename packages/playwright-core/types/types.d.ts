@@ -611,6 +611,10 @@ export interface Page {
   waitForFunction<R>(pageFunction: PageFunction<void, R>, arg?: any, options?: PageWaitForFunctionOptions): Promise<SmartHandle<R>>;
 
   /**
+   * **NOTE** Use web assertions that assert visibility or a locator-based
+   * [locator.waitFor([options])](https://playwright.dev/docs/api/class-locator#locator-wait-for) instead. Read more
+   * about [locators](https://playwright.dev/docs/locators).
+   *
    * Returns when element specified by selector satisfies `state` option. Returns `null` if waiting for `hidden` or
    * `detached`.
    *
@@ -645,6 +649,10 @@ export interface Page {
    */
   waitForSelector<K extends keyof HTMLElementTagNameMap>(selector: K, options?: PageWaitForSelectorOptionsNotHidden): Promise<ElementHandleForTag<K>>;
   /**
+   * **NOTE** Use web assertions that assert visibility or a locator-based
+   * [locator.waitFor([options])](https://playwright.dev/docs/api/class-locator#locator-wait-for) instead. Read more
+   * about [locators](https://playwright.dev/docs/locators).
+   *
    * Returns when element specified by selector satisfies `state` option. Returns `null` if waiting for `hidden` or
    * `detached`.
    *
@@ -679,6 +687,10 @@ export interface Page {
    */
   waitForSelector(selector: string, options?: PageWaitForSelectorOptionsNotHidden): Promise<ElementHandle<SVGElement | HTMLElement>>;
   /**
+   * **NOTE** Use web assertions that assert visibility or a locator-based
+   * [locator.waitFor([options])](https://playwright.dev/docs/api/class-locator#locator-wait-for) instead. Read more
+   * about [locators](https://playwright.dev/docs/locators).
+   *
    * Returns when element specified by selector satisfies `state` option. Returns `null` if waiting for `hidden` or
    * `detached`.
    *
@@ -713,6 +725,10 @@ export interface Page {
    */
   waitForSelector<K extends keyof HTMLElementTagNameMap>(selector: K, options: PageWaitForSelectorOptions): Promise<ElementHandleForTag<K> | null>;
   /**
+   * **NOTE** Use web assertions that assert visibility or a locator-based
+   * [locator.waitFor([options])](https://playwright.dev/docs/api/class-locator#locator-wait-for) instead. Read more
+   * about [locators](https://playwright.dev/docs/locators).
+   *
    * Returns when element specified by selector satisfies `state` option. Returns `null` if waiting for `hidden` or
    * `detached`.
    *
@@ -2785,8 +2801,8 @@ export interface Page {
      * When to consider operation succeeded, defaults to `load`. Events can be either:
      * - `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
      * - `'load'` - consider operation to be finished when the `load` event is fired.
-     * - `'networkidle'` - consider operation to be finished when there are no network connections for at least `500`
-     *   ms.
+     * - `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for
+     *   at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
      * - `'commit'` - consider operation to be finished when network response is received and the document started
      *   loading.
      */
@@ -2815,8 +2831,8 @@ export interface Page {
      * When to consider operation succeeded, defaults to `load`. Events can be either:
      * - `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
      * - `'load'` - consider operation to be finished when the `load` event is fired.
-     * - `'networkidle'` - consider operation to be finished when there are no network connections for at least `500`
-     *   ms.
+     * - `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for
+     *   at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
      * - `'commit'` - consider operation to be finished when network response is received and the document started
      *   loading.
      */
@@ -2869,8 +2885,8 @@ export interface Page {
      * When to consider operation succeeded, defaults to `load`. Events can be either:
      * - `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
      * - `'load'` - consider operation to be finished when the `load` event is fired.
-     * - `'networkidle'` - consider operation to be finished when there are no network connections for at least `500`
-     *   ms.
+     * - `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for
+     *   at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
      * - `'commit'` - consider operation to be finished when network response is received and the document started
      *   loading.
      */
@@ -3202,6 +3218,20 @@ export interface Page {
     has?: Locator;
 
     /**
+     * Matches elements that do not contain an element that matches an inner locator. Inner locator is queried against the
+     * outer one. For example, `article` that does not have `div` matches `<article><span>Playwright</span></article>`.
+     *
+     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain [FrameLocator]s.
+     */
+    hasNot?: Locator;
+
+    /**
+     * Matches elements that do not contain specified text somewhere inside, possibly in a child or a descendant element.
+     * When passed a [string], matching is case-insensitive and searches for a substring.
+     */
+    hasNotText?: string|RegExp;
+
+    /**
      * Matches elements containing specified text somewhere inside, possibly in a child or a descendant element. When
      * passed a [string], matching is case-insensitive and searches for a substring. For example, `"Playwright"` matches
      * `<article><div>Playwright</div></article>`.
@@ -3473,8 +3503,8 @@ export interface Page {
      * When to consider operation succeeded, defaults to `load`. Events can be either:
      * - `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
      * - `'load'` - consider operation to be finished when the `load` event is fired.
-     * - `'networkidle'` - consider operation to be finished when there are no network connections for at least `500`
-     *   ms.
+     * - `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for
+     *   at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
      * - `'commit'` - consider operation to be finished when network response is received and the document started
      *   loading.
      */
@@ -3782,8 +3812,8 @@ export interface Page {
      * When to consider operation succeeded, defaults to `load`. Events can be either:
      * - `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
      * - `'load'` - consider operation to be finished when the `load` event is fired.
-     * - `'networkidle'` - consider operation to be finished when there are no network connections for at least `500`
-     *   ms.
+     * - `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for
+     *   at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
      * - `'commit'` - consider operation to be finished when network response is received and the document started
      *   loading.
      */
@@ -4413,7 +4443,8 @@ export interface Page {
    * document, the method resolves immediately. Can be one of:
    * - `'load'` - wait for the `load` event to be fired.
    * - `'domcontentloaded'` - wait for the `DOMContentLoaded` event to be fired.
-   * - `'networkidle'` - wait until there are no network connections for at least `500` ms.
+   * - `'networkidle'` - **DISCOURAGED** wait until there are no network connections for at least `500` ms. Don't use
+   * this method for testing, rely on web assertions to assess readiness instead.
    * @param options
    */
   waitForLoadState(state?: "load"|"domcontentloaded"|"networkidle", options?: {
@@ -4474,8 +4505,8 @@ export interface Page {
      * When to consider operation succeeded, defaults to `load`. Events can be either:
      * - `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
      * - `'load'` - consider operation to be finished when the `load` event is fired.
-     * - `'networkidle'` - consider operation to be finished when there are no network connections for at least `500`
-     *   ms.
+     * - `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for
+     *   at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
      * - `'commit'` - consider operation to be finished when network response is received and the document started
      *   loading.
      */
@@ -4546,6 +4577,9 @@ export interface Page {
   }): Promise<Response>;
 
   /**
+   * **NOTE** Never wait for timeout in production. Tests that wait for time are inherently flaky. Use [Locator] actions and web
+   * assertions that wait automatically.
+   *
    * Waits for the given `timeout` in milliseconds.
    *
    * Note that `page.waitForTimeout()` should only be used for debugging. Tests using the timer in production are going
@@ -4592,8 +4626,8 @@ export interface Page {
      * When to consider operation succeeded, defaults to `load`. Events can be either:
      * - `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
      * - `'load'` - consider operation to be finished when the `load` event is fired.
-     * - `'networkidle'` - consider operation to be finished when there are no network connections for at least `500`
-     *   ms.
+     * - `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for
+     *   at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
      * - `'commit'` - consider operation to be finished when network response is received and the document started
      *   loading.
      */
@@ -5190,6 +5224,10 @@ export interface Frame {
   waitForFunction<R>(pageFunction: PageFunction<void, R>, arg?: any, options?: PageWaitForFunctionOptions): Promise<SmartHandle<R>>;
 
   /**
+   * **NOTE** Use web assertions that assert visibility or a locator-based
+   * [locator.waitFor([options])](https://playwright.dev/docs/api/class-locator#locator-wait-for) instead. Read more
+   * about [locators](https://playwright.dev/docs/locators).
+   *
    * Returns when element specified by selector satisfies `state` option. Returns `null` if waiting for `hidden` or
    * `detached`.
    *
@@ -5224,6 +5262,10 @@ export interface Frame {
    */
   waitForSelector<K extends keyof HTMLElementTagNameMap>(selector: K, options?: PageWaitForSelectorOptionsNotHidden): Promise<ElementHandleForTag<K>>;
   /**
+   * **NOTE** Use web assertions that assert visibility or a locator-based
+   * [locator.waitFor([options])](https://playwright.dev/docs/api/class-locator#locator-wait-for) instead. Read more
+   * about [locators](https://playwright.dev/docs/locators).
+   *
    * Returns when element specified by selector satisfies `state` option. Returns `null` if waiting for `hidden` or
    * `detached`.
    *
@@ -5258,6 +5300,10 @@ export interface Frame {
    */
   waitForSelector(selector: string, options?: PageWaitForSelectorOptionsNotHidden): Promise<ElementHandle<SVGElement | HTMLElement>>;
   /**
+   * **NOTE** Use web assertions that assert visibility or a locator-based
+   * [locator.waitFor([options])](https://playwright.dev/docs/api/class-locator#locator-wait-for) instead. Read more
+   * about [locators](https://playwright.dev/docs/locators).
+   *
    * Returns when element specified by selector satisfies `state` option. Returns `null` if waiting for `hidden` or
    * `detached`.
    *
@@ -5292,6 +5338,10 @@ export interface Frame {
    */
   waitForSelector<K extends keyof HTMLElementTagNameMap>(selector: K, options: PageWaitForSelectorOptions): Promise<ElementHandleForTag<K> | null>;
   /**
+   * **NOTE** Use web assertions that assert visibility or a locator-based
+   * [locator.waitFor([options])](https://playwright.dev/docs/api/class-locator#locator-wait-for) instead. Read more
+   * about [locators](https://playwright.dev/docs/locators).
+   *
    * Returns when element specified by selector satisfies `state` option. Returns `null` if waiting for `hidden` or
    * `detached`.
    *
@@ -6228,8 +6278,8 @@ export interface Frame {
      * When to consider operation succeeded, defaults to `load`. Events can be either:
      * - `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
      * - `'load'` - consider operation to be finished when the `load` event is fired.
-     * - `'networkidle'` - consider operation to be finished when there are no network connections for at least `500`
-     *   ms.
+     * - `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for
+     *   at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
      * - `'commit'` - consider operation to be finished when network response is received and the document started
      *   loading.
      */
@@ -6560,6 +6610,20 @@ export interface Frame {
     has?: Locator;
 
     /**
+     * Matches elements that do not contain an element that matches an inner locator. Inner locator is queried against the
+     * outer one. For example, `article` that does not have `div` matches `<article><span>Playwright</span></article>`.
+     *
+     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain [FrameLocator]s.
+     */
+    hasNot?: Locator;
+
+    /**
+     * Matches elements that do not contain specified text somewhere inside, possibly in a child or a descendant element.
+     * When passed a [string], matching is case-insensitive and searches for a substring.
+     */
+    hasNotText?: string|RegExp;
+
+    /**
      * Matches elements containing specified text somewhere inside, possibly in a child or a descendant element. When
      * passed a [string], matching is case-insensitive and searches for a substring. For example, `"Playwright"` matches
      * `<article><div>Playwright</div></article>`.
@@ -6823,8 +6887,8 @@ export interface Frame {
      * When to consider operation succeeded, defaults to `load`. Events can be either:
      * - `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
      * - `'load'` - consider operation to be finished when the `load` event is fired.
-     * - `'networkidle'` - consider operation to be finished when there are no network connections for at least `500`
-     *   ms.
+     * - `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for
+     *   at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
      * - `'commit'` - consider operation to be finished when network response is received and the document started
      *   loading.
      */
@@ -7143,7 +7207,8 @@ export interface Frame {
    * document, the method resolves immediately. Can be one of:
    * - `'load'` - wait for the `load` event to be fired.
    * - `'domcontentloaded'` - wait for the `DOMContentLoaded` event to be fired.
-   * - `'networkidle'` - wait until there are no network connections for at least `500` ms.
+   * - `'networkidle'` - **DISCOURAGED** wait until there are no network connections for at least `500` ms. Don't use
+   * this method for testing, rely on web assertions to assess readiness instead.
    * @param options
    */
   waitForLoadState(state?: "load"|"domcontentloaded"|"networkidle", options?: {
@@ -7203,8 +7268,8 @@ export interface Frame {
      * When to consider operation succeeded, defaults to `load`. Events can be either:
      * - `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
      * - `'load'` - consider operation to be finished when the `load` event is fired.
-     * - `'networkidle'` - consider operation to be finished when there are no network connections for at least `500`
-     *   ms.
+     * - `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for
+     *   at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
      * - `'commit'` - consider operation to be finished when network response is received and the document started
      *   loading.
      */
@@ -7250,8 +7315,8 @@ export interface Frame {
      * When to consider operation succeeded, defaults to `load`. Events can be either:
      * - `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
      * - `'load'` - consider operation to be finished when the `load` event is fired.
-     * - `'networkidle'` - consider operation to be finished when there are no network connections for at least `500`
-     *   ms.
+     * - `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for
+     *   at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
      * - `'commit'` - consider operation to be finished when network response is received and the document started
      *   loading.
      */
@@ -10138,10 +10203,11 @@ export interface Locator {
   /**
    * When locator points to a list of elements, returns array of locators, pointing to respective elements.
    *
-   * Note that [locator.all()](https://playwright.dev/docs/api/class-locator#locator-all) does not wait for elements to
-   * match the locator, and instead immediately returns whatever is present in the page. To avoid flakiness when
-   * elements are loaded dynamically, wait for the loading to finish before calling
-   * [locator.all()](https://playwright.dev/docs/api/class-locator#locator-all).
+   * **NOTE** [locator.all()](https://playwright.dev/docs/api/class-locator#locator-all) does not wait for elements to
+   * match the locator, and instead immediately returns whatever is present in the page.  When the list of elements
+   * changes dynamically, [locator.all()](https://playwright.dev/docs/api/class-locator#locator-all) will produce
+   * unpredictable and flaky results.  When the list of elements is stable, but loaded dynamically, wait for the full
+   * list to finish loading before calling [locator.all()](https://playwright.dev/docs/api/class-locator#locator-all).
    *
    * **Usage**
    *
@@ -10776,6 +10842,20 @@ export interface Locator {
      * Note that outer and inner locators must belong to the same frame. Inner locator must not contain [FrameLocator]s.
      */
     has?: Locator;
+
+    /**
+     * Matches elements that do not contain an element that matches an inner locator. Inner locator is queried against the
+     * outer one. For example, `article` that does not have `div` matches `<article><span>Playwright</span></article>`.
+     *
+     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain [FrameLocator]s.
+     */
+    hasNot?: Locator;
+
+    /**
+     * Matches elements that do not contain specified text somewhere inside, possibly in a child or a descendant element.
+     * When passed a [string], matching is case-insensitive and searches for a substring.
+     */
+    hasNotText?: string|RegExp;
 
     /**
      * Matches elements containing specified text somewhere inside, possibly in a child or a descendant element. When
@@ -11426,6 +11506,20 @@ export interface Locator {
     has?: Locator;
 
     /**
+     * Matches elements that do not contain an element that matches an inner locator. Inner locator is queried against the
+     * outer one. For example, `article` that does not have `div` matches `<article><span>Playwright</span></article>`.
+     *
+     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain [FrameLocator]s.
+     */
+    hasNot?: Locator;
+
+    /**
+     * Matches elements that do not contain specified text somewhere inside, possibly in a child or a descendant element.
+     * When passed a [string], matching is case-insensitive and searches for a substring.
+     */
+    hasNotText?: string|RegExp;
+
+    /**
      * Matches elements containing specified text somewhere inside, possibly in a child or a descendant element. When
      * passed a [string], matching is case-insensitive and searches for a substring. For example, `"Playwright"` matches
      * `<article><div>Playwright</div></article>`.
@@ -11445,6 +11539,27 @@ export interface Locator {
    * @param index
    */
   nth(index: number): Locator;
+
+  /**
+   * Creates a locator that matches either of the two locators.
+   *
+   * **Usage**
+   *
+   * Consider a scenario where you'd like to click on a "New email" button, but sometimes a security settings dialog
+   * shows up instead. In this case, you can wait for either a "New email" button, or a dialog and act accordingly.
+   *
+   * ```js
+   * const newEmail = page.getByRole('button', { name: 'New' });
+   * const dialog = page.getByText('Confirm security settings');
+   * await expect(newEmail.or(dialog)).toBeVisible();
+   * if (await dialog.isVisible())
+   *   await page.getByRole('button', { name: 'Dismiss' }).click();
+   * await newEmail.click();
+   * ```
+   *
+   * @param locator Alternative locator to match.
+   */
+  or(locator: Locator): Locator;
 
   /**
    * A page this locator belongs to.
@@ -12236,7 +12351,8 @@ export interface BrowserType<Unused = {}> {
     colorScheme?: null|"light"|"dark"|"no-preference";
 
     /**
-     * Specify device scale factor (can be thought of as dpr). Defaults to `1`.
+     * Specify device scale factor (can be thought of as dpr). Defaults to `1`. Learn more about
+     * [emulating devices with device scale factor](https://playwright.dev/docs/emulation#devices).
      */
     deviceScaleFactor?: number;
 
@@ -12310,7 +12426,8 @@ export interface BrowserType<Unused = {}> {
     handleSIGTERM?: boolean;
 
     /**
-     * Specifies if viewport supports touch events. Defaults to false.
+     * Specifies if viewport supports touch events. Defaults to false. Learn more about
+     * [mobile emulation](https://playwright.dev/docs/emulation#devices).
      */
     hasTouch?: boolean;
 
@@ -12323,12 +12440,18 @@ export interface BrowserType<Unused = {}> {
     headless?: boolean;
 
     /**
-     * Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication).
+     * Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication). If no
+     * origin is specified, the username and password are sent to any servers upon unauthorized responses.
      */
     httpCredentials?: {
       username: string;
 
       password: string;
+
+      /**
+       * Restrain sending http credentials on specific origin (scheme://host:port).
+       */
+      origin?: string;
     };
 
     /**
@@ -12343,19 +12466,22 @@ export interface BrowserType<Unused = {}> {
     ignoreHTTPSErrors?: boolean;
 
     /**
-     * Whether the `meta viewport` tag is taken into account and touch events are enabled. Defaults to `false`. Not
-     * supported in Firefox.
+     * Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device,
+     * so you don't actually need to set it manually. Defaults to `false` and is not supported in Firefox. Learn more
+     * about [mobile emulation](https://playwright.dev/docs/emulation#isMobile).
      */
     isMobile?: boolean;
 
     /**
-     * Whether or not to enable JavaScript in the context. Defaults to `true`.
+     * Whether or not to enable JavaScript in the context. Defaults to `true`. Learn more about
+     * [disabling JavaScript](https://playwright.dev/docs/emulation#javascript-enabled).
      */
     javaScriptEnabled?: boolean;
 
     /**
      * Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value,
-     * `Accept-Language` request header value as well as number and date formatting rules.
+     * `Accept-Language` request header value as well as number and date formatting rules. Learn more about emulation in
+     * our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
      */
     locale?: string;
 
@@ -12365,7 +12491,8 @@ export interface BrowserType<Unused = {}> {
     logger?: Logger;
 
     /**
-     * Whether to emulate network being offline. Defaults to `false`.
+     * Whether to emulate network being offline. Defaults to `false`. Learn more about
+     * [network emulation](https://playwright.dev/docs/emulation#offline).
      */
     offline?: boolean;
 
@@ -12562,8 +12689,8 @@ export interface BrowserType<Unused = {}> {
     videosPath?: string;
 
     /**
-     * Emulates consistent viewport for each page. Defaults to an 1280x720 viewport. Use `null` to disable the consistent
-     * viewport emulation.
+     * Emulates consistent viewport for each page. Defaults to an 1280x720 viewport.  Use `null` to disable the consistent
+     * viewport emulation. Learn more about [viewport emulation](https://playwright.dev/docs/emulation#viewport).
      *
      * **NOTE** The `null` value opts out from the default presets, makes viewport depend on the host window size defined
      * by the operating system. It makes the execution of the tests non-deterministic.
@@ -13139,8 +13266,16 @@ export interface ElectronApplication {
    *   // ...
    * ```
    *
+   * @param options
    */
-  firstWindow(): Promise<Page>;
+  firstWindow(options?: {
+    /**
+     * Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The
+     * default value can be changed by using the
+     * [browserContext.setDefaultTimeout(timeout)](https://playwright.dev/docs/api/class-browsercontext#browser-context-set-default-timeout).
+     */
+    timeout?: number;
+  }): Promise<Page>;
 
   /**
    * Returns the main process for this Electron Application.
@@ -13677,7 +13812,8 @@ export interface AndroidDevice {
     command?: string;
 
     /**
-     * Specify device scale factor (can be thought of as dpr). Defaults to `1`.
+     * Specify device scale factor (can be thought of as dpr). Defaults to `1`. Learn more about
+     * [emulating devices with device scale factor](https://playwright.dev/docs/emulation#devices).
      */
     deviceScaleFactor?: number;
 
@@ -13711,17 +13847,24 @@ export interface AndroidDevice {
     };
 
     /**
-     * Specifies if viewport supports touch events. Defaults to false.
+     * Specifies if viewport supports touch events. Defaults to false. Learn more about
+     * [mobile emulation](https://playwright.dev/docs/emulation#devices).
      */
     hasTouch?: boolean;
 
     /**
-     * Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication).
+     * Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication). If no
+     * origin is specified, the username and password are sent to any servers upon unauthorized responses.
      */
     httpCredentials?: {
       username: string;
 
       password: string;
+
+      /**
+       * Restrain sending http credentials on specific origin (scheme://host:port).
+       */
+      origin?: string;
     };
 
     /**
@@ -13730,19 +13873,22 @@ export interface AndroidDevice {
     ignoreHTTPSErrors?: boolean;
 
     /**
-     * Whether the `meta viewport` tag is taken into account and touch events are enabled. Defaults to `false`. Not
-     * supported in Firefox.
+     * Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device,
+     * so you don't actually need to set it manually. Defaults to `false` and is not supported in Firefox. Learn more
+     * about [mobile emulation](https://playwright.dev/docs/emulation#isMobile).
      */
     isMobile?: boolean;
 
     /**
-     * Whether or not to enable JavaScript in the context. Defaults to `true`.
+     * Whether or not to enable JavaScript in the context. Defaults to `true`. Learn more about
+     * [disabling JavaScript](https://playwright.dev/docs/emulation#javascript-enabled).
      */
     javaScriptEnabled?: boolean;
 
     /**
      * Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value,
-     * `Accept-Language` request header value as well as number and date formatting rules.
+     * `Accept-Language` request header value as well as number and date formatting rules. Learn more about emulation in
+     * our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
      */
     locale?: string;
 
@@ -13752,7 +13898,8 @@ export interface AndroidDevice {
     logger?: Logger;
 
     /**
-     * Whether to emulate network being offline. Defaults to `false`.
+     * Whether to emulate network being offline. Defaults to `false`. Learn more about
+     * [network emulation](https://playwright.dev/docs/emulation#offline).
      */
     offline?: boolean;
 
@@ -13932,8 +14079,8 @@ export interface AndroidDevice {
     videosPath?: string;
 
     /**
-     * Emulates consistent viewport for each page. Defaults to an 1280x720 viewport. Use `null` to disable the consistent
-     * viewport emulation.
+     * Emulates consistent viewport for each page. Defaults to an 1280x720 viewport.  Use `null` to disable the consistent
+     * viewport emulation. Learn more about [viewport emulation](https://playwright.dev/docs/emulation#viewport).
      *
      * **NOTE** The `null` value opts out from the default presets, makes viewport depend on the host window size defined
      * by the operating system. It makes the execution of the tests non-deterministic.
@@ -14426,12 +14573,18 @@ export interface APIRequest {
     extraHTTPHeaders?: { [key: string]: string; };
 
     /**
-     * Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication).
+     * Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication). If no
+     * origin is specified, the username and password are sent to any servers upon unauthorized responses.
      */
     httpCredentials?: {
       username: string;
 
       password: string;
+
+      /**
+       * Restrain sending http credentials on specific origin (scheme://host:port).
+       */
+      origin?: string;
     };
 
     /**
@@ -15534,7 +15687,8 @@ export interface Browser extends EventEmitter {
     colorScheme?: null|"light"|"dark"|"no-preference";
 
     /**
-     * Specify device scale factor (can be thought of as dpr). Defaults to `1`.
+     * Specify device scale factor (can be thought of as dpr). Defaults to `1`. Learn more about
+     * [emulating devices with device scale factor](https://playwright.dev/docs/emulation#devices).
      */
     deviceScaleFactor?: number;
 
@@ -15568,17 +15722,24 @@ export interface Browser extends EventEmitter {
     };
 
     /**
-     * Specifies if viewport supports touch events. Defaults to false.
+     * Specifies if viewport supports touch events. Defaults to false. Learn more about
+     * [mobile emulation](https://playwright.dev/docs/emulation#devices).
      */
     hasTouch?: boolean;
 
     /**
-     * Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication).
+     * Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication). If no
+     * origin is specified, the username and password are sent to any servers upon unauthorized responses.
      */
     httpCredentials?: {
       username: string;
 
       password: string;
+
+      /**
+       * Restrain sending http credentials on specific origin (scheme://host:port).
+       */
+      origin?: string;
     };
 
     /**
@@ -15587,19 +15748,22 @@ export interface Browser extends EventEmitter {
     ignoreHTTPSErrors?: boolean;
 
     /**
-     * Whether the `meta viewport` tag is taken into account and touch events are enabled. Defaults to `false`. Not
-     * supported in Firefox.
+     * Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device,
+     * so you don't actually need to set it manually. Defaults to `false` and is not supported in Firefox. Learn more
+     * about [mobile emulation](https://playwright.dev/docs/emulation#isMobile).
      */
     isMobile?: boolean;
 
     /**
-     * Whether or not to enable JavaScript in the context. Defaults to `true`.
+     * Whether or not to enable JavaScript in the context. Defaults to `true`. Learn more about
+     * [disabling JavaScript](https://playwright.dev/docs/emulation#javascript-enabled).
      */
     javaScriptEnabled?: boolean;
 
     /**
      * Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value,
-     * `Accept-Language` request header value as well as number and date formatting rules.
+     * `Accept-Language` request header value as well as number and date formatting rules. Learn more about emulation in
+     * our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
      */
     locale?: string;
 
@@ -15609,7 +15773,8 @@ export interface Browser extends EventEmitter {
     logger?: Logger;
 
     /**
-     * Whether to emulate network being offline. Defaults to `false`.
+     * Whether to emulate network being offline. Defaults to `false`. Learn more about
+     * [network emulation](https://playwright.dev/docs/emulation#offline).
      */
     offline?: boolean;
 
@@ -15753,6 +15918,8 @@ export interface Browser extends EventEmitter {
     serviceWorkers?: "allow"|"block";
 
     /**
+     * Learn more about [storage state and auth](https://playwright.dev/docs/auth).
+     *
      * Populates context with given storage state. This option can be used to initialize context with logged-in
      * information obtained via
      * [browserContext.storageState([options])](https://playwright.dev/docs/api/class-browsercontext#browser-context-storage-state).
@@ -15847,8 +16014,8 @@ export interface Browser extends EventEmitter {
     videosPath?: string;
 
     /**
-     * Emulates consistent viewport for each page. Defaults to an 1280x720 viewport. Use `null` to disable the consistent
-     * viewport emulation.
+     * Emulates consistent viewport for each page. Defaults to an 1280x720 viewport.  Use `null` to disable the consistent
+     * viewport emulation. Learn more about [viewport emulation](https://playwright.dev/docs/emulation#viewport).
      *
      * **NOTE** The `null` value opts out from the default presets, makes viewport depend on the host window size defined
      * by the operating system. It makes the execution of the tests non-deterministic.
@@ -16000,8 +16167,8 @@ export interface BrowserServer {
  * const msg = await msgPromise;
  *
  * // Deconstruct console log arguments
- * await msg.args[0].jsonValue() // hello
- * await msg.args[1].jsonValue() // 42
+ * await msg.args()[0].jsonValue() // hello
+ * await msg.args()[1].jsonValue() // 42
  * ```
  *
  */
@@ -16434,12 +16601,18 @@ export interface Electron {
     };
 
     /**
-     * Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication).
+     * Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication). If no
+     * origin is specified, the username and password are sent to any servers upon unauthorized responses.
      */
     httpCredentials?: {
       username: string;
 
       password: string;
+
+      /**
+       * Restrain sending http credentials on specific origin (scheme://host:port).
+       */
+      origin?: string;
     };
 
     /**
@@ -16449,12 +16622,14 @@ export interface Electron {
 
     /**
      * Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value,
-     * `Accept-Language` request header value as well as number and date formatting rules.
+     * `Accept-Language` request header value as well as number and date formatting rules. Learn more about emulation in
+     * our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
      */
     locale?: string;
 
     /**
-     * Whether to emulate network being offline. Defaults to `false`.
+     * Whether to emulate network being offline. Defaults to `false`. Learn more about
+     * [network emulation](https://playwright.dev/docs/emulation#offline).
      */
     offline?: boolean;
 
@@ -17004,6 +17179,20 @@ export interface FrameLocator {
      * Note that outer and inner locators must belong to the same frame. Inner locator must not contain [FrameLocator]s.
      */
     has?: Locator;
+
+    /**
+     * Matches elements that do not contain an element that matches an inner locator. Inner locator is queried against the
+     * outer one. For example, `article` that does not have `div` matches `<article><span>Playwright</span></article>`.
+     *
+     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain [FrameLocator]s.
+     */
+    hasNot?: Locator;
+
+    /**
+     * Matches elements that do not contain specified text somewhere inside, possibly in a child or a descendant element.
+     * When passed a [string], matching is case-insensitive and searches for a substring.
+     */
+    hasNotText?: string|RegExp;
 
     /**
      * Matches elements containing specified text somewhere inside, possibly in a child or a descendant element. When
@@ -17635,8 +17824,8 @@ export interface Request {
     requestStart: number;
 
     /**
-     * Time immediately after the browser starts requesting the resource from the server, cache, or local resource. The
-     * value is given in milliseconds relative to `startTime`, -1 if not available.
+     * Time immediately after the browser receives the first byte of the response from the server, cache, or local
+     * resource. The value is given in milliseconds relative to `startTime`, -1 if not available.
      */
     responseStart: number;
 
@@ -18019,6 +18208,11 @@ export interface Route {
     postData?: string|Buffer|Serializable;
 
     /**
+     * Request timeout in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout.
+     */
+    timeout?: number;
+
+    /**
      * If set changes the request URL. New URL must have same protocol as original one.
      */
     url?: string;
@@ -18381,7 +18575,7 @@ export interface WebSocket {
   /**
    * Fired when the websocket has an error.
    */
-  on(event: 'socketerror', listener: (string: String) => void): this;
+  on(event: 'socketerror', listener: (string: string) => void): this;
 
   /**
    * Adds an event listener that will be automatically removed after it is triggered once. See `addListener` for more information about this event.
@@ -18411,7 +18605,7 @@ export interface WebSocket {
   /**
    * Adds an event listener that will be automatically removed after it is triggered once. See `addListener` for more information about this event.
    */
-  once(event: 'socketerror', listener: (string: String) => void): this;
+  once(event: 'socketerror', listener: (string: string) => void): this;
 
   /**
    * Fired when the websocket closes.
@@ -18441,7 +18635,7 @@ export interface WebSocket {
   /**
    * Fired when the websocket has an error.
    */
-  addListener(event: 'socketerror', listener: (string: String) => void): this;
+  addListener(event: 'socketerror', listener: (string: string) => void): this;
 
   /**
    * Removes an event listener added by `on` or `addListener`.
@@ -18471,7 +18665,7 @@ export interface WebSocket {
   /**
    * Removes an event listener added by `on` or `addListener`.
    */
-  removeListener(event: 'socketerror', listener: (string: String) => void): this;
+  removeListener(event: 'socketerror', listener: (string: string) => void): this;
 
   /**
    * Removes an event listener added by `on` or `addListener`.
@@ -18501,7 +18695,7 @@ export interface WebSocket {
   /**
    * Removes an event listener added by `on` or `addListener`.
    */
-  off(event: 'socketerror', listener: (string: String) => void): this;
+  off(event: 'socketerror', listener: (string: string) => void): this;
 
   /**
    * Fired when the websocket closes.
@@ -18531,7 +18725,7 @@ export interface WebSocket {
   /**
    * Fired when the websocket has an error.
    */
-  prependListener(event: 'socketerror', listener: (string: String) => void): this;
+  prependListener(event: 'socketerror', listener: (string: string) => void): this;
 
   /**
    * Indicates that the web socket has been closed.
@@ -18591,7 +18785,7 @@ export interface WebSocket {
   /**
    * Fired when the websocket has an error.
    */
-  waitForEvent(event: 'socketerror', optionsOrPredicate?: { predicate?: (string: String) => boolean | Promise<boolean>, timeout?: number } | ((string: String) => boolean | Promise<boolean>)): Promise<String>;
+  waitForEvent(event: 'socketerror', optionsOrPredicate?: { predicate?: (string: string) => boolean | Promise<boolean>, timeout?: number } | ((string: string) => boolean | Promise<boolean>)): Promise<string>;
 
 }
 
@@ -18632,7 +18826,8 @@ export interface BrowserContextOptions {
   colorScheme?: null|"light"|"dark"|"no-preference";
 
   /**
-   * Specify device scale factor (can be thought of as dpr). Defaults to `1`.
+   * Specify device scale factor (can be thought of as dpr). Defaults to `1`. Learn more about
+   * [emulating devices with device scale factor](https://playwright.dev/docs/emulation#devices).
    */
   deviceScaleFactor?: number;
 
@@ -18651,12 +18846,14 @@ export interface BrowserContextOptions {
   geolocation?: Geolocation;
 
   /**
-   * Specifies if viewport supports touch events. Defaults to false.
+   * Specifies if viewport supports touch events. Defaults to false. Learn more about
+   * [mobile emulation](https://playwright.dev/docs/emulation#devices).
    */
   hasTouch?: boolean;
 
   /**
-   * Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication).
+   * Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication). If no
+   * origin is specified, the username and password are sent to any servers upon unauthorized responses.
    */
   httpCredentials?: HTTPCredentials;
 
@@ -18666,19 +18863,22 @@ export interface BrowserContextOptions {
   ignoreHTTPSErrors?: boolean;
 
   /**
-   * Whether the `meta viewport` tag is taken into account and touch events are enabled. Defaults to `false`. Not
-   * supported in Firefox.
+   * Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device,
+   * so you don't actually need to set it manually. Defaults to `false` and is not supported in Firefox. Learn more
+   * about [mobile emulation](https://playwright.dev/docs/emulation#isMobile).
    */
   isMobile?: boolean;
 
   /**
-   * Whether or not to enable JavaScript in the context. Defaults to `true`.
+   * Whether or not to enable JavaScript in the context. Defaults to `true`. Learn more about
+   * [disabling JavaScript](https://playwright.dev/docs/emulation#javascript-enabled).
    */
   javaScriptEnabled?: boolean;
 
   /**
    * Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value,
-   * `Accept-Language` request header value as well as number and date formatting rules.
+   * `Accept-Language` request header value as well as number and date formatting rules. Learn more about emulation in
+   * our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
    */
   locale?: string;
 
@@ -18688,7 +18888,8 @@ export interface BrowserContextOptions {
   logger?: Logger;
 
   /**
-   * Whether to emulate network being offline. Defaults to `false`.
+   * Whether to emulate network being offline. Defaults to `false`. Learn more about
+   * [network emulation](https://playwright.dev/docs/emulation#offline).
    */
   offline?: boolean;
 
@@ -18832,6 +19033,8 @@ export interface BrowserContextOptions {
   serviceWorkers?: "allow"|"block";
 
   /**
+   * Learn more about [storage state and auth](https://playwright.dev/docs/auth).
+   *
    * Populates context with given storage state. This option can be used to initialize context with logged-in
    * information obtained via
    * [browserContext.storageState([options])](https://playwright.dev/docs/api/class-browsercontext#browser-context-storage-state).
@@ -18926,8 +19129,8 @@ export interface BrowserContextOptions {
   videosPath?: string;
 
   /**
-   * Emulates consistent viewport for each page. Defaults to an 1280x720 viewport. Use `null` to disable the consistent
-   * viewport emulation.
+   * Emulates consistent viewport for each page. Defaults to an 1280x720 viewport.  Use `null` to disable the consistent
+   * viewport emulation. Learn more about [viewport emulation](https://playwright.dev/docs/emulation#viewport).
    *
    * **NOTE** The `null` value opts out from the default presets, makes viewport depend on the host window size defined
    * by the operating system. It makes the execution of the tests non-deterministic.
@@ -18951,6 +19154,11 @@ export interface HTTPCredentials {
   username: string;
 
   password: string;
+
+  /**
+   * Restrain sending http credentials on specific origin (scheme://host:port).
+   */
+  origin?: string;
 }
 
 export interface Geolocation {

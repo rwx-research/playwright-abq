@@ -22,7 +22,7 @@ import type {
   Suite,
   TestError,
 } from "../../../types/testReporter";
-import { FullConfigInternal, FullProjectInternal } from "../../common/types";
+import { FullConfigInternal, FullProjectInternal } from "../../common/config";
 import * as manifest from "./manifest";
 import { spawnedMessage } from "./version";
 import * as Abq from "@rwx-research/abq";
@@ -58,7 +58,7 @@ export function checkForConfigurationIncompatibility(
 ): TestError[] {
   if (!abqConfig.enabled) return [];
 
-  applyAbqConfiguration(config);
+  applyAbqConfiguration(config.config);
 
   const fatalErrors: TestError[] = [];
 
@@ -66,7 +66,9 @@ export function checkForConfigurationIncompatibility(
   if (config.projects.length === 1) {
     projectConfig = config.projects[0];
   } else if (projectFilter.length === 1) {
-    projectConfig = config.projects.find((pc) => pc.name === projectFilter[0]);
+    projectConfig = config.projects.find(
+      (pc) => pc.project.name === projectFilter[0]
+    );
 
     if (!projectConfig) {
       fatalErrors.push(
@@ -86,8 +88,8 @@ export function checkForConfigurationIncompatibility(
   }
 
   if (
-    !config.fullyParallel ||
-    (projectConfig && !projectConfig._internal.fullyParallel)
+    !config.config.fullyParallel ||
+    (projectConfig && !projectConfig.fullyParallel)
   )
     fatalErrors.push(
       createStacklessError("ABQ only supports fullyParallel = true")

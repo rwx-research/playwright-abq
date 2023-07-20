@@ -21,6 +21,7 @@ import {
   pollAgainstTimeout } from 'playwright-core/lib/utils';
 import type { ExpectZone } from 'playwright-core/lib/utils';
 import {
+  toBeAttached,
   toBeChecked,
   toBeDisabled,
   toBeEditable,
@@ -45,8 +46,8 @@ import {
   toHaveValues,
   toPass
 } from './matchers';
-import { toMatchSnapshot, toHaveScreenshot } from './toMatchSnapshot';
-import type { Expect } from '../common/types';
+import { toMatchSnapshot, toHaveScreenshot, toHaveScreenshotStepTitle } from './toMatchSnapshot';
+import type { Expect } from '../../types/test';
 import { currentTestInfo, currentExpectTimeout } from '../common/globals';
 import { filteredStackTrace, serializeError, stringifyStackFrames, trimLongString } from '../util';
 import {
@@ -129,7 +130,9 @@ expect.poll = (actual: unknown, messageOrOptions: ExpectMessageOrOptions) => {
 };
 
 expectLibrary.setState({ expand: false });
-const customMatchers = {
+
+const customAsyncMatchers = {
+  toBeAttached,
   toBeChecked,
   toBeDisabled,
   toBeEditable,
@@ -152,9 +155,13 @@ const customMatchers = {
   toHaveURL,
   toHaveValue,
   toHaveValues,
-  toMatchSnapshot,
   toHaveScreenshot,
   toPass,
+};
+
+const customMatchers = {
+  ...customAsyncMatchers,
+  toMatchSnapshot,
 };
 
 type Generator = () => any;
@@ -196,7 +203,7 @@ class ExpectMetaInfoProxyHandler implements ProxyHandler<any> {
       return new Proxy(matcher, this);
     }
     if (this._info.isPoll) {
-      if ((customMatchers as any)[matcherName] || matcherName === 'resolves' || matcherName === 'rejects')
+      if ((customAsyncMatchers as any)[matcherName] || matcherName === 'resolves' || matcherName === 'rejects')
         throw new Error(`\`expect.poll()\` does not support "${matcherName}" matcher.`);
       matcher = (...args: any[]) => pollMatcher(matcherName, this._info.isNot, this._info.pollIntervals, currentExpectTimeout({ timeout: this._info.pollTimeout }), this._info.generator!, ...args);
     }
@@ -208,22 +215,21 @@ class ExpectMetaInfoProxyHandler implements ProxyHandler<any> {
       const rawStack = captureRawStack();
       const stackFrames = filteredStackTrace(rawStack);
       const customMessage = this._info.message || '';
-      const defaultTitle = `expect${this._info.isPoll ? '.poll' : ''}${this._info.isSoft ? '.soft' : ''}${this._info.isNot ? '.not' : ''}.${matcherName}`;
+      const argsSuffix = computeArgsSuffix(matcherName, args);
+
+      const defaultTitle = `expect${this._info.isPoll ? '.poll' : ''}${this._info.isSoft ? '.soft' : ''}${this._info.isNot ? '.not' : ''}.${matcherName}${argsSuffix}`;
       const wallTime = Date.now();
       const step = testInfo._addStep({
         location: stackFrames[0],
         category: 'expect',
         title: trimLongString(customMessage || defaultTitle, 1024),
-        canHaveChildren: true,
-        forceNoParent: false,
         wallTime
       });
-      testInfo.currentStep = step;
 
       const generateTraceEvent = matcherName !== 'poll' && matcherName !== 'toPass';
       const callId = ++lastCallId;
       if (generateTraceEvent)
-        testInfo._traceEvents.push(createBeforeActionTraceEventForExpect(`expect@${callId}`, defaultTitle, args[0], stackFrames));
+        testInfo._traceEvents.push(createBeforeActionTraceEventForExpect(`expect@${callId}`, defaultTitle, wallTime, args[0], stackFrames));
 
       const reportStepError = (jestError: Error) => {
         const message = jestError.message;
@@ -266,24 +272,39 @@ class ExpectMetaInfoProxyHandler implements ProxyHandler<any> {
         step.complete({});
       };
 
-      try {
-        const expectZone: ExpectZone = { title: defaultTitle, wallTime };
-        const result = zones.run<ExpectZone, any>('expectZone', expectZone, () => {
-          return matcher.call(target, ...args);
-        });
-        if (result instanceof Promise)
-          return result.then(() => finalizer()).catch(reportStepError);
-        else
+      // Process the async matchers separately to preserve the zones in the stacks.
+      if (this._info.isPoll || matcherName in customAsyncMatchers) {
+        return (async () => {
+          try {
+            const expectZone: ExpectZone = { title: defaultTitle, wallTime };
+            await zones.run<ExpectZone, any>('expectZone', expectZone, async () => {
+              await matcher.call(target, ...args);
+            });
+            finalizer();
+          } catch (e) {
+            reportStepError(e);
+          }
+        })();
+      } else {
+        try {
+          const result = matcher.call(target, ...args);
           finalizer();
-      } catch (e) {
-        reportStepError(e);
+          return result;
+        } catch (e) {
+          reportStepError(e);
+        }
       }
     };
   }
 }
 
 async function pollMatcher(matcherName: any, isNot: boolean, pollIntervals: number[] | undefined, timeout: number, generator: () => any, ...args: any[]) {
+  const testInfo = currentTestInfo();
+
   const result = await pollAgainstTimeout<Error|undefined>(async () => {
+    if (testInfo && currentTestInfo() !== testInfo)
+      return { continuePolling: false, result: undefined };
+
     const value = await generator();
     let expectInstance = expectLibrary(value) as any;
     if (isNot)
@@ -307,6 +328,13 @@ async function pollMatcher(matcherName: any, isNot: boolean, pollIntervals: numb
 
     throw new Error(message);
   }
+}
+
+function computeArgsSuffix(matcherName: string, args: any[]) {
+  let value = '';
+  if (matcherName === 'toHaveScreenshot')
+    value = toHaveScreenshotStepTitle(...args);
+  return value ? `(${value})` : '';
 }
 
 expectLibrary.extend(customMatchers);

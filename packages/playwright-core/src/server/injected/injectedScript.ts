@@ -23,7 +23,7 @@ import { parseAttributeSelector } from '../../utils/isomorphic/selectorParser';
 import type { NestedSelectorBody, ParsedSelector, ParsedSelectorPart } from '../../utils/isomorphic/selectorParser';
 import { allEngineNames, parseSelector, stringifySelector } from '../../utils/isomorphic/selectorParser';
 import { type TextMatcher, elementMatchesText, elementText, type ElementText } from './selectorUtils';
-import { SelectorEvaluatorImpl } from './selectorEvaluator';
+import { SelectorEvaluatorImpl, sortInDOMOrder } from './selectorEvaluator';
 import { enclosingShadowRootOrDocument, isElementVisible, parentElementOrShadowHost } from './domUtils';
 import type { CSSComplexSelectorList } from '../../utils/isomorphic/cssParser';
 import { generateSelector } from './selectorGenerator';
@@ -78,7 +78,6 @@ export class InjectedScript {
   readonly isUnderTest: boolean;
   private _sdkLanguage: Language;
   private _testIdAttributeNameForStrictErrorAndConsoleCodegen: string = 'data-testid';
-  private _markedTargetElements = new Set<Element>();
   // eslint-disable-next-line no-restricted-globals
   readonly window: Window & typeof globalThis;
   readonly document: Document;
@@ -113,9 +112,12 @@ export class InjectedScript {
     this._engines.set('visible', this._createVisibleEngine());
     this._engines.set('internal:control', this._createControlEngine());
     this._engines.set('internal:has', this._createHasEngine());
+    this._engines.set('internal:has-not', this._createHasNotEngine());
+    this._engines.set('internal:or', { queryAll: () => [] });
     this._engines.set('internal:label', this._createInternalLabelEngine());
     this._engines.set('internal:text', this._createTextEngine(true, true));
     this._engines.set('internal:has-text', this._createInternalHasTextEngine());
+    this._engines.set('internal:has-not-text', this._createInternalHasNotTextEngine());
     this._engines.set('internal:attr', this._createNamedAttributeEngine());
     this._engines.set('internal:testid', this._createNamedAttributeEngine());
     this._engines.set('internal:role', createRoleEngine(true));
@@ -210,6 +212,9 @@ export class InjectedScript {
       for (const part of selector.parts) {
         if (part.name === 'nth') {
           roots = this._queryNth(roots, part);
+        } else if (part.name === 'internal:or') {
+          const orElements = this.querySelectorAll((part.body as NestedSelectorBody).parsed, root);
+          roots = new Set(sortInDOMOrder(new Set([...roots, ...orElements])));
         } else if (kLayoutSelectorNames.includes(part.name as LayoutSelectorName)) {
           roots = this._queryLayoutSelector(roots, part, root);
         } else {
@@ -297,6 +302,19 @@ export class InjectedScript {
     };
   }
 
+  private _createInternalHasNotTextEngine(): SelectorEngine {
+    return {
+      queryAll: (root: SelectorRoot, selector: string): Element[] => {
+        if (root.nodeType !== 1 /* Node.ELEMENT_NODE */)
+          return [];
+        const element = root as Element;
+        const text = elementText(this._evaluator._cacheText, element);
+        const { matcher } = createTextMatcher(selector, true);
+        return matcher(text) ? [] : [element];
+      }
+    };
+  }
+
   private _createInternalLabelEngine(): SelectorEngine {
     return {
       queryAll: (root: SelectorRoot, selector: string): Element[] => {
@@ -362,6 +380,16 @@ export class InjectedScript {
         return [];
       const has = !!this.querySelector(body.parsed, root, false);
       return has ? [root as Element] : [];
+    };
+    return { queryAll };
+  }
+
+  private _createHasNotEngine(): SelectorEngine {
+    const queryAll = (root: SelectorRoot, body: NestedSelectorBody) => {
+      if (root.nodeType !== 1 /* Node.ELEMENT_NODE */)
+        return [];
+      const has = !!this.querySelector(body.parsed, root, false);
+      return has ? [] : [root as Element];
     };
     return { queryAll };
   }
@@ -1010,7 +1038,7 @@ export class InjectedScript {
     const attrs = [];
     for (let i = 0; i < element.attributes.length; i++) {
       const { name, value } = element.attributes[i];
-      if (name === 'style' || name.startsWith('__playwright'))
+      if (name === 'style')
         continue;
       if (!value && booleanAttributes.has(name))
         attrs.push(` ${name}`);
@@ -1088,15 +1116,14 @@ export class InjectedScript {
   }
 
   markTargetElements(markedElements: Set<Element>, callId: string) {
-    for (const e of this._markedTargetElements) {
-      if (!markedElements.has(e))
-        e.removeAttribute('__playwright_target__');
-    }
-    for (const e of markedElements) {
-      if (!this._markedTargetElements.has(e))
-        e.setAttribute('__playwright_target__', callId);
-    }
-    this._markedTargetElements = markedElements;
+    const customEvent = new CustomEvent('__playwright_target__', {
+      bubbles: true,
+      cancelable: true,
+      detail: callId,
+      composed: false,
+    });
+    for (const element of markedElements)
+      element.dispatchEvent(customEvent);
   }
 
   private _setupGlobalListenersRemovalDetection() {
@@ -1145,6 +1172,12 @@ export class InjectedScript {
       // expect(locator).not.toBeVisible() passes when there is no element.
       if (options.isNot && options.expression === 'to.be.visible')
         return { matches: false };
+      // expect(locator).toBeAttached({ attached: false }) passes when there is no element.
+      if (!options.isNot && options.expression === 'to.be.detached')
+        return { matches: true };
+      // expect(locator).not.toBeAttached() passes when there is no element.
+      if (options.isNot && options.expression === 'to.be.attached')
+        return { matches: false };
       // expect(locator).not.toBeInViewport() passes when there is no element.
       if (options.isNot && options.expression === 'to.be.in.viewport')
         return { matches: false };
@@ -1183,6 +1216,10 @@ export class InjectedScript {
         elementState = this.elementState(element, 'hidden');
       } else if (expression === 'to.be.visible') {
         elementState = this.elementState(element, 'visible');
+      } else if (expression === 'to.be.attached') {
+        elementState = true;
+      } else if (expression === 'to.be.detached') {
+        elementState = false;
       }
 
       if (elementState !== undefined) {

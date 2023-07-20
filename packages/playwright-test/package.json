@@ -1,6 +1,6 @@
 {
   "name": "@playwright/test",
-  "version": "1.32.0-next",
+  "version": "1.33.0-next",
   "description": "A high-level API to automate web browsers",
   "repository": "github:rwx-research/playwright",
   "homepage": "https://playwright.dev",
@@ -18,11 +18,13 @@
     "./cli": "./cli.js",
     "./package.json": "./package.json",
     "./lib/cli": "./lib/cli.js",
+    "./lib/common/babelBundle": "./lib/common/babelBundle.js",
+    "./lib/common/compilationCache": "./lib/common/compilationCache.js",
     "./lib/internalsForTest": "./lib/internalsForTest.js",
     "./lib/experimentalLoader": "./lib/experimentalLoader.js",
-    "./lib/mount": "./lib/mount.js",
     "./lib/plugins": "./lib/plugins/index.js",
-    "./lib/plugins/vitePlugin": "./lib/plugins/vitePlugin.js",
+    "./lib/util": "./lib/util.js",
+    "./lib/utilsBundle": "./lib/utilsBundle.js",
     "./reporter": "./reporter.js"
   },
   "bin": {
@@ -35,7 +37,7 @@
   "dependencies": {
     "@rwx-research/abq": "^1.0.0",
     "@types/node": "*",
-    "playwright-core": "1.32.0-next"
+    "playwright-core": "1.33.0-next"
   },
   "optionalDependencies": {
     "fsevents": "2.3.2"

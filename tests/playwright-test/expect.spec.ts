@@ -106,34 +106,6 @@ test('should include custom error message with web-first assertions', async ({ r
   ].join('\n'));
 });
 
-test('should work with default expect prototype functions', async ({ runTSC, runInlineTest }) => {
-  const spec = `
-    import { test, expect } from '@playwright/test';
-    test('pass', async () => {
-      const expected = [1, 2, 3, 4, 5, 6];
-      test.expect([4, 1, 6, 7, 3, 5, 2, 5, 4, 6]).toEqual(
-        expect.arrayContaining(expected),
-      );
-      expect('foo').toEqual(expect.any(String));
-      expect('foo').toEqual(expect.anything());
-      expect('hello world').toEqual(expect.not.stringContaining('text'));
-    });
-  `;
-  {
-    const result = await runTSC({
-      'a.spec.ts': spec,
-    });
-    expect(result.exitCode).toBe(0);
-  }
-  {
-    const result = await runInlineTest({
-      'a.spec.ts': spec,
-    });
-    expect(result.exitCode).toBe(0);
-    expect(result.passed).toBe(1);
-  }
-});
-
 test('should work with generic matchers', async ({ runTSC }) => {
   const result = await runTSC({
     'a.spec.ts': `
@@ -173,6 +145,7 @@ test('should work with generic matchers', async ({ runTSC }) => {
         y: expect.any(Number),
       }));
       expect('abc').toEqual(expect.stringContaining('bc'));
+      expect('hello world').toEqual(expect.not.stringContaining('text'));
       expect(['Alicia', 'Roberto', 'Evelina']).toEqual(
         expect.arrayContaining([
           expect.stringMatching(/^Alic/),
@@ -638,21 +611,23 @@ test('should print expected/received on Ctrl+C', async ({ runInlineTest }) => {
   expect(result.output).toContain('Received string: "Text content"');
 });
 
-test('should print timed out error message', async ({ runInlineTest }) => {
+test('should not print timed out error message when test times out', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'a.test.ts': `
       import { test, expect } from '@playwright/test';
 
       test('fail', async ({ page }) => {
         await page.setContent('<div id=node>Text content</div>');
-        await expect(page.locator('no-such-thing')).toHaveText('hey', { timeout: 1000 });
+        await expect(page.locator('no-such-thing')).toHaveText('hey', { timeout: 5000 });
       });
       `,
-  }, { workers: 1 });
+  }, { workers: 1, timeout: 3000 });
   expect(result.failed).toBe(1);
   expect(result.exitCode).toBe(1);
   const output = result.output;
-  expect(output).toContain('Timed out 1000ms waiting for expect(received).toHaveText(expected)');
+  expect(output).toContain('Test timeout of 3000ms exceeded');
+  expect(output).not.toContain('Timed out 5000ms waiting for expect');
+  expect(output).toContain('Error: expect(received).toHaveText(expected)');
 });
 
 test('should not leak long expect message strings', async ({ runInlineTest }) => {

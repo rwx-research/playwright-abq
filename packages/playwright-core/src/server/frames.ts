@@ -41,6 +41,7 @@ import type { ScreenshotOptions } from './screenshotter';
 import type { InputFilesItems } from './dom';
 import { asLocator } from '../utils/isomorphic/locatorGenerators';
 import { FrameSelectors } from './frameSelectors';
+import { TimeoutError } from '../common/errors';
 
 type ContextData = {
   contextPromise: ManualPromise<dom.FrameExecutionContext | Error>;
@@ -787,8 +788,11 @@ export class Frame extends SdkObject {
       const promise = this.retryWithProgressAndTimeouts(progress, [0, 20, 50, 100, 100, 500], async continuePolling => {
         const resolved = await this.selectors.resolveInjectedForSelector(selector, options, scope);
         progress.throwIfAborted();
-        if (!resolved)
+        if (!resolved) {
+          if (state === 'hidden' || state === 'detached')
+            return null;
           return continuePolling;
+        }
         const result = await resolved.injected.evaluateHandle((injected, { info, root }) => {
           const elements = injected.querySelectorAll(info.parsed, root || document);
           const element: Element | undefined  = elements[0];
@@ -810,6 +814,10 @@ export class Frame extends SdkObject {
         if (!success) {
           result.dispose();
           return continuePolling;
+        }
+        if (options.omitReturnValue) {
+          result.dispose();
+          return null;
         }
         const element = state === 'attached' || state === 'visible' ? await result.evaluateHandle(r => r.element) : null;
         result.dispose();
@@ -1378,9 +1386,10 @@ export class Frame extends SdkObject {
   private async _expectInternal(metadata: CallMetadata, selector: string, options: FrameExpectParams, oneShot: boolean, timeout: number, lastIntermediateResult: { received?: any, isSet: boolean }): Promise<{ matches: boolean, received?: any, log?: string[], timedOut?: boolean }> {
     const controller = new ProgressController(metadata, this);
     return controller.run(async progress => {
-      if (oneShot)
+      if (oneShot) {
         progress.log(`${metadata.apiName}${timeout ? ` with timeout ${timeout}ms` : ''}`);
-      progress.log(`waiting for ${this._asLocator(selector)}`);
+        progress.log(`waiting for ${this._asLocator(selector)}`);
+      }
       return await this.retryWithProgressAndTimeouts(progress, [100, 250, 500, 1000], async continuePolling => {
         const selectorInFrame = await this.selectors.resolveFrameForSelector(selector, { strict: true });
         progress.throwIfAborted();
@@ -1431,7 +1440,7 @@ export class Frame extends SdkObject {
       const result: { matches: boolean, received?: any, log?: string[], timedOut?: boolean } = { matches: options.isNot, log: metadata.log };
       if (lastIntermediateResult.isSet)
         result.received = lastIntermediateResult.received;
-      else
+      if (e instanceof TimeoutError)
         result.timedOut = true;
       return result;
     });

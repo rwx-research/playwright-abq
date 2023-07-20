@@ -26,7 +26,7 @@ import type { JsonAttachment, JsonReport, JsonSuite, JsonTestCase, JsonTestResul
 import RawReporter from './raw';
 import { stripAnsiEscapes } from './base';
 import { getPackageJsonPath, sanitizeForFilePath } from '../util';
-import type { FullConfigInternal, Metadata } from '../common/types';
+import type { Metadata } from '../../types/test';
 import type { ZipFile } from 'playwright-core/lib/zipBundle';
 import { yazl } from 'playwright-core/lib/zipBundle';
 import { mime } from 'playwright-core/lib/utilsBundle';
@@ -41,22 +41,25 @@ const kMissingContentType = 'x-playwright/missing';
 
 type HtmlReportOpenOption = 'always' | 'never' | 'on-failure';
 type HtmlReporterOptions = {
+  configDir: string,
   outputFolder?: string,
   open?: HtmlReportOpenOption,
   host?: string,
   port?: number,
+  attachmentsBaseURL?: string,
 };
 
 class HtmlReporter implements Reporter {
-  private config!: FullConfigInternal;
+  private config!: FullConfig;
   private suite!: Suite;
   private _montonicStartTime: number = 0;
   private _options: HtmlReporterOptions;
   private _outputFolder!: string;
+  private _attachmentsBaseURL!: string;
   private _open: string | undefined;
   private _buildResult: { ok: boolean, singleTestId: string | undefined } | undefined;
 
-  constructor(options: HtmlReporterOptions = {}) {
+  constructor(options: HtmlReporterOptions) {
     this._options = options;
   }
 
@@ -66,10 +69,11 @@ class HtmlReporter implements Reporter {
 
   onBegin(config: FullConfig, suite: Suite) {
     this._montonicStartTime = monotonicTime();
-    this.config = config as FullConfigInternal;
-    const { outputFolder, open } = this._resolveOptions();
+    this.config = config;
+    const { outputFolder, open, attachmentsBaseURL } = this._resolveOptions();
     this._outputFolder = outputFolder;
     this._open = open;
+    this._attachmentsBaseURL = attachmentsBaseURL;
     const reportedWarnings = new Set<string>();
     for (const project of config.projects) {
       if (outputFolder.startsWith(project.outputDir) || project.outputDir.startsWith(outputFolder)) {
@@ -89,13 +93,14 @@ class HtmlReporter implements Reporter {
     this.suite = suite;
   }
 
-  _resolveOptions(): { outputFolder: string, open: HtmlReportOpenOption } {
+  _resolveOptions(): { outputFolder: string, open: HtmlReportOpenOption, attachmentsBaseURL: string } {
     let { outputFolder } = this._options;
     if (outputFolder)
-      outputFolder = path.resolve(this.config._internal.configDir, outputFolder);
+      outputFolder = path.resolve(this._options.configDir, outputFolder);
     return {
-      outputFolder: reportFolderFromEnv() ?? outputFolder ?? defaultReportFolder(this.config._internal.configDir),
+      outputFolder: reportFolderFromEnv() ?? outputFolder ?? defaultReportFolder(this._options.configDir),
       open: process.env.PW_TEST_HTML_REPORT_OPEN as any || this._options.open || 'on-failure',
+      attachmentsBaseURL: this._options.attachmentsBaseURL || 'data/'
     };
   }
 
@@ -108,11 +113,11 @@ class HtmlReporter implements Reporter {
       return report;
     });
     await removeFolders([this._outputFolder]);
-    const builder = new HtmlBuilder(this._outputFolder);
+    const builder = new HtmlBuilder(this._outputFolder, this._attachmentsBaseURL);
     this._buildResult = await builder.build({ ...this.config.metadata, duration }, reports);
   }
 
-  async _onExit() {
+  async onExit() {
     if (process.env.CI || !this._buildResult)
       return;
 
@@ -137,7 +142,7 @@ function reportFolderFromEnv(): string | undefined {
   return undefined;
 }
 
-function defaultReportFolder(searchForPackageJson: string): string {
+export function defaultReportFolder(searchForPackageJson: string): string {
   let basePath = getPackageJsonPath(searchForPackageJson);
   if (basePath)
     basePath = path.dirname(basePath);
@@ -197,11 +202,13 @@ class HtmlBuilder {
   private _testPath = new Map<string, string[]>();
   private _dataZipFile: ZipFile;
   private _hasTraces = false;
+  private _attachmentsBaseURL: string;
 
-  constructor(outputDir: string) {
+  constructor(outputDir: string, attachmentsBaseURL: string) {
     this._reportFolder = outputDir;
     fs.mkdirSync(this._reportFolder, { recursive: true });
     this._dataZipFile = new yazl.ZipFile();
+    this._attachmentsBaseURL = attachmentsBaseURL;
   }
 
   async build(metadata: Metadata & { duration: number }, rawReports: JsonReport[]): Promise<{ ok: boolean, singleTestId: string | undefined }> {
@@ -388,7 +395,7 @@ class HtmlBuilder {
         try {
           const buffer = fs.readFileSync(a.path);
           const sha1 = calculateSha1(buffer) + path.extname(a.path);
-          fileName = 'data/' + sha1;
+          fileName = this._attachmentsBaseURL + sha1;
           fs.mkdirSync(path.join(this._reportFolder, 'data'), { recursive: true });
           fs.writeFileSync(path.join(this._reportFolder, 'data', sha1), buffer);
         } catch (e) {
@@ -429,7 +436,7 @@ class HtmlBuilder {
         return {
           name: a.name,
           contentType: a.contentType,
-          path: 'data/' + sha1,
+          path: this._attachmentsBaseURL + sha1,
         };
       }
 
