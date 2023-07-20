@@ -4,6 +4,26 @@ title: "Release notes"
 toc_max_heading_level: 2
 ---
 
+## Version 1.32
+
+### New APIs
+
+- New options [`option: updateMode`] and [`option: updateContent`] in [`method: Page.routeFromHAR`] and [`method: BrowserContext.routeFromHAR`].
+- Chaining existing locator objects, see [locator docs](./locators.md#chaining-locators) for details.
+- New option [`option: name`] in method [`method: Tracing.startChunk`].
+
+### Browser Versions
+
+* Chromium 112.0.5615.29
+* Mozilla Firefox 111.0
+* WebKit 16.4
+
+This version was also tested against the following stable channels:
+
+* Google Chrome 111
+* Microsoft Edge 111
+
+
 ## Version 1.31
 
 ### New APIs
@@ -811,7 +831,7 @@ await button.ClickAsync("button >> visible=true");
 #### Highlights
 
 - Playwright for .NET v1.12 is now stable!
-- Ships with the [codegen](./cli.md#generate-code) and [trace viewer](./trace-viewer.md) tools out-of-the-box
+- Ships with the [codegen](./codegen.md) and [trace viewer](./trace-viewer.md) tools out-of-the-box
 
 #### Browser Versions
 

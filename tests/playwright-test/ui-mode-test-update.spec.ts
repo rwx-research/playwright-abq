@@ -36,7 +36,7 @@ const basicTestTree = {
 };
 
 test('should pick new / deleted files', async ({ runUITest, writeFiles, deleteFile }) => {
-  const page = await runUITest(basicTestTree);
+  const { page } = await runUITest(basicTestTree);
   await expect.poll(dumpTestTree(page), { timeout: 15000 }).toBe(`
     ▼ ◯ a.test.ts
         ◯ passes
@@ -81,7 +81,7 @@ test('should pick new / deleted files', async ({ runUITest, writeFiles, deleteFi
 });
 
 test('should pick new / deleted tests', async ({ runUITest, writeFiles, deleteFile }) => {
-  const page = await runUITest(basicTestTree);
+  const { page } = await runUITest(basicTestTree);
   await expect.poll(dumpTestTree(page), { timeout: 15000 }).toBe(`
     ▼ ◯ a.test.ts
         ◯ passes
@@ -130,7 +130,7 @@ test('should pick new / deleted tests', async ({ runUITest, writeFiles, deleteFi
 });
 
 test('should pick new / deleted nested tests', async ({ runUITest, writeFiles, deleteFile }) => {
-  const page = await runUITest(basicTestTree);
+  const { page } = await runUITest(basicTestTree);
   await expect.poll(dumpTestTree(page), { timeout: 15000 }).toContain(`
     ▼ ◯ a.test.ts
         ◯ passes
@@ -167,4 +167,63 @@ test('should pick new / deleted nested tests', async ({ runUITest, writeFiles, d
           ◯ inner new
           ◯ inner fails
   `);
+});
+
+test('should update test locations', async ({ runUITest, writeFiles, deleteFile }) => {
+  const { page } = await runUITest({
+    'a.test.ts': `
+      import { test, expect } from '@playwright/test';
+      test('passes', () => {});
+    `,
+  });
+
+  await expect.poll(dumpTestTree(page), { timeout: 15000 }).toContain(`
+    ▼ ◯ a.test.ts
+        ◯ passes
+  `);
+
+  const messages: any = [];
+  await page.exposeBinding('_overrideProtocolForTest', (_, data) => messages.push(data));
+
+  const passesItemLocator = page.getByRole('listitem').filter({ hasText: 'passes' });
+  await passesItemLocator.hover();
+  await passesItemLocator.getByTitle('Open in VS Code').click();
+
+  expect(messages).toEqual([{
+    method: 'open',
+    params: {
+      location: expect.stringContaining('a.test.ts:3'),
+    },
+  }]);
+
+  await writeFiles({
+    'a.test.ts': `
+      import { test, expect } from '@playwright/test';
+      test('new-test', () => {});
+
+      test('passes', () => {});
+    `
+  });
+
+  await expect.poll(dumpTestTree(page), { timeout: 15000 }).toContain(`
+    ▼ ◯ a.test.ts
+        ◯ new-test
+        ◯ passes <=
+  `);
+
+  messages.length = 0;
+  await passesItemLocator.hover();
+  await passesItemLocator.getByTitle('Open in VS Code').click();
+
+  expect(messages).toEqual([{
+    method: 'open',
+    params: {
+      location: expect.stringContaining('a.test.ts:5'),
+    },
+  }]);
+
+  await expect(
+      page.getByTestId('source-code').locator('.source-tab-file-name')
+  ).toHaveText('a.test.ts');
+  await expect(page.locator('.CodeMirror-code')).toContainText(`3      test('new-test', () => {});`);
 });

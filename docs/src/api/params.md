@@ -4,7 +4,7 @@
 When to consider operation succeeded, defaults to `load`. Events can be either:
 * `'domcontentloaded'` - consider operation to be finished when the `DOMContentLoaded` event is fired.
 * `'load'` - consider operation to be finished when the `load` event is fired.
-* `'networkidle'` - consider operation to be finished when there are no network connections for at least `500` ms.
+* `'networkidle'` - **DISCOURAGED** consider operation to be finished when there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
 * `'commit'` - consider operation to be finished when network response is received and the document started loading.
 
 ## navigation-timeout
@@ -252,8 +252,9 @@ Specify environment variables that will be visible to the browser. Defaults to `
       - `name` <[string]>
       - `value` <[string]>
 
-Populates context with given storage state. This option can be used to initialize context with logged-in information
-obtained via [`method: BrowserContext.storageState`]. Either a path to the file with saved storage, or an object with the following fields:
+Learn more about [storage state and auth](../auth.md).
+
+Populates context with given storage state. This option can be used to initialize context with logged-in information obtained via [`method: BrowserContext.storageState`]. Either a path to the file with saved storage, or an object with the following fields:
 
 ## csharp-java-context-option-storage-state
 * langs: csharp, java
@@ -306,8 +307,8 @@ When using [`method: Page.goto`], [`method: Page.route`], [`method: Page.waitFor
   - `width` <[int]> page width in pixels.
   - `height` <[int]> page height in pixels.
 
-Emulates consistent viewport for each page. Defaults to an 1280x720 viewport.
-Use `null` to disable the consistent viewport emulation.
+Emulates consistent viewport for each page. Defaults to an 1280x720 viewport. 
+Use `null` to disable the consistent viewport emulation. Learn more about [viewport emulation](../emulation#viewport).
 
 :::note
 The `null` value opts out from the default presets, makes viewport depend on the
@@ -323,7 +324,7 @@ tests non-deterministic.
   - `height` <[int]> page height in pixels.
 
 Emulates consistent viewport for each page. Defaults to an 1280x720 viewport.
-Use `ViewportSize.NoViewport` to disable the consistent viewport emulation.
+Use `ViewportSize.NoViewport` to disable the consistent viewport emulation. Learn more about [viewport emulation](../emulation.md#viewport).
 
 :::note
 The `ViewportSize.NoViewport` value opts out from the default presets,
@@ -488,7 +489,7 @@ Function to be evaluated in the main Electron process.
   - `width` <[int]> page width in pixels.
   - `height` <[int]> page height in pixels.
 
-Sets a consistent viewport for each page. Defaults to an 1280x720 viewport. `no_viewport` disables the fixed viewport.
+Sets a consistent viewport for each page. Defaults to an 1280x720 viewport. `no_viewport` disables the fixed viewport. Learn more about [viewport emulation](../emulation.md#viewport).
 
 ## python-context-option-no-viewport
 * langs: python
@@ -504,23 +505,22 @@ Specific user agent to use in this context.
 ## context-option-devicescalefactor
 - `deviceScaleFactor` <[float]>
 
-Specify device scale factor (can be thought of as dpr). Defaults to `1`.
+Specify device scale factor (can be thought of as dpr). Defaults to `1`. Learn more about [emulating devices with device scale factor](../emulation.md#devices).
 
 ## context-option-ismobile
 - `isMobile` <[boolean]>
 
-Whether the `meta viewport` tag is taken into account and touch events are enabled. Defaults to `false`. Not supported
-in Firefox.
+Whether the `meta viewport` tag is taken into account and touch events are enabled. isMobile is a part of device, so you don't actually need to set it manually. Defaults to `false` and is not supported in Firefox. Learn more about [mobile emulation](../emulation.md#isMobile).
 
 ## context-option-hastouch
 - `hasTouch` <[boolean]>
 
-Specifies if viewport supports touch events. Defaults to false.
+Specifies if viewport supports touch events. Defaults to false. Learn more about [mobile emulation](../emulation.md#devices).
 
 ## context-option-javascriptenabled
 - `javaScriptEnabled` <[boolean]>
 
-Whether or not to enable JavaScript in the context. Defaults to `true`.
+Whether or not to enable JavaScript in the context. Defaults to `true`. Learn more about [disabling JavaScript](../emulation.md#javascript-enabled).
 
 ## context-option-timezoneid
 - `timezoneId` <[string]>
@@ -537,8 +537,7 @@ for a list of supported timezone IDs.
 ## context-option-locale
 - `locale` <[string]>
 
-Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value, `Accept-Language`
-request header value as well as number and date formatting rules.
+Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value, `Accept-Language` request header value as well as number and date formatting rules. Learn more about emulation in our [emulation guide](../emulation.md#locale--timezone).
 
 ## context-option-permissions
 - `permissions` <[Array]<[string]>>
@@ -554,14 +553,16 @@ An object containing additional HTTP headers to be sent with every request.
 ## context-option-offline
 - `offline` <[boolean]>
 
-Whether to emulate network being offline. Defaults to `false`.
+Whether to emulate network being offline. Defaults to `false`. Learn more about [network emulation](../emulation.md#offline).
 
 ## context-option-httpcredentials
 - `httpCredentials` <[Object]>
   - `username` <[string]>
   - `password` <[string]>
+  - `origin` ?<[string]> Restrain sending http credentials on specific origin (scheme://host:port).
 
 Credentials for [HTTP authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication).
+If no origin is specified, the username and password are sent to any servers upon unauthorized responses.
 
 ## context-option-colorscheme
 * langs: js, java
@@ -765,7 +766,7 @@ Optional load state to wait for, defaults to `load`. If the state has been alrea
 method resolves immediately. Can be one of:
   * `'load'` - wait for the `load` event to be fired.
   * `'domcontentloaded'` - wait for the `DOMContentLoaded` event to be fired.
-  * `'networkidle'` - wait until there are no network connections for at least `500` ms.
+  * `'networkidle'` - **DISCOURAGED** wait until there are no network connections for at least `500` ms. Don't use this method for testing, rely on web assertions to assess readiness instead.
 
 ## java-wait-for-event-callback
 * langs: java
@@ -1026,6 +1027,19 @@ Matches elements containing an element that matches an inner locator. Inner loca
 For example, `article` that has `text=Playwright` matches `<article><div>Playwright</div></article>`.
 
 Note that outer and inner locators must belong to the same frame. Inner locator must not contain [FrameLocator]s.
+
+## locator-option-has-not
+- `hasNot` <[Locator]>
+
+Matches elements that do not contain an element that matches an inner locator. Inner locator is queried against the outer one.
+For example, `article` that does not have `div` matches `<article><span>Playwright</span></article>`.
+
+Note that outer and inner locators must belong to the same frame. Inner locator must not contain [FrameLocator]s.
+
+## locator-option-has-not-text
+- `hasNotText` <[string]|[RegExp]>
+
+Matches elements that do not contain specified text somewhere inside, possibly in a child or a descendant element. When passed a [string], matching is case-insensitive and searches for a substring.
 
 ## locator-options-list-v1.14
 - %%-locator-option-has-text-%%

@@ -90,18 +90,20 @@ function renderProperty(property: Property, key: string) {
 
 function propertyToString(event: ActionTraceEvent, name: string, value: any, sdkLanguage: Language | undefined): Property {
   const isEval = event.method.includes('eval') || event.method === 'waitForFunction';
+  if (name === 'files')
+    return { text: '<files>', type: 'string', name };
   if (name === 'eventInit' || name === 'expectedValue' || (name === 'arg' && isEval))
     value = parseSerializedValue(value.value, new Array(10).fill({ handle: '<handle>' }));
   if ((name === 'value' && isEval) || (name === 'received' && event.method === 'expect'))
     value = parseSerializedValue(value, new Array(10).fill({ handle: '<handle>' }));
   if (name === 'selector')
-    return { text: asLocator(sdkLanguage || 'javascript', event.params.selector), type: 'locator', name: 'locator' };
+    return { text: asLocator(sdkLanguage || 'javascript', event.params.selector, false /* isFrameLocator */, true /* playSafe */), type: 'locator', name: 'locator' };
   const type = typeof value;
   if (type !== 'object' || value === null)
     return { text: String(value), type, name };
   if (value.guid)
     return { text: '<handle>', type: 'handle', name };
-  return { text: JSON.stringify(value), type: 'object', name };
+  return { text: JSON.stringify(value).slice(0, 1000), type: 'object', name };
 }
 
 function parseSerializedValue(value: SerializedValue, handles: any[] | undefined): any {

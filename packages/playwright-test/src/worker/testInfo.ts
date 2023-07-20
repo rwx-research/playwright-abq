@@ -16,30 +16,23 @@
 
 import fs from 'fs';
 import path from 'path';
-import { monotonicTime } from 'playwright-core/lib/utils';
-import type { TestInfoError, TestInfo, TestStatus } from '../../types/test';
+import { captureRawStack, monotonicTime, zones } from 'playwright-core/lib/utils';
+import type { TestInfoError, TestInfo, TestStatus, FullProject, FullConfig } from '../../types/test';
 import type { StepBeginPayload, StepEndPayload, WorkerInitParams } from '../common/ipc';
 import type { TestCase } from '../common/test';
 import { TimeoutManager } from './timeoutManager';
-import type { Annotation, FullConfigInternal, FullProjectInternal, Location } from '../common/types';
+import type { Annotation, FullConfigInternal, FullProjectInternal } from '../common/config';
+import type { Location } from '../../types/testReporter';
 import { getContainedPath, normalizeAndSaveAttachment, sanitizeForFilePath, serializeError, trimLongString } from '../util';
 import type * as trace from '@trace/trace';
 
-export type TestInfoErrorState = {
-  status: TestStatus,
-  errors: TestInfoError[],
-  hasHardError: boolean,
-};
-
 interface TestStepInternal {
   complete(result: { error?: Error | TestInfoError }): void;
+  stepId: string;
   title: string;
   category: string;
-  canHaveChildren: boolean;
-  forceNoParent: boolean;
   wallTime: number;
   location?: Location;
-  refinedTitle?: string;
 }
 
 export class TestInfoImpl implements TestInfo {
@@ -53,7 +46,10 @@ export class TestInfoImpl implements TestInfo {
   readonly _traceEvents: trace.TraceEvent[] = [];
   readonly _onTestFailureImmediateCallbacks = new Map<() => Promise<void>, string>(); // fn -> title
   _didTimeout = false;
+  _wasInterrupted = false;
   _lastStepId = 0;
+  readonly _projectInternal: FullProjectInternal;
+  readonly _configInternal: FullConfigInternal;
 
   // ------------ TestInfo fields ------------
   readonly testId: string;
@@ -61,8 +57,8 @@ export class TestInfoImpl implements TestInfo {
   readonly retry: number;
   readonly workerIndex: number;
   readonly parallelIndex: number;
-  readonly project: FullProjectInternal;
-  config: FullConfigInternal;
+  readonly project: FullProject;
+  readonly config: FullConfig;
   readonly title: string;
   readonly titlePath: string[];
   readonly file: string;
@@ -80,7 +76,6 @@ export class TestInfoImpl implements TestInfo {
   readonly outputDir: string;
   readonly snapshotDir: string;
   errors: TestInfoError[] = [];
-  currentStep: TestStepInternal | undefined;
 
   get error(): TestInfoError | undefined {
     return this.errors[0];
@@ -101,8 +96,8 @@ export class TestInfoImpl implements TestInfo {
   }
 
   constructor(
-    config: FullConfigInternal,
-    project: FullProjectInternal,
+    configInternal: FullConfigInternal,
+    projectInternal: FullProjectInternal,
     workerParams: WorkerInitParams,
     test: TestCase,
     retry: number,
@@ -120,8 +115,10 @@ export class TestInfoImpl implements TestInfo {
     this.retry = retry;
     this.workerIndex = workerParams.workerIndex;
     this.parallelIndex =  workerParams.parallelIndex;
-    this.project = project;
-    this.config = config;
+    this._projectInternal = projectInternal;
+    this.project = projectInternal.project;
+    this._configInternal = configInternal;
+    this.config = configInternal.config;
     this.title = test.title;
     this.titlePath = test.titlePath();
     this.file = test.location.file;
@@ -138,8 +135,8 @@ export class TestInfoImpl implements TestInfo {
       const fullTitleWithoutSpec = test.titlePath().slice(1).join(' ');
 
       let testOutputDir = trimLongString(sanitizedRelativePath + '-' + sanitizeForFilePath(fullTitleWithoutSpec));
-      if (project._internal.id)
-        testOutputDir += '-' + sanitizeForFilePath(project._internal.id);
+      if (projectInternal.id)
+        testOutputDir += '-' + sanitizeForFilePath(projectInternal.id);
       if (this.retry)
         testOutputDir += '-retry' + this.retry;
       if (this.repeatEachIndex)
@@ -184,7 +181,7 @@ export class TestInfoImpl implements TestInfo {
     const timeoutError = await this._timeoutManager.runWithTimeout(cb);
     // When interrupting, we arrive here with a timeoutError, but we should not
     // consider it a timeout.
-    if (this.status !== 'interrupted' && timeoutError && !this._didTimeout) {
+    if (!this._wasInterrupted && timeoutError && !this._didTimeout) {
       this._didTimeout = true;
       this.errors.push(timeoutError);
       // Do not overwrite existing failure upon hook/teardown timeout.
@@ -194,7 +191,7 @@ export class TestInfoImpl implements TestInfo {
     this.duration = this._timeoutManager.defaultSlotTimings().elapsed | 0;
   }
 
-  async _runFn(fn: Function, skips?: 'allowSkips'): Promise<TestInfoError | undefined> {
+  async _runAndFailOnError(fn: () => Promise<void>, skips?: 'allowSkips'): Promise<TestInfoError | undefined> {
     try {
       await fn();
     } catch (error) {
@@ -209,11 +206,13 @@ export class TestInfoImpl implements TestInfo {
     }
   }
 
-  _addStep(data: Omit<TestStepInternal, 'complete'>): TestStepInternal {
+  _addStep(data: Omit<TestStepInternal, 'complete' | 'stepId'>): TestStepInternal {
     const stepId = `${data.category}@${data.title}@${++this._lastStepId}`;
+    const parentStep = zones.zoneData<TestStepInternal>('stepZone', captureRawStack());
     let callbackHandled = false;
     const firstErrorIndex = this.errors.length;
     const step: TestStepInternal = {
+      stepId,
       ...data,
       complete: result => {
         if (callbackHandled)
@@ -233,7 +232,6 @@ export class TestInfoImpl implements TestInfo {
         }
         const payload: StepEndPayload = {
           testId: this._test.id,
-          refinedTitle: step.refinedTitle,
           stepId,
           wallTime: Date.now(),
           error,
@@ -247,12 +245,21 @@ export class TestInfoImpl implements TestInfo {
     const payload: StepBeginPayload = {
       testId: this._test.id,
       stepId,
+      parentStepId: parentStep ? parentStep.stepId : undefined,
       ...data,
       location,
-      wallTime: Date.now(),
     };
     this._onStepBegin(payload);
     return step;
+  }
+
+  _interrupt() {
+    // Mark as interrupted so we can ignore TimeoutError thrown by interrupt() call.
+    this._wasInterrupted = true;
+    this._timeoutManager.interrupt();
+    // Do not overwrite existing failure (for example, unhandled rejection) with "interrupted".
+    if (this.status === 'passed')
+      this.status = 'interrupted';
   }
 
   _failWithError(error: TestInfoError, isHardError: boolean) {
@@ -269,30 +276,18 @@ export class TestInfoImpl implements TestInfo {
     this.errors.push(error);
   }
 
-  _saveErrorState(): TestInfoErrorState {
-    return {
-      hasHardError: this._hasHardError,
-      status: this.status,
-      errors: this.errors.slice(),
-    };
-  }
-
-  _restoreErrorState(state: TestInfoErrorState) {
-    this.status = state.status;
-    this.errors = state.errors.slice();
-    this._hasHardError = state.hasHardError;
-  }
-
-  async _runAsStep<T>(cb: () => Promise<T>, stepInfo: Omit<TestStepInternal, 'complete' | 'wallTime'>): Promise<T> {
+  async _runAsStep<T>(stepInfo: Omit<TestStepInternal, 'complete' | 'wallTime' | 'parentStepId' | 'stepId'>, cb: (step: TestStepInternal) => Promise<T>): Promise<T> {
     const step = this._addStep({ ...stepInfo, wallTime: Date.now() });
-    try {
-      const result = await cb();
-      step.complete({});
-      return result;
-    } catch (e) {
-      step.complete({ error: e instanceof SkipError ? undefined : serializeError(e) });
-      throw e;
-    }
+    return await zones.run('stepZone', step, async () => {
+      try {
+        const result = await cb(step);
+        step.complete({});
+        return result;
+      } catch (e) {
+        step.complete({ error: e instanceof SkipError ? undefined : serializeError(e) });
+        throw e;
+      }
+    });
   }
 
   _isFailure() {
@@ -326,7 +321,7 @@ export class TestInfoImpl implements TestInfo {
     const parsedRelativeTestFilePath = path.parse(relativeTestFilePath);
     const projectNamePathSegment = sanitizeForFilePath(this.project.name);
 
-    const snapshotPath = this.project.snapshotPathTemplate
+    const snapshotPath = (this._projectInternal.snapshotPathTemplate || '')
         .replace(/\{(.)?testDir\}/g, '$1' + this.project.testDir)
         .replace(/\{(.)?snapshotDir\}/g, '$1' + this.project.snapshotDir)
         .replace(/\{(.)?snapshotSuffix\}/g, this.snapshotSuffix ? '$1' + this.snapshotSuffix : '')
@@ -339,7 +334,7 @@ export class TestInfoImpl implements TestInfo {
         .replace(/\{(.)?arg\}/g, '$1' + path.join(parsedSubPath.dir, parsedSubPath.name))
         .replace(/\{(.)?ext\}/g, parsedSubPath.ext ? '$1' + parsedSubPath.ext : '');
 
-    return path.normalize(path.resolve(this.config._internal.configDir, snapshotPath));
+    return path.normalize(path.resolve(this._configInternal.configDir, snapshotPath));
   }
 
   skip(...args: [arg?: any, description?: string]) {

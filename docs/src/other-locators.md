@@ -432,32 +432,117 @@ await page.Locator("button").Locator("nth=-1").ClickAsync();
 
 ## Parent element locator
 
-The parent element could be selected with `..`, which is a short form for `xpath=..`.
+When you need to target a parent element of some other element, most of the time you should [`method: Locator.filter`] by the child locator. For example, consider the following DOM structure:
 
-For example:
+```html
+<li><label>Hello</label></li>
+<li><label>World</label></li>
+```
+
+If you'd like to target the parent `<li>` of a label with text `"Hello"`, using [`method: Locator.filter`] works best:
 
 ```js
-const parentLocator = page.getByRole('button').locator('..');
+const child = page.getByText('Hello');
+const parent = page.getByRole('listitem').filter({ has: child });
 ```
 
 ```java
-Locator parentLocator = page.getByRole(AriaRole.BUTTON).locator("..");
+Locator child = page.getByText("Hello");
+Locator parent = page.getByRole(AriaRole.LISTITEM).filter(new Locator.FilterOptions().setHas(child));
 ```
 
 ```python async
-parent_locator = page.get_by_role("button").locator('..')
+child = page.get_by_text("Hello")
+parent = page.get_by_role("listitem").filter(has=child)
 ```
 
 ```python sync
-parent_locator = page.get_by_role("button").locator('..')
+child = page.get_by_text("Hello")
+parent = page.get_by_role("listitem").filter(has=child)
 ```
 
 ```csharp
-var parentLocator = page.GetByRole(AriaRole.Button).Locator("..");
+var child = page.GetByText("Hello");
+var parent = page.GetByRole(AriaRole.Listitem).Filter(new () { Has = child });
+```
+
+Alternatively, if you cannot find a suitable locator for the parent element, use `xpath=..`. Note that this method is not as reliable, because any changes to the DOM structure will break your tests. Prefer [`method: Locator.filter`] when possible.
+
+```js
+const parent = page.getByText('Hello').locator('xpath=..');
+```
+
+```java
+Locator parent = page.getByText("Hello").locator("xpath=..");
+```
+
+```python async
+parent = page.get_by_text("Hello").locator('xpath=..')
+```
+
+```python sync
+parent = page.get_by_text("Hello").locator('xpath=..')
+```
+
+```csharp
+var parent = page.GetByText("Hello").Locator("xpath=..");
 ```
 
 
-### Locating only visible elements
+
+## Combining two alternative locators
+
+If you'd like to target one of the two or more elements, and you don't know which one it will be, use [`method: Locator.or`] to create a locator that matches any of the alternatives.
+
+For example, consider a scenario where you'd like to click on a "New email" button, but sometimes a security settings dialog shows up instead. In this case, you can wait for either a "New email" button, or a dialog and act accordingly.
+
+```js
+const newEmail = page.getByRole('button', { name: 'New' });
+const dialog = page.getByText('Confirm security settings');
+await expect(newEmail.or(dialog)).toBeVisible();
+if (await dialog.isVisible())
+  await page.getByRole('button', { name: 'Dismiss' }).click();
+await newEmail.click();
+```
+
+```java
+Locator newEmail = page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("New"));
+Locator dialog = page.getByText("Confirm security settings");
+assertThat(newEmail.or(dialog)).isVisible();
+if (dialog.isVisible())
+  page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Dismiss")).click();
+newEmail.click();
+```
+
+```python async
+new_email = page.get_by_role("button", name="New")
+dialog = page.get_by_text("Confirm security settings")
+await expect(new_email.or_(dialog)).to_be_visible()
+if (await dialog.is_visible())
+  await page.get_by_role("button", name="Dismiss").click()
+await new_email.click()
+```
+
+```python sync
+new_email = page.get_by_role("button", name="New")
+dialog = page.get_by_text("Confirm security settings")
+expect(new_email.or_(dialog)).to_be_visible()
+if (dialog.is_visible())
+  page.get_by_role("button", name="Dismiss").click()
+new_email.click()
+```
+
+```csharp
+var newEmail = page.GetByRole(AriaRole.Button, new() { Name = "New" });
+var dialog = page.GetByText("Confirm security settings");
+await Expect(newEmail.Or(dialog)).ToBeVisibleAsync();
+if (await dialog.IsVisibleAsync())
+  await page.GetByRole(AriaRole.Button, new() { Name = "Dismiss" }).ClickAsync();
+await newEmail.ClickAsync();
+```
+
+
+## Locating only visible elements
 
 :::note
 It's usually better to find a [more reliable way](./locators.md#quick-guide) to uniquely identify the element instead of checking the visibility.
@@ -934,7 +1019,7 @@ If a selector needs to include `>>` in the body, it should be escaped inside a s
 ### Intermediate matches
 
 :::warning
-We recommend [filtering by another locator](./locators.md#filter-by-another-locator) to locate elements that contain other elements.
+We recommend [filtering by another locator](./locators.md#filter-by-childdescendant) to locate elements that contain other elements.
 :::
 
 By default, chained selectors resolve to an element queried by the last selector. A selector can be prefixed with `*` to capture elements that are queried by an intermediate selector.

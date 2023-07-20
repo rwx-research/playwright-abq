@@ -86,8 +86,8 @@ export async function showTraceViewer(traceUrls: string[], browserName: string, 
     channel: findChromiumChannel(traceViewerPlaywright.options.sdkLanguage),
     args,
     noDefaultViewport: true,
-    ignoreDefaultArgs: ['--enable-automation'],
     headless,
+    ignoreDefaultArgs: ['--enable-automation'],
     colorScheme: 'no-override',
     useWebSocket: isUnderTest(),
   });
@@ -128,9 +128,8 @@ function traceDescriptor(traceName: string) {
   const traceDir = path.dirname(traceName);
   const traceFile = path.basename(traceName);
   for (const name of fs.readdirSync(traceDir)) {
-    // 23423423.trace => 23423423-trace.trace
     if (name.startsWith(traceFile))
-      result.entries.push({ name: name.replace(traceFile, traceFile + '-trace'), path: path.join(traceDir, name) });
+      result.entries.push({ name, path: path.join(traceDir, name) });
   }
 
   const resourcesDir = path.join(traceDir, 'resources');

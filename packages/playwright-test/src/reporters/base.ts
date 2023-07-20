@@ -19,10 +19,9 @@ import fs from 'fs';
 import path from 'path';
 import type { FullConfig, TestCase, Suite, TestResult, TestError, FullResult, TestStep, Location, Reporter } from '../../types/testReporter';
 import type { SuitePrivate } from '../../types/reporterPrivate';
-import type { FullConfigInternal } from '../common/types';
 import { codeFrameColumns } from '../common/babelBundle';
 import { monotonicTime } from 'playwright-core/lib/utils';
-
+import type { FullProject } from '../../types/test';
 export type TestResultOutput = { chunk: string | Buffer, type: 'stdout' | 'stderr' };
 export const kOutputSymbol = Symbol('output');
 
@@ -49,7 +48,7 @@ type TestSummary = {
 
 export class BaseReporter implements Reporter {
   duration = 0;
-  config!: FullConfigInternal;
+  config!: FullConfig;
   suite!: Suite;
   totalTestCount = 0;
   result!: FullResult;
@@ -66,7 +65,7 @@ export class BaseReporter implements Reporter {
 
   onBegin(config: FullConfig, suite: Suite) {
     this.monotonicStartTime = monotonicTime();
-    this.config = config as FullConfigInternal;
+    this.config = config;
     this.suite = suite;
     this.totalTestCount = suite.allTests().length;
   }
@@ -122,8 +121,10 @@ export class BaseReporter implements Reporter {
   }
 
   protected generateStartingMessage() {
-    const jobs = Math.min(this.config.workers, this.config._internal.maxConcurrentTestGroups);
+    const jobs = this.config.workers;
     const shardDetails = this.config.shard ? `, shard ${this.config.shard.current} of ${this.config.shard.total}` : '';
+    if (!this.totalTestCount)
+      return '';
     return '\n' + colors.dim('Running ') + this.totalTestCount + colors.dim(` test${this.totalTestCount !== 1 ? 's' : ''} using `) + jobs + colors.dim(` worker${jobs !== 1 ? 's' : ''}${shardDetails}`);
   }
 
@@ -142,17 +143,17 @@ export class BaseReporter implements Reporter {
     if (unexpected.length) {
       tokens.push(colors.red(`  ${unexpected.length} failed`));
       for (const test of unexpected)
-        tokens.push(colors.red(formatTestHeader(this.config, test, '    ')));
+        tokens.push(colors.red(formatTestHeader(this.config, test, { indent: '    ' })));
     }
     if (interrupted.length) {
       tokens.push(colors.yellow(`  ${interrupted.length} interrupted`));
       for (const test of interrupted)
-        tokens.push(colors.yellow(formatTestHeader(this.config, test, '    ')));
+        tokens.push(colors.yellow(formatTestHeader(this.config, test, { indent: '    ' })));
     }
     if (flaky.length) {
       tokens.push(colors.yellow(`  ${flaky.length} flaky`));
       for (const test of flaky)
-        tokens.push(colors.yellow(formatTestHeader(this.config, test, '    ')));
+        tokens.push(colors.yellow(formatTestHeader(this.config, test, { indent: '    ' })));
     }
     if (skipped)
       tokens.push(colors.yellow(`  ${skipped} skipped`));
@@ -249,7 +250,7 @@ export function formatFailure(config: FullConfig, test: TestCase, options: {inde
   const lines: string[] = [];
   const title = formatTestTitle(config, test);
   const annotations: Annotation[] = [];
-  const header = formatTestHeader(config, test, '  ', index);
+  const header = formatTestHeader(config, test, { indent: '  ', index, mode: 'error' });
   lines.push(colors.red(header));
   for (const result of test.results) {
     const resultLines: string[] = [];
@@ -335,7 +336,7 @@ export function formatResultFailure(config: FullConfig, test: TestCase, result: 
   }
 
   for (const error of result.errors) {
-    const formattedError = formatError(config, error, highlightCode, test.location.file);
+    const formattedError = formatError(config, error, highlightCode);
     errorDetails.push({
       message: indent(formattedError.message, initialIndent),
       location: formattedError.location,
@@ -369,13 +370,34 @@ export function formatTestTitle(config: FullConfig, test: TestCase, step?: TestS
   return `${projectTitle}${location} › ${titles.join(' › ')}${stepSuffix(step)}`;
 }
 
-function formatTestHeader(config: FullConfig, test: TestCase, indent: string, index?: number): string {
+function formatTestHeader(config: FullConfig, test: TestCase, options: { indent?: string, index?: number, mode?: 'default' | 'error' } = {}): string {
   const title = formatTestTitle(config, test);
-  const header = `${indent}${index ? index + ') ' : ''}${title}`;
-  return separator(header);
+  const header = `${options.indent || ''}${options.index ? options.index + ') ' : ''}${title}`;
+  let fullHeader = header;
+
+  // Render the path to the deepest failing test.step.
+  if (options.mode === 'error') {
+    const stepPaths = new Set<string>();
+    for (const result of test.results.filter(r => !!r.errors.length)) {
+      const stepPath: string[] = [];
+      const visit = (steps: TestStep[]) => {
+        const errors = steps.filter(s => s.error);
+        if (errors.length > 1)
+          return;
+        if (errors.length === 1 && errors[0].category === 'test.step') {
+          stepPath.push(errors[0].title);
+          visit(errors[0].steps);
+        }
+      };
+      visit(result.steps);
+      stepPaths.add(['', ...stepPath].join(' › '));
+    }
+    fullHeader = header + (stepPaths.size === 1 ? stepPaths.values().next().value : '');
+  }
+  return separator(fullHeader);
 }
 
-export function formatError(config: FullConfig, error: TestError, highlightCode: boolean, file?: string): ErrorDetails {
+export function formatError(config: FullConfig, error: TestError, highlightCode: boolean): ErrorDetails {
   const message = error.message || error.value || '';
   const stack = error.stack;
   if (!stack && !error.location)
@@ -388,34 +410,50 @@ export function formatError(config: FullConfig, error: TestError, highlightCode:
   const parsedStack = stack ? prepareErrorStack(stack) : undefined;
   tokens.push(parsedStack?.message || message);
 
-  let location = error.location;
-  if (parsedStack && !location)
-    location = parsedStack.location;
-
-  if (location) {
-    try {
-      const source = fs.readFileSync(location.file, 'utf8');
-      const codeFrame = codeFrameColumns(source, { start: location }, { highlightCode });
-      // Convert /var/folders to /private/var/folders on Mac.
-      if (!file || fs.realpathSync(file) !== location.file) {
-        tokens.push('');
-        tokens.push(colors.gray(`   at `) + `${relativeFilePath(config, location.file)}:${location.line}`);
-      }
-      tokens.push('');
-      tokens.push(codeFrame);
-    } catch (e) {
-      // Failed to read the source file - that's ok.
-    }
+  if (error.snippet) {
+    let snippet = error.snippet;
+    if (!highlightCode)
+      snippet = stripAnsiEscapes(snippet);
+    tokens.push('');
+    tokens.push(snippet);
   }
+
   if (parsedStack) {
     tokens.push('');
     tokens.push(colors.dim(parsedStack.stackLines.join('\n')));
   }
 
+  let location = error.location;
+  if (parsedStack && !location)
+    location = parsedStack.location;
+
   return {
     location,
     message: tokens.join('\n'),
   };
+}
+
+export function addSnippetToError(config: FullConfig, error: TestError, file?: string) {
+  let location = error.location;
+  if (error.stack && !location)
+    location = prepareErrorStack(error.stack).location;
+  if (!location)
+    return;
+
+  try {
+    const tokens = [];
+    const source = fs.readFileSync(location.file, 'utf8');
+    const codeFrame = codeFrameColumns(source, { start: location }, { highlightCode: true });
+    // Convert /var/folders to /private/var/folders on Mac.
+    if (!file || fs.realpathSync(file) !== location.file) {
+      tokens.push(colors.gray(`   at `) + `${relativeFilePath(config, location.file)}:${location.line}`);
+      tokens.push('');
+    }
+    tokens.push(codeFrame);
+    error.snippet = tokens.join('\n');
+  } catch (e) {
+    // Failed to read the source file - that's ok.
+  }
 }
 
 export function separator(text: string = ''): string {
@@ -483,6 +521,23 @@ function fitToWidth(line: string, width: number, prefix?: string): string {
     }
   }
   return taken.reverse().join('');
+}
+
+export function uniqueProjectIds(projects: FullProject[]): Map<FullProject, string> {
+  const usedNames = new Set<string>();
+  const result = new Map<FullProject, string>();
+  for (const p of projects) {
+    const name = p.name || '';
+    for (let i = 0; i < projects.length; ++i) {
+      const candidate = name + (i ? i : '');
+      if (usedNames.has(candidate))
+        continue;
+      result.set(p, candidate);
+      usedNames.add(candidate);
+      break;
+    }
+  }
+  return result;
 }
 
 function belongsToNodeModules(file: string) {

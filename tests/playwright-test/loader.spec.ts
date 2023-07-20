@@ -153,14 +153,6 @@ test('should match tests well', async ({ runInlineTest }) => {
       import { test, expect } from '@playwright/test';
       test('works', () => {});
     `,
-    'test.ts': `
-      import { test, expect } from '@playwright/test';
-      test('works', () => {});
-    `,
-    'spec.ts': `
-      import { test, expect } from '@playwright/test';
-      test('works', () => {});
-    `,
     'strange.....spec.ts': `
       import { test, expect } from '@playwright/test';
       test('works', () => {});
@@ -184,7 +176,7 @@ test('should match tests well', async ({ runInlineTest }) => {
   });
 
   expect(result.exitCode).toBe(0);
-  expect(result.passed).toBe(5);
+  expect(result.passed).toBe(3);
 });
 
 test('should load an mjs file', async ({ runInlineTest }) => {
@@ -688,4 +680,24 @@ test('should support dynamic import', async ({ runInlineTest, nodeVersion }) => 
   }, { workers: 1 });
   expect(result.passed).toBe(2);
   expect(result.exitCode).toBe(0);
+});
+
+test('should allow test.extend.ts and test.ts files', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'test.extend.ts': `
+      export { test, expect } from '@playwright/test';
+    `,
+    'test.ts': `
+      export const helper = 42;
+    `,
+    'a.test.ts': `
+      import { test, expect } from './test.extend';
+      import { helper } from './test';
+      test('pass1', async () => {
+        expect(helper).toBe(42);
+      });
+    `,
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(1);
 });

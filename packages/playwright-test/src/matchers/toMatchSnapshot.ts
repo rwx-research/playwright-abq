@@ -17,7 +17,7 @@
 import type { Locator, Page } from 'playwright-core';
 import type { Page as PageEx } from 'playwright-core/lib/client/page';
 import type { Locator as LocatorEx } from 'playwright-core/lib/client/locator';
-import type { Expect } from '../common/types';
+import type { Expect } from '../../types/test';
 import { currentTestInfo, currentExpectTimeout } from '../common/globals';
 import type { ImageComparatorOptions, Comparator } from 'playwright-core/lib/utils';
 import { getComparator } from 'playwright-core/lib/utils';
@@ -110,7 +110,6 @@ class SnapshotHelper<T extends ImageComparatorOptions> {
       }
     }
 
-    testInfo.currentStep!.refinedTitle = `${testInfo.currentStep!.title}(${path.basename(this.snapshotName)})`;
     options = {
       ...configOptions,
       ...options,
@@ -253,12 +252,12 @@ export function toMatchSnapshot(
   if (received instanceof Promise)
     throw new Error('An unresolved Promise was passed to toMatchSnapshot(), make sure to resolve it by adding await to it.');
 
-  if (testInfo.config._internal.ignoreSnapshots)
+  if (testInfo._configInternal.ignoreSnapshots)
     return { pass: !this.isNot, message: () => '' };
 
   const helper = new SnapshotHelper(
       testInfo, testInfo.snapshotPath.bind(testInfo), determineFileExtension(received),
-      testInfo.project._internal.expect?.toMatchSnapshot || {},
+      testInfo._projectInternal.expect?.toMatchSnapshot || {},
       nameOrOptions, optOptions);
 
   if (this.isNot) {
@@ -288,6 +287,18 @@ export function toMatchSnapshot(
 
 type HaveScreenshotOptions = ImageComparatorOptions & Omit<PageScreenshotOptions, 'type' | 'quality' | 'path'>;
 
+export function toHaveScreenshotStepTitle(
+  nameOrOptions: NameOrSegments | { name?: NameOrSegments } & HaveScreenshotOptions = {},
+  optOptions: HaveScreenshotOptions = {}
+): string {
+  let name: NameOrSegments | undefined;
+  if (typeof nameOrOptions === 'object' && !Array.isArray(nameOrOptions))
+    name = nameOrOptions.name;
+  else
+    name = nameOrOptions;
+  return Array.isArray(name) ? name.join(path.sep) : name || '';
+}
+
 export async function toHaveScreenshot(
   this: ReturnType<Expect['getState']>,
   pageOrLocator: Page | Locator,
@@ -298,10 +309,10 @@ export async function toHaveScreenshot(
   if (!testInfo)
     throw new Error(`toHaveScreenshot() must be called during the test`);
 
-  if (testInfo.config._internal.ignoreSnapshots)
+  if (testInfo._configInternal.ignoreSnapshots)
     return { pass: !this.isNot, message: () => '' };
 
-  const config = (testInfo.project._internal.expect as any)?.toHaveScreenshot;
+  const config = (testInfo._projectInternal.expect as any)?.toHaveScreenshot;
   const snapshotPathResolver = testInfo.snapshotPath.bind(testInfo);
   const helper = new SnapshotHelper(
       testInfo, snapshotPathResolver, 'png',

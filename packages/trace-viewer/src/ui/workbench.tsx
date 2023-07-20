@@ -30,28 +30,42 @@ import type { TabbedPaneTabModel } from '@web/components/tabbedPane';
 import { Timeline } from './timeline';
 import './workbench.css';
 import { MetadataView } from './metadataView';
+import type { Location } from '../../../playwright-test/types/testReporter';
 
 export const Workbench: React.FunctionComponent<{
   model?: MultiTraceModel,
   hideTimelineBars?: boolean,
   hideStackFrames?: boolean,
   showSourcesFirst?: boolean,
-}> = ({ model, hideTimelineBars, hideStackFrames, showSourcesFirst }) => {
+  rootDir?: string,
+  defaultSourceLocation?: Location,
+  initialSelection?: ActionTraceEvent,
+  onSelectionChanged?: (action: ActionTraceEvent) => void,
+}> = ({ model, hideTimelineBars, hideStackFrames, showSourcesFirst, rootDir, defaultSourceLocation, initialSelection, onSelectionChanged }) => {
   const [selectedAction, setSelectedAction] = React.useState<ActionTraceEvent | undefined>(undefined);
   const [highlightedAction, setHighlightedAction] = React.useState<ActionTraceEvent | undefined>();
   const [selectedNavigatorTab, setSelectedNavigatorTab] = React.useState<string>('actions');
   const [selectedPropertiesTab, setSelectedPropertiesTab] = React.useState<string>(showSourcesFirst ? 'source' : 'call');
   const activeAction = model ? highlightedAction || selectedAction : undefined;
 
+  const sources = React.useMemo(() => model?.sources || new Map(), [model]);
+
   React.useEffect(() => {
     if (selectedAction && model?.actions.includes(selectedAction))
       return;
     const failedAction = model?.actions.find(a => a.error);
-    if (failedAction)
+    if (initialSelection && model?.actions.includes(initialSelection))
+      setSelectedAction(initialSelection);
+    else if (failedAction)
       setSelectedAction(failedAction);
     else if (model?.actions.length)
       setSelectedAction(model.actions[model.actions.length - 1]);
-  }, [model, selectedAction, setSelectedAction, setSelectedPropertiesTab]);
+  }, [model, selectedAction, setSelectedAction, setSelectedPropertiesTab, initialSelection]);
+
+  const onActionSelected = React.useCallback((action: ActionTraceEvent) => {
+    setSelectedAction(action);
+    onSelectionChanged?.(action);
+  }, [setSelectedAction, onSelectionChanged]);
 
   const { errors, warnings } = activeAction ? modelUtil.stats(activeAction) : { errors: 0, warnings: 0 };
   const consoleCount = errors + warnings;
@@ -66,7 +80,12 @@ export const Workbench: React.FunctionComponent<{
   const sourceTab: TabbedPaneTabModel = {
     id: 'source',
     title: 'Source',
-    render: () => <SourceTab action={activeAction} sources={model?.sources || new Map()} hideStackFrames={hideStackFrames}/>
+    render: () => <SourceTab
+      action={activeAction}
+      sources={sources}
+      hideStackFrames={hideStackFrames}
+      rootDir={rootDir}
+      fallbackLocation={defaultSourceLocation} />
   };
   const consoleTab: TabbedPaneTabModel = {
     id: 'console',
@@ -97,7 +116,7 @@ export const Workbench: React.FunctionComponent<{
     <Timeline
       model={model}
       selectedAction={activeAction}
-      onSelected={action => setSelectedAction(action)}
+      onSelected={onActionSelected}
       hideTimelineBars={hideTimelineBars}
     />
     <SplitView sidebarSize={250} orientation='vertical'>
@@ -113,12 +132,8 @@ export const Workbench: React.FunctionComponent<{
                 sdkLanguage={sdkLanguage}
                 actions={model?.actions || []}
                 selectedAction={model ? selectedAction : undefined}
-                onSelected={action => {
-                  setSelectedAction(action);
-                }}
-                onHighlighted={action => {
-                  setHighlightedAction(action);
-                }}
+                onSelected={onActionSelected}
+                onHighlighted={setHighlightedAction}
                 revealConsole={() => setSelectedPropertiesTab('console')}
               />
             },

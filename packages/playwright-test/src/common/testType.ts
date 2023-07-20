@@ -18,8 +18,9 @@ import { expect } from '../matchers/expect';
 import { currentlyLoadingFileSuite, currentTestInfo, setCurrentlyLoadingFileSuite } from './globals';
 import { TestCase, Suite } from './test';
 import { wrapFunctionWithLocation } from './transform';
-import type { Fixtures, FixturesWithLocation, Location, TestType } from './types';
-import { serializeError } from '../util';
+import type { FixturesWithLocation } from './config';
+import type { Fixtures, TestType } from '../../types/test';
+import type { Location } from '../../types/testReporter';
 
 const testTypeSymbol = Symbol('testType');
 
@@ -212,22 +213,10 @@ export class TestTypeImpl {
     const testInfo = currentTestInfo();
     if (!testInfo)
       throw new Error(`test.step() can only be called from a test`);
-    const step = testInfo._addStep({
-      category: 'test.step',
-      title,
-      location,
-      canHaveChildren: true,
-      forceNoParent: false,
-      wallTime: Date.now(),
+    return testInfo._runAsStep({ category: 'test.step', title, location }, async step => {
+      // Make sure that internal "step" is not leaked to the user callback.
+      return await body();
     });
-    try {
-      const result = await body();
-      step.complete({});
-      return result;
-    } catch (e) {
-      step.complete({ error: serializeError(e) });
-      throw e;
-    }
   }
 
   private _extend(location: Location, fixtures: Fixtures) {

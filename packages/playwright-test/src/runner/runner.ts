@@ -20,9 +20,8 @@ import type { FullResult } from '../../types/testReporter';
 import { webServerPluginsForConfig } from '../plugins/webServerPlugin';
 import { collectFilesForProject, filterProjects } from './projectUtils';
 import { createReporter } from './reporters';
-import { createTaskRunner, createTaskRunnerForList } from './tasks';
-import type { TaskRunnerState } from './tasks';
-import type { FullConfigInternal } from '../common/types';
+import { TestRun, createTaskRunner, createTaskRunnerForList } from './tasks';
+import type { FullConfigInternal } from '../common/config';
 import { colors } from 'playwright-core/lib/utilsBundle';
 import { runWatchModeLoop } from './watchMode';
 import * as Abq from './abq';
@@ -51,7 +50,7 @@ export class Runner {
 
   async runAllTests(): Promise<FullResult['status']> {
     const config = this._config;
-    const configuredListOnly = config._internal.listOnly; 
+    const configuredListOnly = config.cliListOnly;
     let effectiveListOnly = configuredListOnly;
 
     const abqConnected = await Abq.connect();
@@ -60,24 +59,19 @@ export class Runner {
       if (abqConnected.shouldGenerateManifestThenExit) effectiveListOnly = true;
     }
 
-    const deadline = config.globalTimeout ? monotonicTime() + config.globalTimeout : 0;
+    const deadline = config.config.globalTimeout ? monotonicTime() + config.config.globalTimeout : 0;
 
     // Legacy webServer support.
-    webServerPluginsForConfig(config).forEach(p => config._internal.plugins.push({ factory: p }));
+    webServerPluginsForConfig(config).forEach(p => config.plugins.push({ factory: p }));
 
     const reporter = await createReporter(config, configuredListOnly ? 'list' : 'run');
     const taskRunner = effectiveListOnly ? createTaskRunnerForList(config, reporter, 'in-process')
       : createTaskRunner(config, reporter);
 
-    const context: TaskRunnerState = {
-      config,
-      reporter,
-      phases: [],
-    };
-
+    const testRun = new TestRun(config, reporter);
     reporter.onConfigure(config);
 
-    if (!configuredListOnly && config._internal.ignoreSnapshots) {
+    if (!configuredListOnly && config.ignoreSnapshots) {
       reporter.onStdOut(colors.dim([
         'NOTE: running with "ignoreSnapshots" option. All of the following asserts are silently ignored:',
         '- expect().toMatchSnapshot()',
@@ -86,9 +80,9 @@ export class Runner {
       ].join('\n')));
     }
 
-    const taskStatus = await taskRunner.run(context, deadline);
+    const taskStatus = await taskRunner.run(testRun, deadline);
     let status: FullResult['status'] = 'passed';
-    if (context.phases.find(p => p.dispatcher.hasWorkerErrors()) || context.rootSuite?.allTests().some(test => !test.ok()))
+    if (testRun.phases.find(p => p.dispatcher.hasWorkerErrors()) || testRun.rootSuite?.allTests().some(test => !test.ok()))
       status = 'failed';
     if (status === 'passed' && taskStatus !== 'passed')
       status = taskStatus;
@@ -104,13 +98,13 @@ export class Runner {
 
   async watchAllTests(): Promise<FullResult['status']> {
     const config = this._config;
-    webServerPluginsForConfig(config).forEach(p => config._internal.plugins.push({ factory: p }));
+    webServerPluginsForConfig(config).forEach(p => config.plugins.push({ factory: p }));
     return await runWatchModeLoop(config);
   }
 
   async uiAllTests(): Promise<FullResult['status']> {
     const config = this._config;
-    webServerPluginsForConfig(config).forEach(p => config._internal.plugins.push({ factory: p }));
+    webServerPluginsForConfig(config).forEach(p => config.plugins.push({ factory: p }));
     return await runUIMode(config);
   }
 }

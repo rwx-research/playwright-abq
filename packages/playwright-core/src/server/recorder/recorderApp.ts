@@ -90,6 +90,7 @@ export class RecorderApp extends EventEmitter implements IRecorderApp {
       const file = require.resolve('../../webpack/recorder/' + uri);
       fs.promises.readFile(file).then(buffer => {
         route.fulfill({
+          requestUrl: route.request().url(),
           status: 200,
           headers: [
             { name: 'Content-Type', value: mime.getType(path.extname(file)) || 'application/octet-stream' }
@@ -128,8 +129,8 @@ export class RecorderApp extends EventEmitter implements IRecorderApp {
       channel: findChromiumChannel(sdkLanguage),
       args,
       noDefaultViewport: true,
-      colorScheme: 'no-override',
       ignoreDefaultArgs: ['--enable-automation'],
+      colorScheme: 'no-override',
       headless: !!process.env.PWTEST_CLI_HEADLESS || (isUnderTest() && !headed),
       useWebSocket: !!process.env.PWTEST_RECORDER_PORT,
       handleSIGINT,
@@ -169,13 +170,8 @@ export class RecorderApp extends EventEmitter implements IRecorderApp {
     }).toString(), true, sources, 'main').catch(() => {});
 
     // Testing harness for runCLI mode.
-    {
-      if ((process.env.PWTEST_CLI_IS_UNDER_TEST || process.env.PWTEST_CLI_EXIT) && sources.length) {
-        process.stdout.write('\n-------------8<-------------\n');
-        process.stdout.write(sources[0].text);
-        process.stdout.write('\n-------------8<-------------\n');
-      }
-    }
+    if (process.env.PWTEST_CLI_IS_UNDER_TEST && sources.length)
+      (process as any)._didSetSourcesForTest(sources[0].text);
   }
 
   async setSelector(selector: string, focus?: boolean): Promise<void> {

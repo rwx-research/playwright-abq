@@ -21,7 +21,7 @@ import { createApp as __pwCreateApp, setDevtoolsHook as __pwSetDevtoolsHook, h a
 import { compile as __pwCompile } from '@vue/compiler-dom';
 import * as __pwVue from 'vue';
 
-/** @typedef {import('@playwright/test/types/component').Component} Component */
+/** @typedef {import('@playwright/test/types/experimentalComponent').Component} Component */
 /** @typedef {import('vue').Component} FrameworkComponent */
 
 /** @type {Map<string, FrameworkComponent>} */
@@ -253,6 +253,9 @@ window.playwrightUpdate = async (rootElement, options) => {
   if (!wrapper)
     throw new Error('Component was not mounted');
 
+  if (!wrapper.component)
+    throw new Error('Updating a native HTML element is not supported');
+  
   const { slots, listeners, props } = __pwCreateComponent(options);
 
   wrapper.component.slots = __pwWrapFunctions(slots);

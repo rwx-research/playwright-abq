@@ -13,7 +13,13 @@ a way to find element(s) on the page at any moment. Locator can be created with 
 When locator points to a list of elements, returns array of locators, pointing
 to respective elements.
 
-Note that [`method: Locator.all`] does not wait for elements to match the locator, and instead immediately returns whatever is present in the page. To avoid flakiness when elements are loaded dynamically, wait for the loading to finish before calling [`method: Locator.all`].
+:::note
+[`method: Locator.all`] does not wait for elements to match the locator, and instead immediately returns whatever is present in the page.
+
+When the list of elements changes dynamically, [`method: Locator.all`] will produce unpredictable and flaky results.
+
+When the list of elements is stable, but loaded dynamically, wait for the full list to finish loading before calling [`method: Locator.all`].
+:::
 
 **Usage**
 
@@ -97,6 +103,7 @@ String[] texts = page.getByRole(AriaRole.LINK).allTextContents();
 ```csharp
 var texts = await page.GetByRole(AriaRole.Link).AllTextContentsAsync();
 ```
+
 
 ## async method: Locator.blur
 * since: v1.28
@@ -949,6 +956,12 @@ await rowLocator
 ### option: Locator.filter.-inline- = %%-locator-options-list-v1.14-%%
 * since: v1.22
 
+### option: Locator.filter.hasNot = %%-locator-option-has-not-%%
+* since: v1.33
+
+### option: Locator.filter.hasNotText = %%-locator-option-has-not-text-%%
+* since: v1.33
+
 ## method: Locator.first
 * since: v1.14
 - returns: <[Locator]>
@@ -1463,6 +1476,13 @@ var banana = await page.GetByRole(AriaRole.Listitem).Last(1);
 ### option: Locator.locator.-inline- = %%-locator-options-list-v1.14-%%
 * since: v1.14
 
+### option: Locator.locator.hasNot = %%-locator-option-has-not-%%
+* since: v1.33
+
+### option: Locator.locator.hasNotText = %%-locator-option-has-not-text-%%
+* since: v1.33
+
+
 ## method: Locator.nth
 * since: v1.14
 - returns: <[Locator]>
@@ -1494,6 +1514,71 @@ var banana = await page.GetByRole(AriaRole.Listitem).Nth(2);
 ### param: Locator.nth.index
 * since: v1.14
 - `index` <[int]>
+
+
+## method: Locator.or
+* since: v1.33
+* langs:
+  - alias-python: or_
+- returns: <[Locator]>
+
+Creates a locator that matches either of the two locators.
+
+**Usage**
+
+Consider a scenario where you'd like to click on a "New email" button, but sometimes a security settings dialog shows up instead. In this case, you can wait for either a "New email" button, or a dialog and act accordingly.
+
+```js
+const newEmail = page.getByRole('button', { name: 'New' });
+const dialog = page.getByText('Confirm security settings');
+await expect(newEmail.or(dialog)).toBeVisible();
+if (await dialog.isVisible())
+  await page.getByRole('button', { name: 'Dismiss' }).click();
+await newEmail.click();
+```
+
+```java
+Locator newEmail = page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("New"));
+Locator dialog = page.getByText("Confirm security settings");
+assertThat(newEmail.or(dialog)).isVisible();
+if (dialog.isVisible())
+  page.getByRole(AriaRole.BUTTON, new Page.GetByRoleOptions().setName("Dismiss")).click();
+newEmail.click();
+```
+
+```python async
+new_email = page.get_by_role("button", name="New")
+dialog = page.get_by_text("Confirm security settings")
+await expect(new_email.or_(dialog)).to_be_visible()
+if (await dialog.is_visible())
+  await page.get_by_role("button", name="Dismiss").click()
+await new_email.click()
+```
+
+```python sync
+new_email = page.get_by_role("button", name="New")
+dialog = page.get_by_text("Confirm security settings")
+expect(new_email.or_(dialog)).to_be_visible()
+if (dialog.is_visible())
+  page.get_by_role("button", name="Dismiss").click()
+new_email.click()
+```
+
+```csharp
+var newEmail = page.GetByRole(AriaRole.Button, new() { Name = "New" });
+var dialog = page.GetByText("Confirm security settings");
+await Expect(newEmail.Or(dialog)).ToBeVisibleAsync();
+if (await dialog.IsVisibleAsync())
+  await page.GetByRole(AriaRole.Button, new() { Name = "Dismiss" }).ClickAsync();
+await newEmail.ClickAsync();
+```
+
+### param: Locator.or.locator
+* since: v1.33
+- `locator` <[Locator]>
+
+Alternative locator to match.
+
 
 ## method: Locator.page
 * since: v1.19

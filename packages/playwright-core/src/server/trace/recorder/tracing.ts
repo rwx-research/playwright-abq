@@ -261,8 +261,12 @@ export class Tracing extends SdkObject implements InstrumentationListener, Snaps
         return {};
 
       // Network file survives across chunks, make a snapshot before returning the resulting entries.
-      const suffix = state.chunkOrdinal ? `-${state.chunkOrdinal}` : ``;
-      const networkFile = path.join(state.tracesDir, state.traceName + `${suffix}.network`);
+      // We should pick a name starting with "traceName" and ending with .network.
+      // Something like <traceName>someSuffixHere.network.
+      // However, this name must not clash with any other "traceName".network in the same tracesDir.
+      // We can use <traceName>-<guid>.network, but "-pwnetcopy-0" suffix is more readable
+      // and makes it easier to debug future issues.
+      const networkFile = path.join(state.tracesDir, state.traceName + `-pwnetcopy-${state.chunkOrdinal}.network`);
       await fs.promises.copyFile(state.networkFile, networkFile);
 
       const entries: NameValue[] = [];
@@ -421,14 +425,10 @@ export class Tracing extends SdkObject implements InstrumentationListener, Snaps
     this._allResources.add(sha1);
     const resourcePath = path.join(this._state!.resourcesDir, sha1);
     this._appendTraceOperation(async () => {
-      try {
-        // Perhaps we've already written this resource?
-        await fs.promises.access(resourcePath);
-      } catch (e) {
-        // If not, let's write! Note that async access is safe because we
-        // never remove resources until the very end.
-        await fs.promises.writeFile(resourcePath, buffer).catch(() => {});
-      }
+      // Note: 'wx' flag only writes when the file does not exist.
+      // See https://nodejs.org/api/fs.html#file-system-flags.
+      // This way tracing never have to write the same resource twice.
+      await fs.promises.writeFile(resourcePath, buffer, { flag: 'wx' }).catch(() => {});
     });
   }
 
@@ -489,7 +489,7 @@ function createBeforeActionTraceEvent(metadata: CallMetadata): trace.BeforeActio
     class: metadata.type,
     method: metadata.method,
     params: metadata.params,
-    wallTime: metadata.wallTime || Date.now(),
+    wallTime: metadata.wallTime,
     pageId: metadata.pageId,
   };
 }

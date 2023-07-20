@@ -14,13 +14,11 @@
  * limitations under the License.
  */
 
-type JsonPrimitive = string | number | boolean | null;
-type JsonValue = JsonPrimitive | JsonObject | JsonArray;
-type JsonArray = JsonValue[];
-type JsonObject = { [Key in string]?: JsonValue };
+import type { JsonObject } from '@playwright/experimental-ct-core/types/component';
+
 export declare function beforeMount<HooksConfig extends JsonObject>(
-  callback: (params: { hooksConfig: HooksConfig; App: () => JSX.Element }) => Promise<void | JSX.Element>
+  callback: (params: { hooksConfig?: HooksConfig; App: () => JSX.Element }) => Promise<void | JSX.Element>
 ): void;
 export declare function afterMount<HooksConfig extends JsonObject>(
-  callback: (params: { hooksConfig: HooksConfig }) => Promise<void>
+  callback: (params: { hooksConfig?: HooksConfig }) => Promise<void>
 ): void;

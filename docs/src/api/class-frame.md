@@ -1345,6 +1345,12 @@ Returns whether the element is [visible](../actionability.md#visible). [`option:
 ### option: Frame.locator.-inline- = %%-locator-options-list-v1.14-%%
 * since: v1.14
 
+### option: Frame.locator.hasNot = %%-locator-option-has-not-%%
+* since: v1.33
+
+### option: Frame.locator.hasNotText = %%-locator-option-has-not-text-%%
+* since: v1.33
+
 ## method: Frame.name
 * since: v1.8
 - returns: <[string]>
@@ -2104,6 +2110,8 @@ a navigation.
 
 ## async method: Frame.waitForSelector
 * since: v1.8
+* discouraged: Use web assertions that assert visibility or a locator-based [`method: Locator.waitFor`] instead.
+  Read more about [locators](../locators.md).
 - returns: <[null]|[ElementHandle]>
 
 Returns when element specified by selector satisfies [`option: state`] option. Returns `null` if waiting for `hidden` or

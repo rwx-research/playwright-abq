@@ -18,74 +18,59 @@ import { showTraceViewer } from 'playwright-core/lib/server';
 import type { Page } from 'playwright-core/lib/server/page';
 import { isUnderTest, ManualPromise } from 'playwright-core/lib/utils';
 import type { FullResult } from '../../reporter';
-import { clearCompilationCache, dependenciesForTestFile } from '../common/compilationCache';
-import type { FullConfigInternal } from '../common/types';
+import { clearCompilationCache, collectAffectedTestFiles, dependenciesForTestFile } from '../common/compilationCache';
+import type { FullConfigInternal } from '../common/config';
 import { Multiplexer } from '../reporters/multiplexer';
 import { TeleReporterEmitter } from '../reporters/teleEmitter';
 import { createReporter } from './reporters';
-import type { TaskRunnerState } from './tasks';
-import { createTaskRunnerForList, createTaskRunnerForWatch, createTaskRunnerForWatchSetup } from './tasks';
+import { TestRun, createTaskRunnerForList, createTaskRunnerForWatch, createTaskRunnerForWatchSetup } from './tasks';
 import { chokidar } from '../utilsBundle';
 import type { FSWatcher } from 'chokidar';
 import { open } from '../utilsBundle';
+import ListReporter from '../reporters/list';
 
 class UIMode {
   private _config: FullConfigInternal;
   private _page!: Page;
   private _testRun: { run: Promise<FullResult['status']>, stop: ManualPromise<void> } | undefined;
   globalCleanup: (() => Promise<FullResult['status']>) | undefined;
-  private _testWatcher: FSWatcher | undefined;
-  private _originalStderr: (buffer: string | Uint8Array) => void;
+  private _globalWatcher: Watcher;
+  private _testWatcher: Watcher;
+  private _originalStdoutWrite: NodeJS.WriteStream['write'];
+  private _originalStderrWrite: NodeJS.WriteStream['write'];
 
   constructor(config: FullConfigInternal) {
     this._config = config;
     process.env.PW_LIVE_TRACE_STACKS = '1';
-    config._internal.configCLIOverrides.forbidOnly = false;
-    config._internal.configCLIOverrides.globalTimeout = 0;
-    config._internal.configCLIOverrides.repeatEach = 0;
-    config._internal.configCLIOverrides.shard = undefined;
-    config._internal.configCLIOverrides.updateSnapshots = undefined;
-    config._internal.listOnly = false;
-    config._internal.passWithNoTests = true;
+    config.cliListOnly = false;
+    config.cliPassWithNoTests = true;
     for (const project of config.projects)
-      project._internal.deps = [];
+      project.deps = [];
 
-    for (const p of config.projects)
-      p.retries = 0;
-    config._internal.configCLIOverrides.use = config._internal.configCLIOverrides.use || {};
-    config._internal.configCLIOverrides.use.trace = { mode: 'on', sources: false };
+    for (const p of config.projects) {
+      p.project.retries = 0;
+      p.project.repeatEach = 1;
+    }
+    config.configCLIOverrides.use = config.configCLIOverrides.use || {};
+    config.configCLIOverrides.use.trace = { mode: 'on', sources: false };
 
-    this._originalStderr = process.stderr.write.bind(process.stderr);
-    this._installGlobalWatcher();
-  }
-
-  private _installGlobalWatcher(): FSWatcher {
-    const projectDirs = new Set<string>();
-    for (const p of this._config.projects)
-      projectDirs.add(p.testDir);
-    let coalescingTimer: NodeJS.Timeout | undefined;
-    const watcher = chokidar.watch([...projectDirs], { ignoreInitial: true, persistent: true }).on('all', async event => {
-      if (event !== 'add' && event !== 'change' && event !== 'unlink')
-        return;
-      if (coalescingTimer)
-        clearTimeout(coalescingTimer);
-      coalescingTimer = setTimeout(() => {
-        this._dispatchEvent({ method: 'listChanged' });
-      }, 200);
+    this._originalStdoutWrite = process.stdout.write;
+    this._originalStderrWrite = process.stderr.write;
+    this._globalWatcher = new Watcher('deep', () => this._dispatchEvent({ method: 'listChanged' }));
+    this._testWatcher = new Watcher('flat', events => {
+      const collector = new Set<string>();
+      events.forEach(f => collectAffectedTestFiles(f.file, collector));
+      this._dispatchEvent({ method: 'testFilesChanged', params: { testFileNames: [...collector] } });
     });
-    return watcher;
   }
 
   async runGlobalSetup(): Promise<FullResult['status']> {
-    const reporter = await createReporter(this._config, 'watch');
+    const reporter = new Multiplexer([new ListReporter()]);
     const taskRunner = createTaskRunnerForWatchSetup(this._config, reporter);
     reporter.onConfigure(this._config);
-    const context: TaskRunnerState = {
-      config: this._config,
-      reporter,
-      phases: [],
-    };
-    const { status, cleanup: globalCleanup } = await taskRunner.runDeferCleanup(context, 0);
+    const testRun = new TestRun(this._config, reporter);
+    const { status, cleanup: globalCleanup } = await taskRunner.runDeferCleanup(testRun, 0);
+    await reporter.onExit({ status });
     if (status !== 'passed') {
       await globalCleanup();
       return status;
@@ -95,15 +80,17 @@ class UIMode {
   }
 
   async showUI() {
-    this._page = await showTraceViewer([], 'chromium', { app: 'watch.html', headless: isUnderTest() && process.env.PWTEST_HEADED_FOR_TEST !== '1' });
-    process.stdout.write = (chunk: string | Buffer) => {
-      this._dispatchEvent({ method: 'stdio', params: chunkToPayload('stdout', chunk) });
-      return true;
-    };
-    process.stderr.write = (chunk: string | Buffer) => {
-      this._dispatchEvent({ method: 'stdio', params: chunkToPayload('stderr', chunk) });
-      return true;
-    };
+    this._page = await showTraceViewer([], 'chromium', { app: 'uiMode.html', headless: isUnderTest() && process.env.PWTEST_HEADED_FOR_TEST !== '1' });
+    if (!process.env.PWTEST_DEBUG) {
+      process.stdout.write = (chunk: string | Buffer) => {
+        this._dispatchEvent({ method: 'stdio', params: chunkToPayload('stdout', chunk) });
+        return true;
+      };
+      process.stderr.write = (chunk: string | Buffer) => {
+        this._dispatchEvent({ method: 'stdio', params: chunkToPayload('stderr', chunk) });
+        return true;
+      };
+    }
     const exitPromise = new ManualPromise();
     this._page.on('close', () => exitPromise.resolve());
     let queue = Promise.resolve();
@@ -118,7 +105,7 @@ class UIMode {
         return;
       }
       if (method === 'open' && params.location) {
-        open('vscode://file/' + params.location).catch(e => this._originalStderr(String(e)));
+        open('vscode://file/' + params.location).catch(e => this._originalStderrWrite.call(process.stderr, String(e)));
         return;
       }
       if (method === 'resizeTerminal') {
@@ -136,6 +123,11 @@ class UIMode {
       await queue;
     });
     await exitPromise;
+
+    if (!process.env.PWTEST_DEBUG) {
+      process.stdout.write = this._originalStdoutWrite;
+      process.stderr.write = this._originalStderrWrite;
+    }
   }
 
   private async _queueListOrRun(method: string, params: any) {
@@ -147,39 +139,45 @@ class UIMode {
 
   private _dispatchEvent(message: any) {
     // eslint-disable-next-line no-console
-    this._page.mainFrame().evaluateExpression(dispatchFuncSource, true, message).catch(e => this._originalStderr(String(e)));
+    this._page.mainFrame().evaluateExpression(dispatchFuncSource, true, message).catch(e => this._originalStderrWrite.call(process.stderr, String(e)));
   }
 
   private async _listTests() {
     const listReporter = new TeleReporterEmitter(e => this._dispatchEvent(e));
     const reporter = new Multiplexer([listReporter]);
-    this._config._internal.listOnly = true;
-    this._config._internal.testIdMatcher = undefined;
+    this._config.cliListOnly = true;
+    this._config.testIdMatcher = undefined;
     const taskRunner = createTaskRunnerForList(this._config, reporter, 'out-of-process');
-    const context: TaskRunnerState = { config: this._config, reporter, phases: [] };
+    const testRun = new TestRun(this._config, reporter);
     clearCompilationCache();
     reporter.onConfigure(this._config);
-    await taskRunner.run(context, 0);
+    const status = await taskRunner.run(testRun, 0);
+    await reporter.onExit({ status });
+
+    const projectDirs = new Set<string>();
+    for (const p of this._config.projects)
+      projectDirs.add(p.project.testDir);
+    this._globalWatcher.update([...projectDirs], false);
   }
 
   private async _runTests(testIds: string[]) {
     await this._stopTests();
 
     const testIdSet = testIds ? new Set<string>(testIds) : null;
-    this._config._internal.listOnly = false;
-    this._config._internal.testIdMatcher = id => !testIdSet || testIdSet.has(id);
+    this._config.cliListOnly = false;
+    this._config.testIdMatcher = id => !testIdSet || testIdSet.has(id);
 
     const runReporter = new TeleReporterEmitter(e => this._dispatchEvent(e));
     const reporter = await createReporter(this._config, 'ui', [runReporter]);
     const taskRunner = createTaskRunnerForWatch(this._config, reporter);
-    const context: TaskRunnerState = { config: this._config, reporter, phases: [] };
+    const testRun = new TestRun(this._config, reporter);
     clearCompilationCache();
     reporter.onConfigure(this._config);
     const stop = new ManualPromise();
-    const run = taskRunner.run(context, 0, stop).then(async status => {
+    const run = taskRunner.run(testRun, 0, stop).then(async status => {
       await reporter.onExit({ status });
       this._testRun = undefined;
-      this._config._internal.testIdMatcher = undefined;
+      this._config.testIdMatcher = undefined;
       return status;
     });
     this._testRun = { run, stop };
@@ -187,22 +185,12 @@ class UIMode {
   }
 
   private async _watchFiles(fileNames: string[]) {
-    if (this._testWatcher)
-      await this._testWatcher.close();
-    if (!fileNames.length)
-      return;
-
     const files = new Set<string>();
     for (const fileName of fileNames) {
       files.add(fileName);
       dependenciesForTestFile(fileName).forEach(file => files.add(file));
     }
-
-    this._testWatcher = chokidar.watch([...files], { ignoreInitial: true }).on('all', async (event, file) => {
-      if (event !== 'add' && event !== 'change')
-        return;
-      this._dispatchEvent({ method: 'fileChanged', params: { fileName: file } });
-    });
+    this._testWatcher.update([...files], true);
   }
 
   private async _stopTests() {
@@ -234,4 +222,55 @@ function chunkToPayload(type: 'stdout' | 'stderr', chunk: Buffer | string): Stdi
   if (chunk instanceof Buffer)
     return { type, buffer: chunk.toString('base64') };
   return { type, text: chunk };
+}
+
+type FSEvent = { event: 'add' | 'addDir' | 'change' | 'unlink' | 'unlinkDir', file: string };
+
+class Watcher {
+  private _onChange: (events: FSEvent[]) => void;
+  private _watchedFiles: string[] = [];
+  private _collector: FSEvent[] = [];
+  private _fsWatcher: FSWatcher | undefined;
+  private _throttleTimer: NodeJS.Timeout | undefined;
+  private _mode: 'flat' | 'deep';
+
+  constructor(mode: 'flat' | 'deep', onChange: (events: FSEvent[]) => void) {
+    this._mode = mode;
+    this._onChange = onChange;
+  }
+
+  update(watchedFiles: string[], reportPending: boolean) {
+    if (JSON.stringify(this._watchedFiles) === JSON.stringify(watchedFiles))
+      return;
+
+    if (reportPending)
+      this._reportEventsIfAny();
+
+    this._watchedFiles = watchedFiles;
+    this._fsWatcher?.close().then(() => {});
+    this._fsWatcher = undefined;
+    this._collector.length = 0;
+    clearTimeout(this._throttleTimer);
+    this._throttleTimer = undefined;
+
+    if (!this._watchedFiles.length)
+      return;
+
+    this._fsWatcher = chokidar.watch(watchedFiles, { ignoreInitial: true }).on('all', async (event, file) => {
+      if (this._throttleTimer)
+        clearTimeout(this._throttleTimer);
+      if (this._mode === 'flat' && event !== 'add' && event !== 'change')
+        return;
+      if (this._mode === 'deep' && event !== 'add' && event !== 'change' && event !== 'unlink' && event !== 'addDir' && event !== 'unlinkDir')
+        return;
+      this._collector.push({ event, file });
+      this._throttleTimer = setTimeout(() => this._reportEventsIfAny(), 250);
+    });
+  }
+
+  private _reportEventsIfAny() {
+    if (this._collector.length)
+      this._onChange(this._collector.slice());
+    this._collector.length = 0;
+  }
 }

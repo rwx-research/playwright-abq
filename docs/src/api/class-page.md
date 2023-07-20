@@ -2684,6 +2684,12 @@ Returns whether the element is [visible](../actionability.md#visible). [`option:
 ### option: Page.locator.-inline- = %%-locator-options-list-v1.14-%%
 * since: v1.14
 
+### option: Page.locator.hasNot = %%-locator-option-has-not-%%
+* since: v1.33
+
+### option: Page.locator.hasNotText = %%-locator-option-has-not-text-%%
+* since: v1.33
+
 ## method: Page.mainFrame
 * since: v1.8
 - returns: <[Frame]>
@@ -4653,6 +4659,8 @@ changed by using the [`method: BrowserContext.setDefaultTimeout`] or [`method: P
 
 ## async method: Page.waitForSelector
 * since: v1.8
+* discouraged: Use web assertions that assert visibility or a locator-based [`method: Locator.waitFor`] instead.
+  Read more about [locators](../locators.md).
 - returns: <[null]|[ElementHandle]>
 
 Returns when element specified by selector satisfies [`option: state`] option. Returns `null` if waiting for `hidden` or
@@ -4813,6 +4821,8 @@ Codition to wait for.
 
 ## async method: Page.waitForTimeout
 * since: v1.8
+* discouraged: Never wait for timeout in production. Tests that wait for time are
+  inherently flaky. Use [Locator] actions and web assertions that wait automatically.
 
 Waits for the given [`param: timeout`] in milliseconds.
 

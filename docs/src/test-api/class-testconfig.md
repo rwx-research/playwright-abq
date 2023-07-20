@@ -95,7 +95,7 @@ export default defineConfig({
 
 Path to the global setup file. This file will be required and run before all the tests. It must export a single function that takes a [`TestConfig`] argument.
 
-Learn more about [global setup and teardown](../test-advanced.md#global-setup-and-teardown).
+Learn more about [global setup and teardown](../test-global-setup-teardown.md).
 
 **Usage**
 
@@ -114,7 +114,7 @@ export default defineConfig({
 
 Path to the global teardown file. This file will be required and run after all the tests. It must export a single function. See also [`property: TestConfig.globalSetup`].
 
-Learn more about [global setup and teardown](../test-advanced.md#global-setup-and-teardown).
+Learn more about [global setup and teardown](../test-global-setup-teardown.md).
 
 **Usage**
 
@@ -517,7 +517,7 @@ export default defineConfig({
 
 Only the files matching one of these patterns are executed as test files. Matching is performed against the absolute file path. Strings are treated as glob patterns.
 
-By default, Playwright Test looks for files matching `.*(test|spec)\.(js|ts|mjs)`.
+By default, Playwright looks for files matching the following glob pattern: `**/*.@(spec|test).?(m)[jt]s?(x)`. This means JavaScript or TypeScript files with `".test"` or `".spec"` suffix, for example `login-screen.wrong-credentials.spec.ts`.
 
 **Usage**
 
@@ -595,7 +595,7 @@ export default defineConfig({
 - type: ?<[Object]|[Array]<[Object]>>
   - `command` <[string]> Shell command to start. For example `npm run start`..
   - `port` ?<[int]> The port that your http server is expected to appear on. It does wait until it accepts connections. Exactly one of `port` or `url` is required.
-  - `url` ?<[string]> The url on your http server that is expected to return a 2xx, 3xx, 400, 401, 402, or 403 status code when the server is ready to accept connections. Exactly one of `port` or `url` is required.
+  - `url` ?<[string]> The url on your http server that is expected to return a 2xx, 3xx, 400, 401, 402, or 403 status code when the server is ready to accept connections. Redirects (3xx status codes) are being followed and the new location is checked. Exactly one of `port` or `url` is required.
   - `ignoreHTTPSErrors` ?<[boolean]> Whether to ignore HTTPS errors when fetching the `url`. Defaults to `false`.
   - `timeout` ?<[int]> How long to wait for the process to start up and be available in milliseconds. Defaults to 60000.
   - `reuseExistingServer` ?<[boolean]> If true, it will re-use an existing server on the `port` or `url` when available. If no server is running on that `port` or `url`, it will run the command to start a new server. If `false`, it will throw if an existing process is listening on the `port` or `url`. This should be commonly set to `!process.env.CI` to allow the local dev server when running tests locally.
@@ -624,7 +624,7 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   webServer: {
     command: 'npm run start',
-    port: 3000,
+    url: 'http://127.0.0.1:3000',
     timeout: 120 * 1000,
     reuseExistingServer: !process.env.CI,
   },
@@ -655,19 +655,19 @@ export default defineConfig({
   webServer: [
     {
       command: 'npm run start',
-      port: 3000,
+      url: 'http://127.0.0.1:3000',
       timeout: 120 * 1000,
       reuseExistingServer: !process.env.CI,
     },
     {
       command: 'npm run backend',
-      port: 3333,
+      url: 'http://127.0.0.1:3333',
       timeout: 120 * 1000,
       reuseExistingServer: !process.env.CI,
     }
   ],
   use: {
-    baseURL: 'http://localhost:3000/',
+    baseURL: 'http://127.0.0.1:3000',
   },
 });
 ```

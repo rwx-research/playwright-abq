@@ -300,9 +300,7 @@ it('should throw if networkidle2 is passed as an option', async ({ page, server 
 it('should fail when main resources failed to load', async ({ page, browserName, isWindows, mode }) => {
   let error = null;
   await page.goto('http://localhost:44123/non-existing-url').catch(e => error = e);
-  if (mode === 'service')
-    expect(error.message).toContain('net::ERR_SOCKS_CONNECTION_FAILED');
-  else if (browserName === 'chromium')
+  if (browserName === 'chromium')
     expect(error.message).toContain('net::ERR_CONNECTION_REFUSED');
   else if (browserName === 'webkit' && isWindows)
     expect(error.message).toContain(`Couldn\'t connect to server`);
@@ -419,8 +417,10 @@ it('should fail when replaced by another navigation', async ({ page, server, bro
   }
 });
 
-it('js redirect overrides url bar navigation ', async ({ page, server, browserName }) => {
-  it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/21574' });
+it('js redirect overrides url bar navigation ', async ({ page, server, browserName, trace }) => {
+  it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/20749' });
+  it.skip(trace === 'on', 'tracing waits for snapshot that never arrives because pending navigation');
+
   server.setRoute('/a', (req, res) => {
     res.writeHead(200, { 'content-type': 'text/html' });
     res.end(`

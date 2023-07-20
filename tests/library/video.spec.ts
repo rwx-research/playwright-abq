@@ -292,6 +292,24 @@ it.describe('screencast', () => {
     expect(fs.existsSync(path)).toBeTruthy();
   });
 
+  it('should work with weird screen resolution', async ({ browser }, testInfo) => {
+    it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/22069' });
+    const videosPath = testInfo.outputPath('');
+    const size = { width: 1904, height: 609 };
+    const context = await browser.newContext({
+      recordVideo: {
+        dir: videosPath,
+        size
+      },
+      viewport: size,
+    });
+    const page = await context.newPage();
+    const path = await page.video()!.path();
+    expect(path).toContain(videosPath);
+    await context.close();
+    expect(fs.existsSync(path)).toBeTruthy();
+  });
+
   it('should expose video path blank popup', async ({ browser }, testInfo) => {
     const videosPath = testInfo.outputPath('');
     const size = { width: 320, height: 240 };
@@ -656,7 +674,8 @@ it.describe('screencast', () => {
     expect(files.length).toBe(1);
   });
 
-  it('should capture full viewport', async ({ browserType, browserName, headless, isWindows, trace }, testInfo) => {
+  it('should capture full viewport', async ({ browserType, browserName, headless, isWindows }, testInfo) => {
+    it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/22411' });
     it.fixme(browserName === 'chromium' && !headless, 'The square is not on the video');
     it.fixme(browserName === 'firefox' && isWindows, 'https://github.com/microsoft/playwright/issues/14405');
     const size = { width: 600, height: 400 };
@@ -690,7 +709,8 @@ it.describe('screencast', () => {
     expectAll(pixels, almostRed);
   });
 
-  it('should capture full viewport on hidpi', async ({ browserType, browserName, headless, isWindows, trace }, testInfo) => {
+  it('should capture full viewport on hidpi', async ({ browserType, browserName, headless, isWindows }, testInfo) => {
+    it.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/22411' });
     it.fixme(browserName === 'chromium' && !headless, 'The square is not on the video');
     it.fixme(browserName === 'firefox' && isWindows, 'https://github.com/microsoft/playwright/issues/14405');
     const size = { width: 600, height: 400 };

@@ -22,14 +22,15 @@ import type { Socket } from "net";
 import { TestCase } from "../../common/test";
 import { Dispatcher, EnvByProjectId } from "../dispatcher";
 import { getAbqSocket } from ".";
-import { FullConfigInternal } from "../../common/types";
+import { FullConfigInternal } from "../../common/config";
 import { TestGroup } from "../testGroups";
+import {Multiplexer} from "../../reporters/multiplexer";
 
 export class AbqDispatcher extends Dispatcher {
   private _abqSocket: Socket;
   private _queueIndexedByTestId!: Map<string, TestGroup>;
 
-  constructor(config: FullConfigInternal, reporter: Reporter) {
+  constructor(config: FullConfigInternal, reporter: Multiplexer) {
     super(config, reporter);
     this._abqSocket = getAbqSocket();
   }
@@ -39,7 +40,7 @@ export class AbqDispatcher extends Dispatcher {
     extraEnvByProjectId: EnvByProjectId
   ) {
     this._queue = testGroups;
-    const workers = this._config.workers;
+    const workers = this._config.config.workers;
     if (workers !== 1) {
       throw new Error(
         `ABQ only supports running with 1 Playwright worker, but is configured for '${workers}'.`
@@ -119,7 +120,7 @@ export class AbqDispatcher extends Dispatcher {
         })(result),
         id: test.id,
         display_name: test.title,
-        output: formatResultFailure(this._config, test, result, "", true)
+        output: formatResultFailure(this._config.config, test, result, "", true)
           .map((error) => "\n" + error.message)
           .join(""),
         runtime: Math.trunc(result.duration * 1_000_000), // convert ms to ns
