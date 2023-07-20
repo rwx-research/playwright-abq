@@ -1782,19 +1782,8 @@ export interface FullConfig<TestArgs = {}, WorkerArgs = {}> {
 export type TestStatus = 'passed' | 'failed' | 'timedOut' | 'skipped' | 'interrupted';
 
 /**
- * `WorkerInfo` contains information about the worker that is running tests. It is available to
- * [test.beforeAll(hookFunction)](https://playwright.dev/docs/api/class-test#test-before-all) and
- * [test.afterAll(hookFunction)](https://playwright.dev/docs/api/class-test#test-after-all) hooks and worker-scoped
- * fixtures.
- *
- * ```js
- * import { test, expect } from '@playwright/test';
- *
- * test.beforeAll(async ({ browserName }, workerInfo) => {
- *   console.log(`Running ${browserName} in worker #${workerInfo.workerIndex}`);
- * });
- * ```
- *
+ * `WorkerInfo` contains information about the worker that is running tests and is available to worker-scoped
+ * fixtures. `WorkerInfo` is a subset of [TestInfo] that is available in many other places.
  */
 export interface WorkerInfo {
   /**
@@ -1826,9 +1815,11 @@ export interface WorkerInfo {
 }
 
 /**
- * `TestInfo` contains information about currently running test. It is available to any test function,
- * [test.beforeEach(hookFunction)](https://playwright.dev/docs/api/class-test#test-before-each) and
- * [test.afterEach(hookFunction)](https://playwright.dev/docs/api/class-test#test-after-each) hooks and test-scoped
+ * `TestInfo` contains information about currently running test. It is available to test functions,
+ * [test.beforeEach(hookFunction)](https://playwright.dev/docs/api/class-test#test-before-each),
+ * [test.afterEach(hookFunction)](https://playwright.dev/docs/api/class-test#test-after-each),
+ * [test.beforeAll(hookFunction)](https://playwright.dev/docs/api/class-test#test-before-all) and
+ * [test.afterAll(hookFunction)](https://playwright.dev/docs/api/class-test#test-after-all) hooks, and test-scoped
  * fixtures. `TestInfo` provides utilities to control test execution: attach files, update test timeout, determine
  * which test is currently running and whether it was retried, etc.
  *
@@ -1871,9 +1862,9 @@ export interface TestInfo {
    *
    * ```js
    * import { test, expect } from '@playwright/test';
+   * import { download } from './my-custom-helpers';
    *
    * test('basic test', async ({}, testInfo) => {
-   *   const { download } = require('./my-custom-helpers');
    *   const tmpPath = await download('a');
    *   await testInfo.attach('downloaded', { path: tmpPath });
    * });
@@ -2225,6 +2216,11 @@ export interface TestInfo {
    * Output written to `process.stdout` or `console.log` during the test execution.
    */
   stdout: Array<string|Buffer>;
+
+  /**
+   * Test id matching the test case id in the reporter API.
+   */
+  testId: string;
 
   /**
    * Timeout in milliseconds for the currently running test. Zero means no timeout. Learn more about
@@ -3166,7 +3162,7 @@ export interface TestType<TestArgs extends KeyValue, WorkerArgs extends KeyValue
    * @param title Step name.
    * @param body Step body.
    */
-  step<T>(title: string, body: () => Promise<T>): Promise<T>;
+  step<T>(title: string, body: () => T | Promise<T>): Promise<T>;
   /**
    * `expect` function can be used to create test assertions. Read more about [test assertions](https://playwright.dev/docs/test-assertions).
    *
@@ -3312,7 +3308,7 @@ type ConnectOptions = {
  * [testProject.use](https://playwright.dev/docs/api/class-testproject#test-project-use).
  *
  * ```js
- * import type { PlaywrightTestConfig } from '@playwright/test';
+ * import { defineConfig } from '@playwright/test';
  * export default defineConfig({
  *   use: {
  *     headless: false,
@@ -3439,7 +3435,7 @@ export type VideoMode = 'off' | 'on' | 'retain-on-failure' | 'on-first-retry';
  * [testProject.use](https://playwright.dev/docs/api/class-testproject#test-project-use).
  *
  * ```js
- * import type { PlaywrightTestConfig } from '@playwright/test';
+ * import { defineConfig } from '@playwright/test';
  * export default defineConfig({
  *   use: {
  *     headless: false,
@@ -4090,12 +4086,12 @@ interface GenericAssertions<R> {
    *
    * ```js
    * const value = 'Is 42 enough?';
-   * expect(value).toMatches(/Is \d+ enough/);
+   * expect(value).toMatch(/Is \d+ enough/);
    * ```
    *
    * @param expected Regular expression to match against.
    */
-  toMatch(expected: RegExp): R;
+  toMatch(expected: RegExp | string): R;
   /**
    * Compares contents of the value with contents of `expected`, performing "deep equality" check. Allows extra
    * properties to be present in the value, unlike
@@ -4268,8 +4264,7 @@ export {};
 
 /**
  * The [APIResponseAssertions] class provides assertion methods that can be used to make assertions about the
- * [APIResponse] in the tests. A new instance of [APIResponseAssertions] is created by calling
- * [expect(response)](https://playwright.dev/docs/api/class-playwrightassertions#playwright-assertions-expect-api-response):
+ * [APIResponse] in the tests.
  *
  * ```js
  * import { test, expect } from '@playwright/test';
@@ -4309,8 +4304,7 @@ interface APIResponseAssertions {
 
 /**
  * The [LocatorAssertions] class provides assertion methods that can be used to make assertions about the [Locator]
- * state in the tests. A new instance of [LocatorAssertions] is created by calling
- * [expect(locator)](https://playwright.dev/docs/api/class-playwrightassertions#playwright-assertions-expect-locator):
+ * state in the tests.
  *
  * ```js
  * import { test, expect } from '@playwright/test';
@@ -4475,7 +4469,7 @@ interface LocatorAssertions {
    * **Usage**
    *
    * ```js
-   * const locator = page.locator('button.submit');
+   * const locator = page.getByRole('button');
    * // Make sure at least some part of element intersects viewport.
    * await expect(locator).toBeInViewport();
    * // Make sure element is fully outside of viewport.
@@ -5009,8 +5003,7 @@ interface LocatorAssertions {
 
 /**
  * The [PageAssertions] class provides assertion methods that can be used to make assertions about the [Page] state in
- * the tests. A new instance of [PageAssertions] is created by calling
- * [expect(page)](https://playwright.dev/docs/api/class-playwrightassertions#playwright-assertions-expect-page):
+ * the tests.
  *
  * ```js
  * import { test, expect } from '@playwright/test';

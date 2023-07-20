@@ -16,6 +16,7 @@
 
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+// @ts-ignore
 import { bundle } from './bundle';
 import * as path from 'path';
 
@@ -28,8 +29,11 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      '@isomorphic': path.resolve(__dirname, '../playwright-core/src/server/isomorphic'),
+      '@injected': path.resolve(__dirname, '../playwright-core/src/server/injected'),
+      '@isomorphic': path.resolve(__dirname, '../playwright-core/src/utils/isomorphic'),
       '@protocol': path.resolve(__dirname, '../protocol/src'),
+      '@testIsomorphic': path.resolve(__dirname, '../playwright-test/src/isomorphic'),
+      '@trace': path.resolve(__dirname, '../trace/src'),
       '@web': path.resolve(__dirname, '../web/src'),
     },
   },
@@ -40,6 +44,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         index: path.resolve(__dirname, 'index.html'),
+        watch: path.resolve(__dirname, 'watch.html'),
         popout: path.resolve(__dirname, 'popout.html'),
       },
       output: {

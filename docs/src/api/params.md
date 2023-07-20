@@ -8,6 +8,7 @@ When to consider operation succeeded, defaults to `load`. Events can be either:
 * `'commit'` - consider operation to be finished when network response is received and the document started loading.
 
 ## navigation-timeout
+* langs: python, java, csharp
 - `timeout` <[float]>
 
 Maximum operation time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout.
@@ -17,11 +18,27 @@ The default value can be changed by using the
 [`method: Page.setDefaultNavigationTimeout`] or
 [`method: Page.setDefaultTimeout`] methods.
 
-## wait-for-timeout
+## navigation-timeout-js
+* langs: js
 - `timeout` <[float]>
 
-maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default
-value can be changed by using the [`method: BrowserContext.setDefaultTimeout`].
+Maximum operation time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `navigationTimeout` option in the config, or by using the [`method: BrowserContext.setDefaultNavigationTimeout`],
+[`method: BrowserContext.setDefaultTimeout`],
+[`method: Page.setDefaultNavigationTimeout`] or
+[`method: Page.setDefaultTimeout`] methods.
+
+## wait-for-function-timeout
+* langs: python, java, csharp
+- `timeout` <[float]>
+
+Maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default
+value can be changed by using the [`method: BrowserContext.setDefaultTimeout`] or [`method: Page.setDefaultTimeout`] methods.
+
+## wait-for-function-timeout-js
+* langs: js
+- `timeout` <[float]>
+
+Maximum time to wait for in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the [`method: BrowserContext.setDefaultTimeout`] or [`method: Page.setDefaultTimeout`] methods.
 
 ## input-strict
 - `strict` <[boolean]>
@@ -30,10 +47,18 @@ When true, the call requires selector to resolve to a single element. If given s
 than one element, the call throws an exception.
 
 ## input-timeout
+* langs: python, java, csharp
 - `timeout` <[float]>
 
-Maximum time in milliseconds, defaults to 30 seconds, pass `0` to disable timeout. The default value can be changed by
+Maximum time in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to disable timeout. The default value can be changed by
 using the [`method: BrowserContext.setDefaultTimeout`] or
+[`method: Page.setDefaultTimeout`] methods.
+
+## input-timeout-js
+* langs: js
+- `timeout` <[float]>
+
+Maximum time in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the [`method: BrowserContext.setDefaultTimeout`] or
 [`method: Page.setDefaultTimeout`] methods.
 
 ## input-no-wait-after
@@ -133,6 +158,11 @@ A selector to query for.
 - `selector` <[string]>
 
 A selector to use when resolving DOM element.
+
+## find-selector-or-locator
+- `selectorOrLocator` <[string]|[Locator]>
+
+A selector or locator to use when resolving DOM element.
 
 ## wait-for-selector-state
 - `state` <[WaitForSelectorState]<"attached"|"detached"|"visible"|"hidden">>
@@ -450,7 +480,7 @@ Function to be evaluated in the worker context.
 * langs: js
 - `pageFunction` <[function]|[Electron]>
 
-Function to be evaluated in the worker context.
+Function to be evaluated in the main Electron process.
 
 ## python-context-option-viewport
 * langs: python
@@ -1091,7 +1121,6 @@ When set to `"hide"`, screenshot will hide text caret. When set to `"initial"`, 
 - %%-screenshot-option-caret-%%
 - %%-screenshot-option-type-%%
 - %%-screenshot-option-mask-%%
-- %%-input-timeout-%%
 
 ## locator-get-by-test-id-test-id
 * since: v1.27
@@ -1401,34 +1430,40 @@ await page.GetByAltText("Playwright logo").ClickAsync();
 
 ## template-locator-get-by-label-text
 
-Allows locating input elements by the text of the associated label.
+Allows locating input elements by the text of the associated `<label>` or `aria-labelledby` element, or by the `aria-label` attribute.
 
 **Usage**
 
-For example, this method will find the input by label text "Password" in the following DOM:
+For example, this method will find inputs by label "Username" and "Password" in the following DOM:
 
 ```html
+<input aria-label="Username">
 <label for="password-input">Password:</label>
 <input id="password-input">
 ```
 
 ```js
+await page.getByLabel('Username').fill('john');
 await page.getByLabel('Password').fill('secret');
 ```
 
 ```java
+page.getByLabel("Username").fill("john");
 page.getByLabel("Password").fill("secret");
 ```
 
 ```python async
+await page.get_by_label("Username").fill("john")
 await page.get_by_label("Password").fill("secret")
 ```
 
 ```python sync
+page.get_by_label("Username").fill("john")
 page.get_by_label("Password").fill("secret")
 ```
 
 ```csharp
+await page.GetByLabel("Username").FillAsync("john");
 await page.GetByLabel("Password").FillAsync("secret");
 ```
 
@@ -1593,23 +1628,11 @@ This option configures a template controlling location of snapshots generated by
 
 **Usage**
 
-```js tab=js-ts
+```js
 // playwright.config.ts
 import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
-  testDir: './tests',
-  snapshotPathTemplate: '{testDir}/__screenshots__/{testFilePath}/{arg}{ext}',
-});
-```
-
-```js tab=js-js
-// playwright.config.js
-// @ts-check
-
-const { defineConfig } = require('@playwright/test');
-
-module.exports = defineConfig({
   testDir: './tests',
   snapshotPathTemplate: '{testDir}/__screenshots__/{testFilePath}/{arg}{ext}',
 });
@@ -1630,20 +1653,9 @@ tests/
 
 And the following `page-click.spec.ts` that uses `toHaveScreenshot()` call:
 
-```js tab=js-ts
+```js
 // page-click.spec.ts
 import { test, expect } from '@playwright/test';
-
-test.describe('suite', () => {
-  test('test should work', async ({ page }) => {
-    await expect(page).toHaveScreenshot(['foo', 'bar', 'baz.png']);
-  });
-});
-```
-
-```js tab=js-js
-// page-click.spec.js
-const { test, expect } = require('@playwright/test');
 
 test.describe('suite', () => {
   test('test should work', async ({ page }) => {
@@ -1678,27 +1690,11 @@ Each token can be preceded with a single character that will be used **only if**
 
 Consider the following config:
 
-```js tab=js-ts
+```js
 // playwright.config.ts
 import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
-  snapshotPathTemplate: '__screenshots__{/projectName}/{testFilePath}/{arg}{ext}',
-  testMatch: 'example.spec.ts',
-  projects: [
-    { use: { browserName: 'firefox' } },
-    { name: 'chromium', use: { browserName: 'chromium' } },
-  ],
-});
-```
-
-```js tab=js-js
-// playwright.config.js
-// @ts-check
-
-const { defineConfig } = require('@playwright/test');
-
-module.exports = defineConfig({
   snapshotPathTemplate: '__screenshots__{/projectName}/{testFilePath}/{arg}{ext}',
   testMatch: 'example.spec.ts',
   projects: [

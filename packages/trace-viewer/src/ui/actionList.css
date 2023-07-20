@@ -14,50 +14,6 @@
   limitations under the License.
 */
 
-.action-list {
-  background-color: var(--vscode-sideBar-background);
-  border-top: 1px solid var(--vscode-panel-border);
-}
-
-.action-list-content {
-  display: flex;
-  flex-direction: column;
-  flex: auto;
-  position: relative;
-  user-select: none;
-  overflow: auto;
-  outline: none;
-}
-
-.action-entry {
-  display: flex;
-  flex: none;
-  cursor: pointer;
-  align-items: center;
-  white-space: nowrap;
-  line-height: 28px;
-  padding-left: 5px;
-}
-
-.action-entry.highlighted,
-.action-entry.selected {
-  background-color: var(--vscode-list-inactiveSelectionBackground);
-}
-
-.action-entry.highlighted {
-  background-color: var(--vscode-list-inactiveSelectionBackground);
-}
-
-.action-list-content:focus .action-entry.selected {
-  background-color: var(--vscode-list-activeSelectionBackground);
-  color: var(--vscode-list-activeSelectionForeground);
-  outline: 1px solid var(--vscode-focusBorder);
-}
-
-.action-list-content:focus .action-entry.selected * {
-  color: var(--vscode-list-activeSelectionForeground);
-}
-
 .action-title {
   flex: auto;
   display: block;
@@ -66,6 +22,9 @@
 }
 
 .action-duration {
+  display: flex;
+  flex: none;
+  align-items: center;
   margin: 0 4px;
   color: var(--gray);
 }
@@ -89,11 +48,11 @@
 }
 
 .action-icons:hover {
-  border-bottom: 1px solid white;
+  border-bottom: 1px solid var(--vscode-sideBarTitle-foreground);
 }
 
 .action-error {
-  color: red;
+  color: var(--vscode-errorForeground);
   position: relative;
   margin-right: 2px;
   flex: none;
@@ -111,23 +70,4 @@
   flex: none;
   padding-left: 5px;
   color: var(--blue);
-}
-
-.action-entry .codicon {
-  padding: 0 2px;
-}
-
-.action-entry .codicon-error, .action-entry .codicon-issues {
-  color: red;
-}
-
-.action-entry .codicon-warning {
-  color: darkorange;
-}
-
-.no-actions-entry {
-  flex: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }

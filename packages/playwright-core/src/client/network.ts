@@ -23,7 +23,7 @@ import type { Headers, RemoteAddr, SecurityDetails, WaitForEventOptions } from '
 import fs from 'fs';
 import { mime } from '../utilsBundle';
 import { assert, isString, headersObjectToArray, isRegExp } from '../utils';
-import { ManualPromise } from '../utils/manualPromise';
+import { ManualPromise, ScopedRace } from '../utils/manualPromise';
 import { Events } from './events';
 import type { Page } from './page';
 import { Waiter } from './waiter';
@@ -33,9 +33,6 @@ import { urlMatches } from '../utils/network';
 import { MultiMap } from '../utils/multimap';
 import { APIResponse } from './fetch';
 import type { Serializable } from '../../types/structs';
-import type { BrowserContext } from './browserContext';
-import { HarRouter } from './harRouter';
-import { kBrowserOrContextClosedError } from '../common/errors';
 
 export type NetworkCookie = {
   name: string,
@@ -273,8 +270,8 @@ export class Request extends ChannelOwner<channels.RequestChannel> implements ap
     return this._fallbackOverrides;
   }
 
-  _targetClosedPromise(): Promise<void> {
-    return this.serviceWorker()?._closedPromise || this.frame()._page?._closedOrCrashedPromise || new Promise(() => {});
+  _targetClosedRace(): ScopedRace {
+    return this.serviceWorker()?._closedRace || this.frame()._page?._closedOrCrashedRace || new ScopedRace();
   }
 }
 
@@ -297,10 +294,7 @@ export class Route extends ChannelOwner<channels.RouteChannel> implements api.Ro
     // When page closes or crashes, we catch any potential rejects from this Route.
     // Note that page could be missing when routing popup's initial request that
     // does not have a Page initialized just yet.
-    return Promise.race([
-      promise,
-      this.request()._targetClosedPromise(),
-    ]);
+    return this.request()._targetClosedRace().safeRace(promise);
   }
 
   _startHandling(): Promise<boolean> {
@@ -454,7 +448,7 @@ export class Response extends ChannelOwner<channels.ResponseChannel> implements 
   private _provisionalHeaders: RawHeaders;
   private _actualHeadersPromise: Promise<RawHeaders> | undefined;
   private _request: Request;
-  readonly _finishedPromise = new ManualPromise<void>();
+  readonly _finishedPromise = new ManualPromise<null>();
 
   static from(response: channels.ResponseChannel): Response {
     return (response as any)._object;
@@ -525,12 +519,7 @@ export class Response extends ChannelOwner<channels.ResponseChannel> implements 
   }
 
   async finished(): Promise<null> {
-    return Promise.race([
-      this._finishedPromise.then(() => null),
-      this.request()._targetClosedPromise().then(() => {
-        throw new Error(kBrowserOrContextClosedError);
-      }),
-    ]);
+    return this.request()._targetClosedRace().race(this._finishedPromise);
   }
 
   async body(): Promise<Buffer> {
@@ -629,64 +618,7 @@ export function validateHeaders(headers: Headers) {
   }
 }
 
-export class NetworkRouter {
-  private _owner: Page | BrowserContext;
-  private _baseURL: string | undefined;
-  private _routes: RouteHandler[] = [];
-
-  constructor(owner: Page | BrowserContext, baseURL: string | undefined) {
-    this._owner = owner;
-    this._baseURL = baseURL;
-  }
-
-  async route(url: URLMatch, handler: RouteHandlerCallback, options: { times?: number } = {}): Promise<void> {
-    this._routes.unshift(new RouteHandler(this._baseURL, url, handler, options.times));
-    await this._updateInterception();
-  }
-
-  async routeFromHAR(har: string, options: { url?: string | RegExp, notFound?: 'abort' | 'fallback' } = {}): Promise<void> {
-    const harRouter = await HarRouter.create(this._owner._connection.localUtils(), har, options.notFound || 'abort');
-    await this.route(options.url || '**/*', route => harRouter.handleRoute(route));
-    this._owner.once('close', () => harRouter.dispose());
-  }
-
-  async unroute(url: URLMatch, handler?: RouteHandlerCallback): Promise<void> {
-    this._routes = this._routes.filter(route => route.url !== url || (handler && route.handler !== handler));
-    await this._updateInterception();
-  }
-
-  async handleRoute(route: Route) {
-    const routeHandlers = this._routes.slice();
-    for (const routeHandler of routeHandlers) {
-      if (!routeHandler.matches(route.request().url()))
-        continue;
-      if (routeHandler.willExpire())
-        this._routes.splice(this._routes.indexOf(routeHandler), 1);
-      const handled = await routeHandler.handle(route);
-      if (!this._routes.length)
-        this._owner._wrapApiCall(() => this._updateInterception(), true).catch(() => {});
-      if (handled)
-        return true;
-    }
-    return false;
-  }
-
-  private async _updateInterception() {
-    const patterns: channels.BrowserContextSetNetworkInterceptionPatternsParams['patterns'] = [];
-    let all = false;
-    for (const handler of this._routes) {
-      if (isString(handler.url))
-        patterns.push({ glob: handler.url });
-      else if (isRegExp(handler.url))
-        patterns.push({ regexSource: handler.url.source, regexFlags: handler.url.flags });
-      else
-        all = true;
-    }
-    await this._owner._channel.setNetworkInterceptionPatterns(all ? { patterns: [{ glob: '**/*' }] } : { patterns });
-  }
-}
-
-class RouteHandler {
+export class RouteHandler {
   private handledCount = 0;
   private readonly _baseURL: string | undefined;
   private readonly _times: number;
@@ -698,6 +630,22 @@ class RouteHandler {
     this._times = times;
     this.url = url;
     this.handler = handler;
+  }
+
+  static prepareInterceptionPatterns(handlers: RouteHandler[]) {
+    const patterns: channels.BrowserContextSetNetworkInterceptionPatternsParams['patterns'] = [];
+    let all = false;
+    for (const handler of handlers) {
+      if (isString(handler.url))
+        patterns.push({ glob: handler.url });
+      else if (isRegExp(handler.url))
+        patterns.push({ regexSource: handler.url.source, regexFlags: handler.url.flags });
+      else
+        all = true;
+    }
+    if (all)
+      return [{ glob: '**/*' }];
+    return patterns;
   }
 
   public matches(requestURL: string): boolean {

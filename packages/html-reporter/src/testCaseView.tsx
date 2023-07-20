@@ -32,16 +32,20 @@ export const TestCaseView: React.FC<{
 }> = ({ projectNames, test, run, anchor }) => {
   const [selectedResultIndex, setSelectedResultIndex] = React.useState(run);
 
+  const annotations = new Map<string, (string | undefined)[]>();
+  test?.annotations.forEach(annotation => {
+    const list = annotations.get(annotation.type) || [];
+    list.push(annotation.description);
+    annotations.set(annotation.type, list);
+  });
+
   return <div className='test-case-column vbox'>
     {test && <div className='test-case-path'>{test.path.join(' › ')}</div>}
     {test && <div className='test-case-title'>{test?.title}</div>}
     {test && <div className='test-case-location'>{test.location.file}:{test.location.line}</div>}
     {test && !!test.projectName && <ProjectLink projectNames={projectNames} projectName={test.projectName}></ProjectLink>}
-    {test && !!test.annotations.length && <AutoChip header='Annotations'>
-      {test.annotations.map(a => <div className='test-case-annotation'>
-        <span style={{ fontWeight: 'bold' }}>{a.type}</span>
-        {a.description && <span>: {a.description}</span>}
-      </div>)}
+    {annotations.size > 0 && <AutoChip header='Annotations'>
+      {[...annotations].map(annotation => <TestCaseAnnotationView type={annotation[0]} descriptions={annotation[1]} />)}
     </AutoChip>}
     {test && <TabbedPane tabs={
       test.results.map((result, index) => ({
@@ -51,6 +55,29 @@ export const TestCaseView: React.FC<{
       })) || []} selectedTab={String(selectedResultIndex)} setSelectedTab={id => setSelectedResultIndex(+id)} />}
   </div>;
 };
+
+function renderAnnotationDescription(description: string) {
+  try {
+    if (['http:', 'https:'].includes(new URL(description).protocol))
+      return <a href={description} target='_blank' rel='noopener noreferrer'>{description}</a>;
+  } catch {}
+  return description;
+}
+
+function TestCaseAnnotationView({ type, descriptions }: { type: string, descriptions: (string | undefined)[] }) {
+  const filteredDescriptions = descriptions.filter(Boolean) as string[];
+  return (
+    <div className='test-case-annotation'>
+      <span style={{ fontWeight: 'bold' }}>{type}</span>
+      {!!filteredDescriptions.length && <span>: {filteredDescriptions.map((d, i) => {
+        const rendered = renderAnnotationDescription(d);
+        if (i < filteredDescriptions.length - 1)
+          return <>{rendered}, </>;
+        return rendered;
+      })}</span>}
+    </div>
+  );
+}
 
 function retryLabel(index: number) {
   if (!index)

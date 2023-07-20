@@ -1,7 +1,7 @@
 # class: LocatorAssertions
 * since: v1.17
 
-The [LocatorAssertions] class provides assertion methods that can be used to make assertions about the [Locator] state in the tests. A new instance of [LocatorAssertions] is created by calling [`method: PlaywrightAssertions.expectLocator`]:
+The [LocatorAssertions] class provides assertion methods that can be used to make assertions about the [Locator] state in the tests.
 
 ```js
 import { test, expect } from '@playwright/test';
@@ -156,6 +156,21 @@ The opposite of [`method: LocatorAssertions.toBeHidden`].
 
 ### option: LocatorAssertions.NotToBeHidden.timeout = %%-csharp-java-python-assertions-timeout-%%
 * since: v1.18
+
+## async method: LocatorAssertions.NotToBeInViewport
+* since: v1.31
+* langs: python
+
+The opposite of [`method: LocatorAssertions.toBeInViewport`].
+
+### option: LocatorAssertions.NotToBeInViewport.ratio
+* since: v1.31
+* langs: python
+- `ratio` <[float]>
+
+### option: LocatorAssertions.NotToBeInViewport.timeout = %%-csharp-java-python-assertions-timeout-%%
+* since: v1.31
+* langs: python
 
 ## async method: LocatorAssertions.NotToBeVisible
 * since: v1.20
@@ -689,7 +704,7 @@ Ensures the [Locator] points to an element that intersects viewport, according t
 **Usage**
 
 ```js
-const locator = page.locator('button.submit');
+const locator = page.getByRole('button');
 // Make sure at least some part of element intersects viewport.
 await expect(locator).toBeInViewport();
 // Make sure element is fully outside of viewport.
@@ -699,7 +714,7 @@ await expect(locator).toBeInViewport({ ratio: 0.5 });
 ```
 
 ```java
-Locator locator = page.locator("button.submit");
+Locator locator = page.getByRole(AriaRole.BUTTON);
 // Make sure at least some part of element intersects viewport.
 assertThat(locator).isInViewport();
 // Make sure element is fully outside of viewport.
@@ -709,7 +724,7 @@ assertThat(locator).isInViewport(new LocatorAssertions.IsInViewportOptions().set
 ```
 
 ```csharp
-var locator = Page.Locator("button.submit");
+var locator = Page.GetByRole(AriaRole.Button);
 // Make sure at least some part of element intersects viewport.
 await Expect(locator).ToBeInViewportAsync();
 // Make sure element is fully outside of viewport.
@@ -721,25 +736,25 @@ await Expect(locator).ToBeInViewportAsync(new() { Ratio = 0.5 });
 ```python async
 from playwright.async_api import expect
 
-locator = page.locator("button.submit")
+locator = page.get_by_role("button")
 # Make sure at least some part of element intersects viewport.
 await expect(locator).to_be_in_viewport()
 # Make sure element is fully outside of viewport.
 await expect(locator).not_to_be_in_viewport()
 # Make sure that at least half of the element intersects viewport.
-await expect(locator).to_be_in_viewport(ratio=0.5);
+await expect(locator).to_be_in_viewport(ratio=0.5)
 ```
 
 ```python sync
 from playwright.sync_api import expect
 
-locator = page.locator("button.submit")
+locator = page.get_by_role("button")
 # Make sure at least some part of element intersects viewport.
 expect(locator).to_be_in_viewport()
 # Make sure element is fully outside of viewport.
 expect(locator).not_to_be_in_viewport()
 # Make sure that at least half of the element intersects viewport.
-expect(locator).to_be_in_viewport(ratio=0.5);
+expect(locator).to_be_in_viewport(ratio=0.5)
 ```
 
 

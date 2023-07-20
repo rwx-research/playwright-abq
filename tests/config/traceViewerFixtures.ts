@@ -15,7 +15,7 @@
  */
 
 import type { Fixtures, Frame, Locator, Page, Browser, BrowserContext } from '@playwright/test';
-import { showTraceViewer } from '../../packages/playwright-core/lib/server/trace/viewer/traceViewer';
+import { showTraceViewer } from '../../packages/playwright-core/lib/server';
 
 type BaseTestFixtures = {
   context: BrowserContext;
@@ -45,23 +45,23 @@ class TraceViewerPage {
 
   constructor(public page: Page) {
     this.actionTitles = page.locator('.action-title');
-    this.callLines = page.locator('.call-line');
+    this.callLines = page.locator('.call-tab .call-line');
     this.consoleLines = page.locator('.console-line');
     this.consoleLineMessages = page.locator('.console-line-message');
     this.consoleStacks = page.locator('.console-stack');
-    this.stackFrames = page.locator('.stack-trace-frame');
+    this.stackFrames = page.getByTestId('stack-trace').locator('.list-view-entry');
     this.networkRequests = page.locator('.network-request-title');
     this.snapshotContainer = page.locator('.snapshot-container iframe');
   }
 
   async actionIconsText(action: string) {
-    const entry = await this.page.waitForSelector(`.action-entry:has-text("${action}")`);
+    const entry = await this.page.waitForSelector(`.list-view-entry:has-text("${action}")`);
     await entry.waitForSelector('.action-icon-value:visible');
     return await entry.$$eval('.action-icon-value:visible', ee => ee.map(e => e.textContent));
   }
 
   async actionIcons(action: string) {
-    return await this.page.waitForSelector(`.action-entry:has-text("${action}") .action-icons`);
+    return await this.page.waitForSelector(`.list-view-entry:has-text("${action}") .action-icons`);
   }
 
   async selectAction(title: string, ordinal: number = 0) {
@@ -69,7 +69,7 @@ class TraceViewerPage {
   }
 
   async selectSnapshot(name: string) {
-    await this.page.click(`.snapshot-tab .tab-label:has-text("${name}")`);
+    await this.page.click(`.snapshot-tab .tabbed-pane-tab-label:has-text("${name}")`);
   }
 
   async showConsoleTab() {
@@ -113,7 +113,8 @@ export const traceViewerFixtures: Fixtures<TraceViewerFixtures, {}, BaseTestFixt
     const browsers: Browser[] = [];
     const contextImpls: any[] = [];
     await use(async (traces: string[], { host, port } = {}) => {
-      const contextImpl = await showTraceViewer(traces, browserName, { headless, host, port });
+      const pageImpl = await showTraceViewer(traces, browserName, { headless, host, port });
+      const contextImpl = pageImpl.context();
       const browser = await playwright.chromium.connectOverCDP(contextImpl._browser.options.wsEndpoint);
       browsers.push(browser);
       contextImpls.push(contextImpl);

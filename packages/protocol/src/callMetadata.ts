@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-import type { Point, StackFrame, SerializedError } from './channels';
+import type { Point, SerializedError } from './channels';
 
 export type CallMetadata = {
   id: string;
-  wallTime: number;
   startTime: number;
   endTime: number;
   pauseStartTime?: number;
@@ -33,10 +32,10 @@ export type CallMetadata = {
   // Service-side is making a call to itself, this metadata does not go
   // through the dispatcher, so is always excluded from inspector / tracing.
   isServerSide?: boolean;
-  stack?: StackFrame[];
+  // Client wall time.
+  wallTime?: number;
+  location?: { file: string, line?: number, column?: number };
   log: string[];
-  afterSnapshot?: string;
-  snapshots: { title: string, snapshotName: string }[];
   error?: SerializedError;
   result?: any;
   point?: Point;

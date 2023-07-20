@@ -86,7 +86,7 @@ class PageExamples
         await using var browser = await playwright.Webkit.LaunchAsync();
         var page = await browser.NewPageAsync();
         await page.GotoAsync("https://www.theverge.com");
-        await page.ScreenshotAsync(new PageScreenshotOptions { Path = "theverge.png" });
+        await page.ScreenshotAsync(new() { Path = "theverge.png" });
     }
 }
 ```
@@ -599,7 +599,7 @@ page.add_init_script(path="./preload.js")
 ```
 
 ```csharp
-await page.AddInitScriptAsync("./preload.js");
+await page.AddInitScriptAsync(scriptPath: "./preload.js");
 ```
 
 :::note
@@ -746,6 +746,9 @@ When all steps combined have not finished during the specified [`option: timeout
 ### option: Page.check.timeout = %%-input-timeout-%%
 * since: v1.8
 
+### option: Page.check.timeout = %%-input-timeout-js-%%
+* since: v1.8
+
 ### option: Page.check.trial = %%-input-trial-%%
 * since: v1.11
 
@@ -793,6 +796,9 @@ When all steps combined have not finished during the specified [`option: timeout
 * since: v1.14
 
 ### option: Page.click.timeout = %%-input-timeout-%%
+* since: v1.8
+
+### option: Page.click.timeout = %%-input-timeout-js-%%
 * since: v1.8
 
 ### option: Page.click.trial = %%-input-trial-%%
@@ -889,6 +895,9 @@ When all steps combined have not finished during the specified [`option: timeout
 * since: v1.14
 
 ### option: Page.dblclick.timeout = %%-input-timeout-%%
+* since: v1.8
+
+### option: Page.dblclick.timeout = %%-input-timeout-js-%%
 * since: v1.8
 
 ### option: Page.dblclick.trial = %%-input-trial-%%
@@ -992,6 +1001,9 @@ Optional event-specific initialization properties.
 ### option: Page.dispatchEvent.timeout = %%-input-timeout-%%
 * since: v1.8
 
+### option: Page.dispatchEvent.timeout = %%-input-timeout-js-%%
+* since: v1.8
+
 ## async method: Page.dragAndDrop
 * since: v1.13
 
@@ -1065,6 +1077,9 @@ await Page.DragAndDropAsync("#source", "#target", new()
 * since: v1.14
 
 ### option: Page.dragAndDrop.timeout = %%-input-timeout-%%
+* since: v1.13
+
+### option: Page.dragAndDrop.timeout = %%-input-timeout-js-%%
 * since: v1.13
 
 ### option: Page.dragAndDrop.trial = %%-input-trial-%%
@@ -1165,13 +1180,13 @@ await page.EvaluateAsync("() => matchMedia('screen').matches");
 await page.EvaluateAsync("() => matchMedia('print').matches");
 // → false
 
-await page.EmulateMediaAsync(new PageEmulateMediaOptions { Media = Media.Print });
+await page.EmulateMediaAsync(new() { Media = Media.Print });
 await page.EvaluateAsync("() => matchMedia('screen').matches");
 // → false
 await page.EvaluateAsync("() => matchMedia('print').matches");
 // → true
 
-await page.EmulateMediaAsync(new PageEmulateMediaOptions { Media = Media.Screen });
+await page.EmulateMediaAsync(new() { Media = Media.Screen });
 await page.EvaluateAsync("() => matchMedia('screen').matches");
 // → true
 await page.EvaluateAsync("() => matchMedia('print').matches");
@@ -1218,7 +1233,7 @@ page.evaluate("matchMedia('(prefers-color-scheme: no-preference)').matches")
 ```
 
 ```csharp
-await page.EmulateMediaAsync(new PageEmulateMediaOptions { ColorScheme = ColorScheme.Dark });
+await page.EmulateMediaAsync(new() { ColorScheme = ColorScheme.Dark });
 await page.EvaluateAsync("matchMedia('(prefers-color-scheme: dark)').matches");
 // → true
 await page.EvaluateAsync("matchMedia('(prefers-color-scheme: light)').matches");
@@ -2091,6 +2106,9 @@ Value to fill for the `<input>`, `<textarea>` or `[contenteditable]` element.
 ### option: Page.fill.timeout = %%-input-timeout-%%
 * since: v1.8
 
+### option: Page.fill.timeout = %%-input-timeout-js-%%
+* since: v1.8
+
 ## async method: Page.focus
 * since: v1.8
 * discouraged: Use locator-based [`method: Locator.focus`] instead. Read more about [locators](../locators.md).
@@ -2105,6 +2123,9 @@ This method fetches an element with [`param: selector`] and focuses it. If there
 * since: v1.14
 
 ### option: Page.focus.timeout = %%-input-timeout-%%
+* since: v1.8
+
+### option: Page.focus.timeout = %%-input-timeout-js-%%
 * since: v1.8
 
 ## method: Page.frame
@@ -2260,6 +2281,9 @@ Attribute name to get the value for.
 ### option: Page.getAttribute.timeout = %%-input-timeout-%%
 * since: v1.8
 
+### option: Page.getAttribute.timeout = %%-input-timeout-js-%%
+* since: v1.8
+
 ## method: Page.getByAltText
 * since: v1.27
 - returns: <[Locator]>
@@ -2347,6 +2371,9 @@ Navigate to the previous page in history.
 ### option: Page.goBack.timeout = %%-navigation-timeout-%%
 * since: v1.8
 
+### option: Page.goBack.timeout = %%-navigation-timeout-js-%%
+* since: v1.8
+
 ## async method: Page.goForward
 * since: v1.8
 - returns: <[null]|[Response]>
@@ -2360,6 +2387,9 @@ Navigate to the next page in history.
 * since: v1.8
 
 ### option: Page.goForward.timeout = %%-navigation-timeout-%%
+* since: v1.8
+
+### option: Page.goForward.timeout = %%-navigation-timeout-js-%%
 * since: v1.8
 
 ## async method: Page.goto
@@ -2406,6 +2436,9 @@ it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/We
 ### option: Page.goto.timeout = %%-navigation-timeout-%%
 * since: v1.8
 
+### option: Page.goto.timeout = %%-navigation-timeout-js-%%
+* since: v1.8
+
 ### option: Page.goto.referer
 * since: v1.8
 - `referer` <[string]>
@@ -2447,6 +2480,9 @@ When all steps combined have not finished during the specified [`option: timeout
 ### option: Page.hover.timeout = %%-input-timeout-%%
 * since: v1.8
 
+### option: Page.hover.timeout = %%-input-timeout-js-%%
+* since: v1.8
+
 ### option: Page.hover.trial = %%-input-trial-%%
 * since: v1.11
 
@@ -2469,6 +2505,9 @@ Returns `element.innerHTML`.
 ### option: Page.innerHTML.timeout = %%-input-timeout-%%
 * since: v1.8
 
+### option: Page.innerHTML.timeout = %%-input-timeout-js-%%
+* since: v1.8
+
 ## async method: Page.innerText
 * since: v1.8
 * discouraged: Use locator-based [`method: Locator.innerText`] instead. Read more about [locators](../locators.md).
@@ -2483,6 +2522,9 @@ Returns `element.innerText`.
 * since: v1.14
 
 ### option: Page.innerText.timeout = %%-input-timeout-%%
+* since: v1.8
+
+### option: Page.innerText.timeout = %%-input-timeout-js-%%
 * since: v1.8
 
 ## async method: Page.inputValue
@@ -2503,6 +2545,9 @@ Throws for non-input elements. However, if the element is inside the `<label>` e
 ### option: Page.inputValue.timeout = %%-input-timeout-%%
 * since: v1.13
 
+### option: Page.inputValue.timeout = %%-input-timeout-js-%%
+* since: v1.13
+
 ## async method: Page.isChecked
 * since: v1.8
 * discouraged: Use locator-based [`method: Locator.isChecked`] instead. Read more about [locators](../locators.md).
@@ -2517,6 +2562,9 @@ Returns whether the element is checked. Throws if the element is not a checkbox 
 * since: v1.14
 
 ### option: Page.isChecked.timeout = %%-input-timeout-%%
+* since: v1.8
+
+### option: Page.isChecked.timeout = %%-input-timeout-js-%%
 * since: v1.8
 
 ## method: Page.isClosed
@@ -2541,6 +2589,9 @@ Returns whether the element is disabled, the opposite of [enabled](../actionabil
 ### option: Page.isDisabled.timeout = %%-input-timeout-%%
 * since: v1.8
 
+### option: Page.isDisabled.timeout = %%-input-timeout-js-%%
+* since: v1.8
+
 ## async method: Page.isEditable
 * since: v1.8
 * discouraged: Use locator-based [`method: Locator.isEditable`] instead. Read more about [locators](../locators.md).
@@ -2557,6 +2608,9 @@ Returns whether the element is [editable](../actionability.md#editable).
 ### option: Page.isEditable.timeout = %%-input-timeout-%%
 * since: v1.8
 
+### option: Page.isEditable.timeout = %%-input-timeout-js-%%
+* since: v1.8
+
 ## async method: Page.isEnabled
 * since: v1.8
 * discouraged: Use locator-based [`method: Locator.isEnabled`] instead. Read more about [locators](../locators.md).
@@ -2571,6 +2625,9 @@ Returns whether the element is [enabled](../actionability.md#enabled).
 * since: v1.14
 
 ### option: Page.isEnabled.timeout = %%-input-timeout-%%
+* since: v1.8
+
+### option: Page.isEnabled.timeout = %%-input-timeout-js-%%
 * since: v1.8
 
 ## async method: Page.isHidden
@@ -2748,8 +2805,8 @@ page.pdf(path="page.pdf")
 
 ```csharp
 // Generates a PDF with 'screen' media type
-await page.EmulateMediaAsync(new PageEmulateMediaOptions { Media = Media.Screen });
-await page.PdfAsync(new PagePdfOptions { Path = "page.pdf" });
+await page.EmulateMediaAsync(new() { Media = Media.Screen });
+await page.PdfAsync(new() { Path = "page.pdf" });
 ```
 
 The [`option: width`], [`option: height`], and [`option: margin`] options accept values labeled with units. Unlabeled
@@ -2980,11 +3037,11 @@ browser.close()
 var page = await browser.NewPageAsync();
 await page.GotoAsync("https://keycode.info");
 await page.PressAsync("body", "A");
-await page.ScreenshotAsync(new PageScreenshotOptions { Path = "A.png" });
+await page.ScreenshotAsync(new() { Path = "A.png" });
 await page.PressAsync("body", "ArrowLeft");
-await page.ScreenshotAsync(new PageScreenshotOptions { Path = "ArrowLeft.png" });
+await page.ScreenshotAsync(new() { Path = "ArrowLeft.png" });
 await page.PressAsync("body", "Shift+O");
-await page.ScreenshotAsync(new PageScreenshotOptions { Path = "O.png" });
+await page.ScreenshotAsync(new() { Path = "O.png" });
 ```
 
 ### param: Page.press.selector = %%-input-selector-%%
@@ -3009,6 +3066,9 @@ Time to wait between `keydown` and `keyup` in milliseconds. Defaults to 0.
 * since: v1.14
 
 ### option: Page.press.timeout = %%-input-timeout-%%
+* since: v1.8
+
+### option: Page.press.timeout = %%-input-timeout-js-%%
 * since: v1.8
 
 ## async method: Page.querySelector
@@ -3054,6 +3114,9 @@ last redirect.
 * since: v1.8
 
 ### option: Page.reload.timeout = %%-navigation-timeout-%%
+* since: v1.8
+
+### option: Page.reload.timeout = %%-navigation-timeout-js-%%
 * since: v1.8
 
 ## property: Page.request
@@ -3196,7 +3259,7 @@ page.route("/api/**", handle_route)
 await page.RouteAsync("/api/**", async r =>
 {
   if (r.Request.PostData.Contains("my-string"))
-      await r.FulfillAsync(new RouteFulfillOptions { Body = "mocked-data" });
+      await r.FulfillAsync(new() { Body = "mocked-data" });
   else
       await r.ContinueAsync();
 });
@@ -3272,6 +3335,18 @@ If specified, updates the given HAR with the actual network information instead 
 
 A glob pattern, regular expression or predicate to match the request URL. Only requests with URL matching the pattern will be served from the HAR file. If not specified, all requests are served from the HAR file.
 
+### option: Page.routeFromHAR.updateMode
+* since: v1.32
+- `updateMode` <[HarMode]<"full"|"minimal">>
+
+When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `full`.
+
+### option: Page.routeFromHAR.updateContent
+* since: v1.32
+- `updateContent` <[RouteFromHarUpdateContentPolicy]<"embed"|"attach">>
+
+Optional setting to control resource content management. If `attach` is specified, resources are persisted as separate files or entries in the ZIP archive. If `embed` is specified, content is stored inline the HAR file.
+
 ## async method: Page.screenshot
 * since: v1.8
 - returns: <[Buffer]>
@@ -3279,6 +3354,12 @@ A glob pattern, regular expression or predicate to match the request URL. Only r
 Returns the buffer with the captured screenshot.
 
 ### option: Page.screenshot.-inline- = %%-screenshot-options-common-list-v1.8-%%
+* since: v1.8
+
+### option: Page.screenshot.timeout = %%-input-timeout-%%
+* since: v1.8
+
+### option: Page.screenshot.timeout = %%-input-timeout-js-%%
 * since: v1.8
 
 ### option: Page.screenshot.fullPage = %%-screenshot-option-full-page-%%
@@ -3368,6 +3449,9 @@ await page.SelectOptionAsync("select#colors", new[] { "red", "green", "blue" });
 ### option: Page.selectOption.timeout = %%-input-timeout-%%
 * since: v1.8
 
+### option: Page.selectOption.timeout = %%-input-timeout-js-%%
+* since: v1.8
+
 ### param: Page.selectOption.element = %%-python-select-options-element-%%
 * since: v1.8
 
@@ -3420,6 +3504,9 @@ When all steps combined have not finished during the specified [`option: timeout
 ### option: Page.setChecked.timeout = %%-input-timeout-%%
 * since: v1.15
 
+### option: Page.setChecked.timeout = %%-input-timeout-js-%%
+* since: v1.15
+
 ### option: Page.setChecked.trial = %%-input-trial-%%
 * since: v1.15
 
@@ -3433,6 +3520,9 @@ When all steps combined have not finished during the specified [`option: timeout
 HTML markup to assign to the page.
 
 ### option: Page.setContent.timeout = %%-navigation-timeout-%%
+* since: v1.8
+
+### option: Page.setContent.timeout = %%-navigation-timeout-js-%%
 * since: v1.8
 
 ### option: Page.setContent.waitUntil = %%-navigation-wait-until-%%
@@ -3514,6 +3604,9 @@ This method expects [`param: selector`] to point to an
 * since: v1.14
 
 ### option: Page.setInputFiles.timeout = %%-input-timeout-%%
+* since: v1.8
+
+### option: Page.setInputFiles.timeout = %%-input-timeout-js-%%
 * since: v1.8
 
 ## async method: Page.setViewportSize
@@ -3618,6 +3711,9 @@ When all steps combined have not finished during the specified [`option: timeout
 ### option: Page.tap.timeout = %%-input-timeout-%%
 * since: v1.8
 
+### option: Page.tap.timeout = %%-input-timeout-js-%%
+* since: v1.8
+
 ### option: Page.tap.trial = %%-input-trial-%%
 * since: v1.11
 
@@ -3635,6 +3731,9 @@ Returns `element.textContent`.
 * since: v1.14
 
 ### option: Page.textContent.timeout = %%-input-timeout-%%
+* since: v1.8
+
+### option: Page.textContent.timeout = %%-input-timeout-js-%%
 * since: v1.8
 
 ## async method: Page.title
@@ -3709,6 +3808,9 @@ Time to wait between key presses in milliseconds. Defaults to 0.
 ### option: Page.type.timeout = %%-input-timeout-%%
 * since: v1.8
 
+### option: Page.type.timeout = %%-input-timeout-js-%%
+* since: v1.8
+
 ## async method: Page.uncheck
 * since: v1.8
 * discouraged: Use locator-based [`method: Locator.uncheck`] instead. Read more about [locators](../locators.md).
@@ -3744,6 +3846,9 @@ When all steps combined have not finished during the specified [`option: timeout
 * since: v1.14
 
 ### option: Page.uncheck.timeout = %%-input-timeout-%%
+* since: v1.8
+
+### option: Page.uncheck.timeout = %%-input-timeout-js-%%
 * since: v1.8
 
 ### option: Page.uncheck.trial = %%-input-trial-%%
@@ -3798,10 +3903,10 @@ Video object associated with this page.
 
 Performs action and waits for the Page to close.
 
-### param: Page.waitForClose.callback = %%-java-wait-for-event-callback-%%
+### option: Page.waitForClose.timeout = %%-wait-for-event-timeout-%%
 * since: v1.9
 
-### option: Page.waitForClose.timeout = %%-wait-for-event-timeout-%%
+### param: Page.waitForClose.callback = %%-java-wait-for-event-callback-%%
 * since: v1.9
 
 ## async method: Page.waitForConsoleMessage
@@ -3823,9 +3928,6 @@ Will throw an error if the page is closed before the [`event: Page.console`] eve
 ### param: Page.waitForConsoleMessage.action = %%-csharp-wait-for-event-action-%%
 * since: v1.12
 
-### param: Page.waitForConsoleMessage.callback = %%-java-wait-for-event-callback-%%
-* since: v1.9
-
 ### option: Page.waitForConsoleMessage.predicate
 * since: v1.9
 - `predicate` <[function]\([ConsoleMessage]\):[boolean]>
@@ -3833,6 +3935,9 @@ Will throw an error if the page is closed before the [`event: Page.console`] eve
 Receives the [ConsoleMessage] object and resolves to truthy value when the waiting should resolve.
 
 ### option: Page.waitForConsoleMessage.timeout = %%-wait-for-event-timeout-%%
+* since: v1.9
+
+### param: Page.waitForConsoleMessage.callback = %%-java-wait-for-event-callback-%%
 * since: v1.9
 
 ## async method: Page.waitForDownload
@@ -3854,9 +3959,6 @@ Will throw an error if the page is closed before the download event is fired.
 ### param: Page.waitForDownload.action = %%-csharp-wait-for-event-action-%%
 * since: v1.12
 
-### param: Page.waitForDownload.callback = %%-java-wait-for-event-callback-%%
-* since: v1.9
-
 ### option: Page.waitForDownload.predicate
 * since: v1.9
 - `predicate` <[function]\([Download]\):[boolean]>
@@ -3864,6 +3966,9 @@ Will throw an error if the page is closed before the download event is fired.
 Receives the [Download] object and resolves to truthy value when the waiting should resolve.
 
 ### option: Page.waitForDownload.timeout = %%-wait-for-event-timeout-%%
+* since: v1.9
+
+### param: Page.waitForDownload.callback = %%-java-wait-for-event-callback-%%
 * since: v1.9
 
 ## async method: Page.waitForEvent
@@ -3908,9 +4013,8 @@ frame = event_info.value
 * since: v1.8
 * langs: js
 - `optionsOrPredicate` ?<[function]|[Object]>
-  - `predicate` <[function]> receives the event data and resolves to truthy value when the waiting should resolve.
-  - `timeout` ?<[float]> maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to
-    disable timeout. The default value can be changed by using the [`method: BrowserContext.setDefaultTimeout`].
+  - `predicate` <[function]> Receives the event data and resolves to truthy value when the waiting should resolve.
+  - `timeout` ?<[float]> Maximum time to wait for in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the [`method: BrowserContext.setDefaultTimeout`] or [`method: Page.setDefaultTimeout`] methods.
 
 Either a predicate that receives an event or an options object. Optional.
 
@@ -3939,9 +4043,6 @@ Will throw an error if the page is closed before the file chooser is opened.
 ### param: Page.waitForFileChooser.action = %%-csharp-wait-for-event-action-%%
 * since: v1.12
 
-### param: Page.waitForFileChooser.callback = %%-java-wait-for-event-callback-%%
-* since: v1.9
-
 ### option: Page.waitForFileChooser.predicate
 * since: v1.9
 - `predicate` <[function]\([FileChooser]\):[boolean]>
@@ -3949,6 +4050,9 @@ Will throw an error if the page is closed before the file chooser is opened.
 Receives the [FileChooser] object and resolves to truthy value when the waiting should resolve.
 
 ### option: Page.waitForFileChooser.timeout = %%-wait-for-event-timeout-%%
+* since: v1.9
+
+### param: Page.waitForFileChooser.callback = %%-java-wait-for-event-callback-%%
 * since: v1.9
 
 ## async method: Page.waitForFunction
@@ -4086,7 +4190,10 @@ Optional argument to pass to [`param: expression`].
 ### option: Page.waitForFunction.polling = %%-csharp-java-wait-for-function-polling-%%
 * since: v1.8
 
-### option: Page.waitForFunction.timeout = %%-wait-for-timeout-%%
+### option: Page.waitForFunction.timeout = %%-wait-for-function-timeout-%%
+* since: v1.8
+
+### option: Page.waitForFunction.timeout = %%-wait-for-function-timeout-js-%%
 * since: v1.8
 
 ## async method: Page.waitForLoadState
@@ -4175,6 +4282,9 @@ Console.WriteLine(await popup.TitleAsync()); // popup is ready to use.
 ### option: Page.waitForLoadState.timeout = %%-navigation-timeout-%%
 * since: v1.8
 
+### option: Page.waitForLoadState.timeout = %%-navigation-timeout-js-%%
+* since: v1.8
+
 ## async method: Page.waitForNavigation
 * since: v1.8
 * deprecated: This method is inherently racy, please use [`method: Page.waitForURL`] instead.
@@ -4239,14 +4349,12 @@ a navigation.
 
 ## async method: Page.waitForNavigation
 * since: v1.8
+* deprecated: This method is inherently racy, please use [`method: Page.waitForURL`] instead.
 * langs: python
 - returns: <[EventContextManager]<[Response]>>
 
 ### param: Page.waitForNavigation.action = %%-csharp-wait-for-event-action-%%
 * since: v1.12
-
-### param: Page.waitForNavigation.callback = %%-java-wait-for-event-callback-%%
-* since: v1.9
 
 ### option: Page.waitForNavigation.url = %%-wait-for-navigation-url-%%
 * since: v1.8
@@ -4256,6 +4364,12 @@ a navigation.
 
 ### option: Page.waitForNavigation.timeout = %%-navigation-timeout-%%
 * since: v1.8
+
+### option: Page.waitForNavigation.timeout = %%-navigation-timeout-js-%%
+* since: v1.8
+
+### param: Page.waitForNavigation.callback = %%-java-wait-for-event-callback-%%
+* since: v1.9
 
 ## async method: Page.waitForPopup
 * since: v1.9
@@ -4276,9 +4390,6 @@ Will throw an error if the page is closed before the popup event is fired.
 ### param: Page.waitForPopup.action = %%-csharp-wait-for-event-action-%%
 * since: v1.12
 
-### param: Page.waitForPopup.callback = %%-java-wait-for-event-callback-%%
-* since: v1.9
-
 ### option: Page.waitForPopup.predicate
 * since: v1.9
 - `predicate` <[function]\([Page]\):[boolean]>
@@ -4286,6 +4397,9 @@ Will throw an error if the page is closed before the popup event is fired.
 Receives the [Page] object and resolves to truthy value when the waiting should resolve.
 
 ### option: Page.waitForPopup.timeout = %%-wait-for-event-timeout-%%
+* since: v1.9
+
+### param: Page.waitForPopup.callback = %%-java-wait-for-event-callback-%%
 * since: v1.9
 
 ## async method: Page.waitForRequest
@@ -4369,9 +4483,6 @@ await page.RunAndWaitForRequestAsync(async () =>
 ### param: Page.waitForRequest.action = %%-csharp-wait-for-event-action-%%
 * since: v1.12
 
-### param: Page.waitForRequest.callback = %%-java-wait-for-event-callback-%%
-* since: v1.9
-
 ### param: Page.waitForRequest.urlOrPredicate
 * since: v1.8
 - `urlOrPredicate` <[string]|[RegExp]|[function]\([Request]\):[boolean]>
@@ -4394,6 +4505,9 @@ Request URL string, regex or predicate receiving [Request] object.
 Maximum wait time in milliseconds, defaults to 30 seconds, pass `0` to disable the timeout. The default value can be
 changed by using the [`method: Page.setDefaultTimeout`] method.
 
+### param: Page.waitForRequest.callback = %%-java-wait-for-event-callback-%%
+* since: v1.9
+
 ## async method: Page.waitForRequestFinished
 * since: v1.12
 * langs: java, python, csharp
@@ -4413,9 +4527,6 @@ Will throw an error if the page is closed before the [`event: Page.requestFinish
 ### param: Page.waitForRequestFinished.action = %%-csharp-wait-for-event-action-%%
 * since: v1.12
 
-### param: Page.waitForRequestFinished.callback = %%-java-wait-for-event-callback-%%
-* since: v1.12
-
 ### option: Page.waitForRequestFinished.predicate
 * since: v1.12
 - `predicate` <[function]\([Request]\):[boolean]>
@@ -4423,6 +4534,9 @@ Will throw an error if the page is closed before the [`event: Page.requestFinish
 Receives the [Request] object and resolves to truthy value when the waiting should resolve.
 
 ### option: Page.waitForRequestFinished.timeout = %%-wait-for-event-timeout-%%
+* since: v1.12
+
+### param: Page.waitForRequestFinished.callback = %%-java-wait-for-event-callback-%%
 * since: v1.12
 
 ## async method: Page.waitForResponse
@@ -4510,9 +4624,6 @@ await page.RunAndWaitForResponseAsync(async () =>
 ### param: Page.waitForResponse.action = %%-csharp-wait-for-event-action-%%
 * since: v1.12
 
-### param: Page.waitForResponse.callback = %%-java-wait-for-event-callback-%%
-* since: v1.9
-
 ### param: Page.waitForResponse.urlOrPredicate
 * since: v1.8
 - `urlOrPredicate` <[string]|[RegExp]|[function]\([Response]\):[boolean]>
@@ -4536,6 +4647,9 @@ it gets merged via the [`new URL()`](https://developer.mozilla.org/en-US/docs/We
 
 Maximum wait time in milliseconds, defaults to 30 seconds, pass `0` to disable the timeout. The default value can be
 changed by using the [`method: BrowserContext.setDefaultTimeout`] or [`method: Page.setDefaultTimeout`] methods.
+
+### param: Page.waitForResponse.callback = %%-java-wait-for-event-callback-%%
+* since: v1.9
 
 ## async method: Page.waitForSelector
 * since: v1.8
@@ -4667,6 +4781,36 @@ class FrameExamples
 ### option: Page.waitForSelector.timeout = %%-input-timeout-%%
 * since: v1.8
 
+### option: Page.waitForSelector.timeout = %%-input-timeout-js-%%
+* since: v1.8
+
+## async method: Page.waitForCondition
+* since: v1.32
+* langs: java
+
+The method will block until the codition returns true. All Playwright events will
+be dispatched while the method is waiting for the codition.
+
+**Usage**
+
+Use the method to wait for a condition that depends on page events:
+
+```java
+List<String> messages = new ArrayList<>();
+page.onConsoleMessage(m -> messages.add(m.text()));
+page.getByText("Submit button").click();
+page.waitForCondition(() -> messages.size() > 3);
+```
+
+### param: Page.waitForCondition.condition
+* since: v1.32
+- `condition` <[BooleanSupplier]>
+
+Codition to wait for.
+
+### option: Page.waitForCondition.timeout = %%-wait-for-function-timeout-%%
+* since: v1.32
+
 ## async method: Page.waitForTimeout
 * since: v1.8
 
@@ -4746,6 +4890,9 @@ await page.WaitForURLAsync("**/target.html");
 ### option: Page.waitForURL.timeout = %%-navigation-timeout-%%
 * since: v1.11
 
+### option: Page.waitForURL.timeout = %%-navigation-timeout-js-%%
+* since: v1.11
+
 ### option: Page.waitForURL.waitUntil = %%-navigation-wait-until-%%
 * since: v1.11
 
@@ -4768,9 +4915,6 @@ Will throw an error if the page is closed before the WebSocket event is fired.
 ### param: Page.waitForWebSocket.action = %%-csharp-wait-for-event-action-%%
 * since: v1.12
 
-### param: Page.waitForWebSocket.callback = %%-java-wait-for-event-callback-%%
-* since: v1.9
-
 ### option: Page.waitForWebSocket.predicate
 * since: v1.9
 - `predicate` <[function]\([WebSocket]\):[boolean]>
@@ -4778,6 +4922,9 @@ Will throw an error if the page is closed before the WebSocket event is fired.
 Receives the [WebSocket] object and resolves to truthy value when the waiting should resolve.
 
 ### option: Page.waitForWebSocket.timeout = %%-wait-for-event-timeout-%%
+* since: v1.9
+
+### param: Page.waitForWebSocket.callback = %%-java-wait-for-event-callback-%%
 * since: v1.9
 
 ## async method: Page.waitForWorker
@@ -4799,9 +4946,6 @@ Will throw an error if the page is closed before the worker event is fired.
 ### param: Page.waitForWorker.action = %%-csharp-wait-for-event-action-%%
 * since: v1.12
 
-### param: Page.waitForWorker.callback = %%-java-wait-for-event-callback-%%
-* since: v1.9
-
 ### option: Page.waitForWorker.predicate
 * since: v1.9
 - `predicate` <[function]\([Worker]\):[boolean]>
@@ -4809,6 +4953,9 @@ Will throw an error if the page is closed before the worker event is fired.
 Receives the [Worker] object and resolves to truthy value when the waiting should resolve.
 
 ### option: Page.waitForWorker.timeout = %%-wait-for-event-timeout-%%
+* since: v1.9
+
+### param: Page.waitForWorker.callback = %%-java-wait-for-event-callback-%%
 * since: v1.9
 
 ## method: Page.workers

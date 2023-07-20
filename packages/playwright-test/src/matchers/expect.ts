@@ -14,8 +14,12 @@
  * limitations under the License.
  */
 
-import { pollAgainstTimeout } from 'playwright-core/lib/utils';
-import path from 'path';
+import {
+  captureRawStack,
+  createAfterActionTraceEventForExpect,
+  createBeforeActionTraceEventForExpect,
+  pollAgainstTimeout } from 'playwright-core/lib/utils';
+import type { ExpectZone } from 'playwright-core/lib/utils';
 import {
   toBeChecked,
   toBeDisabled,
@@ -44,13 +48,14 @@ import {
 import { toMatchSnapshot, toHaveScreenshot } from './toMatchSnapshot';
 import type { Expect } from '../common/types';
 import { currentTestInfo, currentExpectTimeout } from '../common/globals';
-import { serializeError, captureStackTrace, trimLongString } from '../util';
+import { filteredStackTrace, serializeError, stringifyStackFrames, trimLongString } from '../util';
 import {
   expect as expectLibrary,
   INVERTED_COLOR,
   RECEIVED_COLOR,
   printReceived,
 } from '../common/expectBundle';
+import { zones } from 'playwright-core/lib/utils';
 
 // from expect/build/types
 export type SyncExpectationResult = {
@@ -70,6 +75,8 @@ export type SyncExpectationResult = {
 // Format substring but do not enclose in double quote marks.
 // The replacement is compatible with pretty-format package.
 const printSubstring = (val: string): string => val.replace(/"|\\/g, '\\$&');
+
+let lastCallId = 0;
 
 export const printReceivedStringContainExpectedSubstring = (
   received: string,
@@ -100,7 +107,7 @@ export const printReceivedStringContainExpectedResult = (
 
 type ExpectMessageOrOptions = undefined | string | { message?: string, timeout?: number, intervals?: number[] };
 
-function createExpect(actual: unknown, messageOrOptions: ExpectMessageOrOptions, isSoft: boolean, isPoll: boolean, generator?: Generator) {
+function createExpect(actual: unknown, messageOrOptions: ExpectMessageOrOptions, isSoft: boolean, isPoll: boolean, generator?: Generator): any {
   return new Proxy(expectLibrary(actual), new ExpectMetaInfoProxyHandler(messageOrOptions, isSoft, isPoll, generator));
 }
 
@@ -157,16 +164,17 @@ type ExpectMetaInfo = {
   isNot: boolean;
   isSoft: boolean;
   isPoll: boolean;
+  nameTokens: string[];
   pollTimeout?: number;
   pollIntervals?: number[];
   generator?: Generator;
 };
 
-class ExpectMetaInfoProxyHandler {
+class ExpectMetaInfoProxyHandler implements ProxyHandler<any> {
   private _info: ExpectMetaInfo;
 
   constructor(messageOrOptions: ExpectMessageOrOptions, isSoft: boolean, isPoll: boolean, generator?: Generator) {
-    this._info = { isSoft, isPoll, generator, isNot: false };
+    this._info = { isSoft, isPoll, generator, isNot: false, nameTokens: [] };
     if (typeof messageOrOptions === 'string') {
       this._info.message = messageOrOptions;
     } else {
@@ -176,8 +184,10 @@ class ExpectMetaInfoProxyHandler {
     }
   }
 
-  get(target: any, matcherName: any, receiver: any): any {
+  get(target: Object, matcherName: string | symbol, receiver: any): any {
     let matcher = Reflect.get(target, matcherName, receiver);
+    if (typeof matcherName !== 'string')
+      return matcher;
     if (matcher === undefined)
       throw new Error(`expect: Property '${matcherName}' not found.`);
     if (typeof matcher !== 'function') {
@@ -195,19 +205,25 @@ class ExpectMetaInfoProxyHandler {
       if (!testInfo)
         return matcher.call(target, ...args);
 
-      const stackTrace = captureStackTrace();
-      const stackLines = stackTrace.frameTexts;
-      const frame = stackTrace.frames[0];
+      const rawStack = captureRawStack();
+      const stackFrames = filteredStackTrace(rawStack);
       const customMessage = this._info.message || '';
       const defaultTitle = `expect${this._info.isPoll ? '.poll' : ''}${this._info.isSoft ? '.soft' : ''}${this._info.isNot ? '.not' : ''}.${matcherName}`;
+      const wallTime = Date.now();
       const step = testInfo._addStep({
-        location: frame && frame.file ? { file: path.resolve(process.cwd(), frame.file), line: frame.line || 0, column: frame.column || 0 } : undefined,
+        location: stackFrames[0],
         category: 'expect',
         title: trimLongString(customMessage || defaultTitle, 1024),
         canHaveChildren: true,
-        forceNoParent: false
+        forceNoParent: false,
+        wallTime
       });
       testInfo.currentStep = step;
+
+      const generateTraceEvent = matcherName !== 'poll' && matcherName !== 'toPass';
+      const callId = ++lastCallId;
+      if (generateTraceEvent)
+        testInfo._traceEvents.push(createBeforeActionTraceEventForExpect(`expect@${callId}`, defaultTitle, args[0], stackFrames));
 
       const reportStepError = (jestError: Error) => {
         const message = jestError.message;
@@ -224,15 +240,19 @@ class ExpectMetaInfoProxyHandler {
               messageLines.splice(uselessMatcherLineIndex, 1);
           }
           const newMessage = [
-            'Error: ' + customMessage,
+            customMessage,
             '',
             ...messageLines,
           ].join('\n');
           jestError.message = newMessage;
-          jestError.stack = newMessage + '\n' + stackLines.join('\n');
+          jestError.stack = jestError.name + ': ' + newMessage + '\n' + stringifyStackFrames(stackFrames).join('\n');
         }
 
         const serializerError = serializeError(jestError);
+        if (generateTraceEvent) {
+          const error = { name: jestError.name, message: jestError.message, stack: jestError.stack };
+          testInfo._traceEvents.push(createAfterActionTraceEventForExpect(`expect@${callId}`, error));
+        }
         step.complete({ error: serializerError });
         if (this._info.isSoft)
           testInfo._failWithError(serializerError, false /* isHardError */);
@@ -240,12 +260,21 @@ class ExpectMetaInfoProxyHandler {
           throw jestError;
       };
 
+      const finalizer = () => {
+        if (generateTraceEvent)
+          testInfo._traceEvents.push(createAfterActionTraceEventForExpect(`expect@${callId}`));
+        step.complete({});
+      };
+
       try {
-        const result = matcher.call(target, ...args);
-        if ((result instanceof Promise))
-          return result.then(() => step.complete({})).catch(reportStepError);
+        const expectZone: ExpectZone = { title: defaultTitle, wallTime };
+        const result = zones.run<ExpectZone, any>('expectZone', expectZone, () => {
+          return matcher.call(target, ...args);
+        });
+        if (result instanceof Promise)
+          return result.then(() => finalizer()).catch(reportStepError);
         else
-          step.complete({});
+          finalizer();
       } catch (e) {
         reportStepError(e);
       }

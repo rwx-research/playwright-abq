@@ -41,7 +41,8 @@ import { Debugger } from './debugger';
 import { EventEmitter } from 'events';
 import { raceAgainstTimeout } from '../utils/timeoutRunner';
 import type { Language, LanguageGenerator } from './recorder/language';
-import { locatorOrSelectorAsSelector } from './isomorphic/locatorParser';
+import { locatorOrSelectorAsSelector } from '../utils/isomorphic/locatorParser';
+import { eventsHelper, type RegisteredListener } from './../utils/eventsHelper';
 
 type BindingSource = { frame: Frame, page: Page };
 
@@ -275,9 +276,9 @@ export class Recorder implements InstrumentationListener {
     // Apply new decorations.
     let fileToSelect = undefined;
     for (const metadata of this._currentCallsMetadata.keys()) {
-      if (!metadata.stack || !metadata.stack[0])
+      if (!metadata.location)
         continue;
-      const { file, line } = metadata.stack[0];
+      const { file, line } = metadata.location;
       let source = this._userSources.get(file);
       if (!source) {
         source = { isRecorded: false, label: file, id: file, text: this._readSource(file), highlight: [], language: languageForFile(file) };
@@ -349,6 +350,7 @@ class ContextRecorder extends EventEmitter {
   private _throttledOutputFile: ThrottledFile | null = null;
   private _orderedLanguages: LanguageGenerator[] = [];
   private _testIdAttributeName: string = 'data-testid';
+  private _listeners: RegisteredListener[] = [];
 
   constructor(context: BrowserContext, params: channels.BrowserContextRecorderSupplementEnableParams) {
     super();
@@ -387,9 +389,9 @@ class ContextRecorder extends EventEmitter {
     context.on(BrowserContext.Events.BeforeClose, () => {
       this._throttledOutputFile?.flush();
     });
-    process.on('exit', () => {
+    this._listeners.push(eventsHelper.addEventListener(process, 'exit', () => {
       this._throttledOutputFile?.flush();
-    });
+    }));
     this._generator = generator;
   }
 
@@ -447,6 +449,7 @@ class ContextRecorder extends EventEmitter {
     for (const timer of this._timers)
       clearTimeout(timer);
     this._timers.clear();
+    eventsHelper.removeEventListeners(this._listeners);
   }
 
   private async _onPage(page: Page) {
@@ -569,14 +572,12 @@ class ContextRecorder extends EventEmitter {
         objectId: frame.guid,
         pageId: frame._page.guid,
         frameId: frame.guid,
-        wallTime: Date.now(),
         startTime: monotonicTime(),
         endTime: 0,
         type: 'Frame',
         method: action,
         params,
         log: [],
-        snapshots: [],
       };
       this._generator.willPerformAction(actionInContext);
 

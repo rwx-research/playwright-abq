@@ -154,12 +154,12 @@ test('should reuse context with trace if mode=when-possible', async ({ runInline
 
   const trace2 = await parseTrace(testInfo.outputPath('test-results', 'reuse-two', 'trace.zip'));
   expect(trace2.actions).toEqual([
+    'expect.toBe',
     'page.setContent',
     'page.fill',
     'locator.click',
   ]);
   expect(trace2.events.some(e => e.type === 'frame-snapshot')).toBe(true);
-  expect(fs.existsSync(testInfo.outputPath('test-results', 'reuse-two', 'trace-1.zip'))).toBe(false);
 });
 
 test('should work with manually closed pages', async ({ runInlineTest }) => {
@@ -515,4 +515,39 @@ test('should not delete others contexts', async ({ runInlineTest }) => {
 
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(1);
+});
+
+test('should survive serial mode with tracing and reuse', async ({ runInlineTest }, testInfo) => {
+  const result = await runInlineTest({
+    'playwright.config.ts': `
+      import { defineConfig } from '@playwright/test';
+      export default defineConfig({ use: { trace: 'on' } });
+    `,
+    'reuse.spec.ts': `
+      import { test, expect } from '@playwright/test';
+      let page;
+
+      test.describe.configure({ mode: 'serial' });
+
+      test.beforeAll(async ({ browser }) => {
+        page = await browser.newPage();
+      });
+
+      test('one', async ({}) => {
+        await page.setContent('<button>Click</button>');
+        await page.click('button');
+      });
+
+      test('two', async ({}) => {
+        await page.setContent('<input>');
+        await page.fill('input', 'value');
+      });
+    `,
+  }, { workers: 1 }, { PW_TEST_REUSE_CONTEXT: '1' });
+
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(2);
+
+  expect(fs.existsSync(testInfo.outputPath('test-results', 'reuse-one', 'trace.zip'))).toBe(true);
+  expect(fs.existsSync(testInfo.outputPath('test-results', 'reuse-two', 'trace.zip'))).toBe(true);
 });

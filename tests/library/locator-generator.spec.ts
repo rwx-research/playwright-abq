@@ -15,8 +15,8 @@
  */
 
 import { contextTest as it, expect } from '../config/browserTest';
-import { asLocator } from '../../packages/playwright-core/lib/server/isomorphic/locatorGenerators';
-import { locatorOrSelectorAsSelector as parseLocator } from '../../packages/playwright-core/lib/server/isomorphic/locatorParser';
+import { asLocator } from '../../packages/playwright-core/lib/utils/isomorphic/locatorGenerators';
+import { locatorOrSelectorAsSelector as parseLocator } from '../../packages/playwright-core/lib/utils/isomorphic/locatorParser';
 import type { Page, Frame, Locator, FrameLocator } from 'playwright-core';
 
 it.skip(({ mode }) => mode !== 'default');
@@ -347,6 +347,8 @@ it.describe(() => {
       javascript: `locator('div').filter({ hasText: 'Goodbye world' }).locator('span')`,
       python: 'locator("div").filter(has_text="Goodbye world").locator("span")',
     });
+
+    expect.soft(asLocator('javascript', 'div >> internal:has-text="foo"s', false)).toBe(`locator('div').locator('internal:has-text="foo"s')`);
   });
 });
 

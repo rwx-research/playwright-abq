@@ -52,7 +52,7 @@ context.close()
 
 ```csharp
 using var playwright = await Playwright.CreateAsync();
-var browser = await playwright.Firefox.LaunchAsync(new BrowserTypeLaunchOptions { Headless = false });
+var browser = await playwright.Firefox.LaunchAsync(new() { Headless = false });
 // Create a new incognito browser context
 var context = await browser.NewContextAsync();
 // Create a new page inside context.
@@ -280,7 +280,7 @@ browser_context.add_init_script(path="preload.js")
 ```
 
 ```csharp
-await context.AddInitScriptAsync(new BrowserContextAddInitScriptOptions { ScriptPath = "preload.js" });
+await context.AddInitScriptAsync(scriptPath: "preload.js");
 ```
 
 :::note
@@ -538,7 +538,7 @@ with sync_playwright() as playwright:
 using Microsoft.Playwright;
 
 using var playwright = await Playwright.CreateAsync();
-var browser = await playwright.Webkit.LaunchAsync(new BrowserTypeLaunchOptions { Headless = false });
+var browser = await playwright.Webkit.LaunchAsync(new() { Headless = false });
 var context = await browser.NewContextAsync();
 
 await context.ExposeBindingAsync("pageURL", source => source.Page.Url);
@@ -800,7 +800,7 @@ class BrowserContextExamples
     public static async Task Main()
     {
         using var playwright = await Playwright.CreateAsync();
-        var browser = await playwright.Webkit.LaunchAsync(new BrowserTypeLaunchOptions { Headless = false });
+        var browser = await playwright.Webkit.LaunchAsync(new() { Headless = false });
         var context = await browser.NewContextAsync();
 
         await context.ExposeFunctionAsync("sha256", (string input) =>
@@ -1124,6 +1124,18 @@ If specified, updates the given HAR with the actual network information instead 
 
 A glob pattern, regular expression or predicate to match the request URL. Only requests with URL matching the pattern will be served from the HAR file. If not specified, all requests are served from the HAR file.
 
+### option: BrowserContext.routeFromHAR.updateMode
+* since: v1.32
+- `updateMode` <[HarMode]<"full"|"minimal">>
+
+When set to `minimal`, only record information necessary for routing from HAR. This omits sizes, timing, page, cookies, security and other types of HAR information that are not used when replaying from HAR. Defaults to `minimal`.
+
+### option: BrowserContext.routeFromHAR.updateContent
+* since: v1.32
+- `updateContent` <[RouteFromHarUpdateContentPolicy]<"embed"|"attach">>
+
+Optional setting to control resource content management. If `attach` is specified, resources are persisted as separate files or entries in the ZIP archive. If `embed` is specified, content is stored inline the HAR file.
+
 ## method: BrowserContext.serviceWorkers
 * since: v1.11
 * langs: js, python
@@ -1312,6 +1324,38 @@ Optional handler function used to register a routing with [`method: BrowserConte
 
 Optional handler function used to register a routing with [`method: BrowserContext.route`].
 
+## async method: BrowserContext.waitForCondition
+* since: v1.32
+* langs: java
+
+The method will block until the condition returns true. All Playwright events will
+be dispatched while the method is waiting for the condition.
+
+**Usage**
+
+Use the method to wait for a condition that depends on page events:
+
+```java
+List<String> failedUrls = new ArrayList<>();
+context.onResponse(response -> {
+  if (!response.ok()) {
+    failedUrls.add(response.url());
+  }
+});
+page1.getByText("Create user").click();
+page2.getByText("Submit button").click();
+context.waitForCondition(() -> failedUrls.size() > 3);
+```
+
+### param: BrowserContext.waitForCondition.condition
+* since: v1.32
+- `condition` <[BooleanSupplier]>
+
+Condition to wait for.
+
+### option: BrowserContext.waitForCondition.timeout = %%-wait-for-function-timeout-%%
+* since: v1.32
+
 ## async method: BrowserContext.waitForEvent
 * since: v1.8
 * langs: js, python
@@ -1367,9 +1411,8 @@ Event name, same one would pass into `browserContext.on(event)`.
 * since: v1.8
 * langs: js
 - `optionsOrPredicate` ?<[function]|[Object]>
-  - `predicate` <[function]> receives the event data and resolves to truthy value when the waiting should resolve.
-  - `timeout` ?<[float]> maximum time to wait for in milliseconds. Defaults to `30000` (30 seconds). Pass `0` to
-    disable timeout. The default value can be changed by using the [`method: BrowserContext.setDefaultTimeout`].
+  - `predicate` <[function]> Receives the event data and resolves to truthy value when the waiting should resolve.
+  - `timeout` ?<[float]> Maximum time to wait for in milliseconds. Defaults to `0` - no timeout. The default value can be changed via `actionTimeout` option in the config, or by using the [`method: BrowserContext.setDefaultTimeout`] method.
 
 Either a predicate that receives an event or an options object. Optional.
 
@@ -1398,9 +1441,6 @@ Will throw an error if the context closes before new [Page] is created.
 ### param: BrowserContext.waitForPage.action = %%-csharp-wait-for-event-action-%%
 * since: v1.12
 
-### param: BrowserContext.waitForPage.callback = %%-java-wait-for-event-callback-%%
-* since: v1.9
-
 ### option: BrowserContext.waitForPage.predicate
 * since: v1.9
 * langs: csharp, java, python
@@ -1409,6 +1449,9 @@ Will throw an error if the context closes before new [Page] is created.
 Receives the [Page] object and resolves to truthy value when the waiting should resolve.
 
 ### option: BrowserContext.waitForPage.timeout = %%-wait-for-event-timeout-%%
+* since: v1.9
+
+### param: BrowserContext.waitForPage.callback = %%-java-wait-for-event-callback-%%
 * since: v1.9
 
 ## async method: BrowserContext.waitForEvent2

@@ -20,7 +20,7 @@ import type { Reporter, TestResult } from "../../../types/testReporter";
 import * as Abq from "@rwx-research/abq";
 import type { Socket } from "net";
 import { TestCase } from "../../common/test";
-import { Dispatcher } from "../dispatcher";
+import { Dispatcher, EnvByProjectId } from "../dispatcher";
 import { getAbqSocket } from ".";
 import { FullConfigInternal } from "../../common/types";
 import { TestGroup } from "../testGroups";
@@ -34,7 +34,10 @@ export class AbqDispatcher extends Dispatcher {
     this._abqSocket = getAbqSocket();
   }
 
-  override async run(testGroups: TestGroup[]) {
+  override async run(
+    testGroups: TestGroup[],
+    extraEnvByProjectId: EnvByProjectId
+  ) {
     this._queue = testGroups;
     const workers = this._config.workers;
     if (workers !== 1) {
@@ -48,7 +51,7 @@ export class AbqDispatcher extends Dispatcher {
       this._queueIndexedByTestId.set(testGroup.tests[0].id, testGroup);
     }
 
-    await super.run(testGroups);
+    await super.run(testGroups, extraEnvByProjectId);
   }
 
   protected override async _scheduleJob() {

@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-import type { CallMetadata } from '@protocol/callMetadata';
 import type * as trace from '@trace/trace';
+import type * as traceV3 from './versions/traceV3';
+import { parseClientSideCallMetadata } from '@isomorphic/traceUtils';
 import type zip from '@zip.js/zip.js';
 // @ts-ignore
 import zipImport from '@zip.js/zip.js/dist/zip-no-worker-inflate.min.js';
@@ -26,158 +27,170 @@ import { BaseSnapshotStorage } from './snapshotStorage';
 const zipjs = zipImport as typeof zip;
 
 export class TraceModel {
-  contextEntry: ContextEntry;
+  contextEntries: ContextEntry[] = [];
   pageEntries = new Map<string, PageEntry>();
-  private _snapshotStorage: PersistentSnapshotStorage | undefined;
-  private _entries = new Map<string, zip.Entry>();
+  private _snapshotStorage: BaseSnapshotStorage | undefined;
   private _version: number | undefined;
-  private _zipReader: zip.ZipReader | undefined;
+  private _backend!: TraceModelBackend;
 
   constructor() {
-    this.contextEntry = createEmptyContext();
-  }
-
-  private _formatUrl(trace: string) {
-    let url = trace.startsWith('http') || trace.startsWith('blob') ? trace : `file?path=${trace}`;
-    // Dropbox does not support cors.
-    if (url.startsWith('https://www.dropbox.com/'))
-      url = 'https://dl.dropboxusercontent.com/' + url.substring('https://www.dropbox.com/'.length);
-    return url;
   }
 
   async load(traceURL: string, progress: (done: number, total: number) => void) {
-    this.contextEntry.traceUrl = traceURL;
-    this._zipReader = new zipjs.ZipReader( // @ts-ignore
-        new zipjs.HttpReader(this._formatUrl(traceURL), { mode: 'cors', preventHeadRequest: true }),
-        { useWebWorkers: false }) as zip.ZipReader;
-    let traceEntry: zip.Entry | undefined;
-    let networkEntry: zip.Entry | undefined;
-    for (const entry of await this._zipReader.getEntries({ onprogress: progress })) {
-      if (entry.filename.endsWith('.trace'))
-        traceEntry = entry;
-      if (entry.filename.endsWith('.network'))
-        networkEntry = entry;
-      if (entry.filename.includes('src@'))
-        this.contextEntry.hasSource = true;
-      this._entries.set(entry.filename, entry);
+    const isLive = traceURL.endsWith('json');
+    this._backend = isLive ? new FetchTraceModelBackend(traceURL) : new ZipTraceModelBackend(traceURL, progress);
+
+    const ordinals: string[] = [];
+    let hasSource = false;
+    for (const entryName of await this._backend.entryNames()) {
+      const match = entryName.match(/(.+-)?trace\.trace/);
+      if (match)
+        ordinals.push(match[1] || '');
+      if (entryName.includes('src@'))
+        hasSource = true;
     }
-    if (!traceEntry)
+    if (!ordinals.length)
       throw new Error('Cannot find .trace file');
 
-    this._snapshotStorage = new PersistentSnapshotStorage(this._entries);
+    this._snapshotStorage = new PersistentSnapshotStorage(this._backend);
 
-    const traceWriter = new zipjs.TextWriter() as zip.TextWriter;
-    await traceEntry.getData!(traceWriter);
-    for (const line of (await traceWriter.getData()).split('\n'))
-      this.appendEvent(line);
+    for (const ordinal of ordinals) {
+      const contextEntry = createEmptyContext();
+      const actionMap = new Map<string, trace.ActionTraceEvent>();
+      contextEntry.traceUrl = traceURL;
+      contextEntry.hasSource = hasSource;
 
-    if (networkEntry) {
-      const networkWriter = new zipjs.TextWriter();
-      await networkEntry.getData!(networkWriter);
-      for (const line of (await networkWriter.getData()).split('\n'))
-        this.appendEvent(line);
+      const trace = await this._backend.readText(ordinal + 'trace.trace') || '';
+      for (const line of trace.split('\n'))
+        this.appendEvent(contextEntry, actionMap, line);
+
+      const network = await this._backend.readText(ordinal + 'trace.network') || '';
+      for (const line of network.split('\n'))
+        this.appendEvent(contextEntry, actionMap, line);
+
+      contextEntry.actions = [...actionMap.values()].sort((a1, a2) => a1.startTime - a2.startTime);
+      if (!isLive) {
+        for (const action of contextEntry.actions) {
+          if (!action.endTime && !action.error)
+            action.error = { name: 'Error', message: 'Timed out' };
+        }
+      }
+
+      const stacks = await this._backend.readText(ordinal + 'trace.stacks');
+      if (stacks) {
+        const callMetadata = parseClientSideCallMetadata(JSON.parse(stacks));
+        for (const action of contextEntry.actions)
+          action.stack = action.stack || callMetadata.get(action.callId);
+      }
+
+      this.contextEntries.push(contextEntry);
     }
-    this._build();
   }
 
   async hasEntry(filename: string): Promise<boolean> {
-    if (!this._zipReader)
-      return false;
-    for (const entry of await this._zipReader.getEntries()) {
-      if (entry.filename === filename)
-        return true;
-    }
-    return false;
+    return this._backend.hasEntry(filename);
   }
 
   async resourceForSha1(sha1: string): Promise<Blob | undefined> {
-    const entry = this._entries.get('resources/' + sha1);
-    if (!entry)
-      return;
-    const blobWriter = new zipjs.BlobWriter() as zip.BlobWriter;
-    await entry!.getData!(blobWriter);
-    return await blobWriter.getData();
+    return this._backend.readBlob('resources/' + sha1);
   }
 
-  storage(): PersistentSnapshotStorage {
+  storage(): BaseSnapshotStorage {
     return this._snapshotStorage!;
   }
 
-  private _build() {
-    this.contextEntry!.actions.sort((a1, a2) => a1.metadata.startTime - a2.metadata.startTime);
-    this.contextEntry!.resources = this._snapshotStorage!.resources();
-  }
-
-  private _pageEntry(pageId: string): PageEntry {
+  private _pageEntry(contextEntry: ContextEntry, pageId: string): PageEntry {
     let pageEntry = this.pageEntries.get(pageId);
     if (!pageEntry) {
       pageEntry = {
         screencastFrames: [],
       };
       this.pageEntries.set(pageId, pageEntry);
-      this.contextEntry.pages.push(pageEntry);
+      contextEntry.pages.push(pageEntry);
     }
     return pageEntry;
   }
 
-  appendEvent(line: string) {
+  appendEvent(contextEntry: ContextEntry, actionMap: Map<string, trace.ActionTraceEvent>, line: string) {
     if (!line)
       return;
     const event = this._modernize(JSON.parse(line));
+    if (!event)
+      return;
     switch (event.type) {
       case 'context-options': {
-        this.contextEntry.browserName = event.browserName;
-        this.contextEntry.title = event.title;
-        this.contextEntry.platform = event.platform;
-        this.contextEntry.wallTime = event.wallTime;
-        this.contextEntry.sdkLanguage = event.sdkLanguage;
-        this.contextEntry.options = event.options;
+        this._version = event.version;
+        contextEntry.browserName = event.browserName;
+        contextEntry.title = event.title;
+        contextEntry.platform = event.platform;
+        contextEntry.wallTime = event.wallTime;
+        contextEntry.sdkLanguage = event.sdkLanguage;
+        contextEntry.options = event.options;
+        contextEntry.testIdAttributeName = event.testIdAttributeName;
         break;
       }
       case 'screencast-frame': {
-        this._pageEntry(event.pageId).screencastFrames.push(event);
+        this._pageEntry(contextEntry, event.pageId).screencastFrames.push(event);
+        break;
+      }
+      case 'before': {
+        actionMap.set(event.callId, { ...event, type: 'action', endTime: 0, log: [] });
+        break;
+      }
+      case 'input': {
+        const existing = actionMap.get(event.callId);
+        existing!.inputSnapshot = event.inputSnapshot;
+        existing!.point = event.point;
+        break;
+      }
+      case 'after': {
+        const existing = actionMap.get(event.callId);
+        existing!.afterSnapshot = event.afterSnapshot;
+        existing!.endTime = event.endTime;
+        existing!.log = event.log;
+        existing!.result = event.result;
+        existing!.error = event.error;
         break;
       }
       case 'action': {
-        const include = !isTracing(event.metadata) && (!event.metadata.internal || event.metadata.apiName);
-        if (include) {
-          if (!event.metadata.apiName)
-            event.metadata.apiName = event.metadata.type + '.' + event.metadata.method;
-          this.contextEntry!.actions.push(event);
-        }
+        actionMap.set(event.callId, event);
         break;
       }
       case 'event': {
-        const metadata = event.metadata;
-        if (metadata.pageId) {
-          if (metadata.method === '__create__')
-            this.contextEntry!.objects[metadata.params.guid] = metadata.params.initializer;
-          else
-            this.contextEntry!.events.push(event);
-        }
+        contextEntry!.events.push(event);
+        break;
+      }
+      case 'object': {
+        contextEntry!.initializers[event.guid] = event.initializer;
         break;
       }
       case 'resource-snapshot':
         this._snapshotStorage!.addResource(event.snapshot);
+        contextEntry.resources.push(event.snapshot);
         break;
       case 'frame-snapshot':
         this._snapshotStorage!.addFrameSnapshot(event.snapshot);
         break;
     }
-    if (event.type === 'action' || event.type === 'event') {
-      this.contextEntry!.startTime = Math.min(this.contextEntry!.startTime, event.metadata.startTime);
-      this.contextEntry!.endTime = Math.max(this.contextEntry!.endTime, event.metadata.endTime);
+    if (event.type === 'action' || event.type === 'before')
+      contextEntry.startTime = Math.min(contextEntry.startTime, event.startTime);
+    if (event.type === 'action' || event.type === 'after')
+      contextEntry.endTime = Math.max(contextEntry.endTime, event.endTime);
+    if (event.type === 'event') {
+      contextEntry.startTime = Math.min(contextEntry.startTime, event.time);
+      contextEntry.endTime = Math.max(contextEntry.endTime, event.time);
     }
     if (event.type === 'screencast-frame') {
-      this.contextEntry!.startTime = Math.min(this.contextEntry!.startTime, event.timestamp);
-      this.contextEntry!.endTime = Math.max(this.contextEntry!.endTime, event.timestamp);
+      contextEntry.startTime = Math.min(contextEntry.startTime, event.timestamp);
+      contextEntry.endTime = Math.max(contextEntry.endTime, event.timestamp);
     }
   }
 
   private _modernize(event: any): trace.TraceEvent {
     if (this._version === undefined)
       return event;
-    for (let version = this._version; version < 3; ++version)
+    const lastVersion: trace.VERSION = 4;
+    for (let version = this._version; version < lastVersion; ++version)
       event = (this as any)[`_modernize_${version}_to_${version + 1}`].call(this, event);
     return event;
   }
@@ -193,7 +206,7 @@ export class TraceModel {
   _modernize_1_to_2(event: any): any {
     if (event.type === 'frame-snapshot' && event.snapshot.isMainFrame) {
       // Old versions had completely wrong viewport.
-      event.snapshot.viewport = this.contextEntry.options.viewport || { width: 1280, height: 720 };
+      event.snapshot.viewport = this.contextEntries[0]?.options?.viewport || { width: 1280, height: 720 };
     }
     return event;
   }
@@ -223,24 +236,174 @@ export class TraceModel {
     }
     return event;
   }
+
+  _modernize_3_to_4(event: traceV3.TraceEvent): trace.TraceEvent | null {
+    if (event.type !== 'action' && event.type !== 'event') {
+      return event as traceV3.ContextCreatedTraceEvent |
+        traceV3.ScreencastFrameTraceEvent |
+        traceV3.ResourceSnapshotTraceEvent |
+        traceV3.FrameSnapshotTraceEvent;
+    }
+
+    const metadata = event.metadata;
+    if (metadata.internal || metadata.method.startsWith('tracing'))
+      return null;
+
+    if (event.type === 'event') {
+      if (metadata.method === '__create__' && metadata.type === 'ConsoleMessage') {
+        return {
+          type: 'object',
+          class: metadata.type,
+          guid: metadata.params.guid,
+          initializer: metadata.params.initializer,
+        };
+      }
+      return {
+        type: 'event',
+        time: metadata.startTime,
+        class: metadata.type,
+        method: metadata.method,
+        params: metadata.params,
+        pageId: metadata.pageId,
+      };
+    }
+
+    return {
+      type: 'action',
+      callId: metadata.id,
+      startTime: metadata.startTime,
+      endTime: metadata.endTime,
+      apiName: metadata.apiName || metadata.type + '.' + metadata.method,
+      class: metadata.type,
+      method: metadata.method,
+      params: metadata.params,
+      wallTime: metadata.wallTime || Date.now(),
+      log: metadata.log,
+      beforeSnapshot: metadata.snapshots.find(s => s.snapshotName === 'before')?.snapshotName,
+      inputSnapshot: metadata.snapshots.find(s => s.snapshotName === 'input')?.snapshotName,
+      afterSnapshot: metadata.snapshots.find(s => s.snapshotName === 'after')?.snapshotName,
+      error: metadata.error?.error,
+      result: metadata.result,
+      point: metadata.point,
+      pageId: metadata.pageId,
+    };
+  }
 }
 
-export class PersistentSnapshotStorage extends BaseSnapshotStorage {
-  private _entries: Map<string, zip.Entry>;
+export interface TraceModelBackend {
+  entryNames(): Promise<string[]>;
+  hasEntry(entryName: string): Promise<boolean>;
+  readText(entryName: string): Promise<string | undefined>;
+  readBlob(entryName: string): Promise<Blob | undefined>;
+}
 
-  constructor(entries: Map<string, zip.Entry>) {
-    super();
-    this._entries = entries;
+class ZipTraceModelBackend implements TraceModelBackend {
+  private _zipReader: zip.ZipReader;
+  private _entriesPromise: Promise<Map<string, zip.Entry>>;
+
+  constructor(traceURL: string, progress: (done: number, total: number) => void) {
+    this._zipReader = new zipjs.ZipReader(
+        new zipjs.HttpReader(formatUrl(traceURL), { mode: 'cors', preventHeadRequest: true } as any),
+        { useWebWorkers: false }) as zip.ZipReader;
+    this._entriesPromise = this._zipReader.getEntries({ onprogress: progress }).then(entries => {
+      const map = new Map<string, zip.Entry>();
+      for (const entry of entries)
+        map.set(entry.filename, entry);
+      return map;
+    });
   }
 
-  async resourceContent(sha1: string): Promise<Blob | undefined> {
-    const entry = this._entries.get('resources/' + sha1)!;
-    const writer = new zipjs.BlobWriter();
+  async entryNames(): Promise<string[]> {
+    const entries = await this._entriesPromise;
+    return [...entries.keys()];
+  }
+
+  async hasEntry(entryName: string): Promise<boolean> {
+    const entries = await this._entriesPromise;
+    return entries.has(entryName);
+  }
+
+  async readText(entryName: string): Promise<string | undefined> {
+    const entries = await this._entriesPromise;
+    const entry = entries.get(entryName);
+    if (!entry)
+      return;
+    const writer = new zipjs.TextWriter();
+    await entry.getData?.(writer);
+    return writer.getData();
+  }
+
+  async readBlob(entryName: string): Promise<Blob | undefined> {
+    const entries = await this._entriesPromise;
+    const entry = entries.get(entryName);
+    if (!entry)
+      return;
+    const writer = new zipjs.BlobWriter() as zip.BlobWriter;
     await entry.getData!(writer);
     return writer.getData();
   }
 }
 
-function isTracing(metadata: CallMetadata): boolean {
-  return metadata.method.startsWith('tracing');
+class FetchTraceModelBackend implements TraceModelBackend {
+  private _entriesPromise: Promise<Map<string, string>>;
+
+  constructor(traceURL: string) {
+
+    this._entriesPromise = fetch('/trace/file?path=' + encodeURI(traceURL)).then(async response => {
+      const json = JSON.parse(await response.text());
+      const entries = new Map<string, string>();
+      for (const entry of json.entries)
+        entries.set(entry.name, entry.path);
+      return entries;
+    });
+  }
+
+  async entryNames(): Promise<string[]> {
+    const entries = await this._entriesPromise;
+    return [...entries.keys()];
+  }
+
+  async hasEntry(entryName: string): Promise<boolean> {
+    const entries = await this._entriesPromise;
+    return entries.has(entryName);
+  }
+
+  async readText(entryName: string): Promise<string | undefined> {
+    const response = await this._readEntry(entryName);
+    return response?.text();
+  }
+
+  async readBlob(entryName: string): Promise<Blob | undefined> {
+    const response = await this._readEntry(entryName);
+    return response?.blob();
+  }
+
+  private async _readEntry(entryName: string): Promise<Response | undefined> {
+    const entries = await this._entriesPromise;
+    const fileName = entries.get(entryName);
+    if (!fileName)
+      return;
+    return fetch('/trace/file?path=' + encodeURI(fileName));
+  }
+}
+
+export class PersistentSnapshotStorage extends BaseSnapshotStorage {
+  private _backend: TraceModelBackend;
+
+  constructor(backend: TraceModelBackend) {
+    super();
+    this._backend = backend;
+  }
+
+  async resourceContent(sha1: string): Promise<Blob | undefined> {
+    return this._backend.readBlob('resources/' + sha1);
+  }
+}
+
+function formatUrl(trace: string) {
+  let url = trace.startsWith('http') || trace.startsWith('blob') ? trace : `file?path=${trace}`;
+  // Dropbox does not support cors.
+  if (url.startsWith('https://www.dropbox.com/'))
+    url = 'https://dl.dropboxusercontent.com/' + url.substring('https://www.dropbox.com/'.length);
+  return url;
 }

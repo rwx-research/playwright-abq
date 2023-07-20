@@ -17,9 +17,10 @@
 import type EventEmitter from 'events';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import type * as channels from '@protocol/channels';
 import { ManualPromise } from '../../utils/manualPromise';
-import { assert, createGuid } from '../../utils';
+import { assert, calculateSha1, createGuid, removeFolders } from '../../utils';
 import type { RootDispatcher } from './dispatcher';
 import { Dispatcher } from './dispatcher';
 import { yazl, yauzl } from '../../zipBundle';
@@ -38,10 +39,17 @@ import type { HTTPRequestParams } from '../../utils/network';
 import type http from 'http';
 import type { Playwright } from '../playwright';
 import { SdkObject } from '../../server/instrumentation';
+import { serializeClientSideCallMetadata } from '../../utils';
 
 export class LocalUtilsDispatcher extends Dispatcher<{ guid: string }, channels.LocalUtilsChannel, RootDispatcher> implements channels.LocalUtilsChannel {
   _type_LocalUtils: boolean;
-  private _harBakends = new Map<string, HarBackend>();
+  private _harBackends = new Map<string, HarBackend>();
+  private _stackSessions = new Map<string, {
+    file: string,
+    writer: Promise<void>,
+    tmpDir: string | undefined,
+    callStacks: channels.ClientSideCallMetadata[]
+  }>();
 
   constructor(scope: RootDispatcher, playwright: Playwright) {
     const localUtils = new SdkObject(playwright, 'localUtils', 'localUtils');
@@ -49,26 +57,56 @@ export class LocalUtilsDispatcher extends Dispatcher<{ guid: string }, channels.
     this._type_LocalUtils = true;
   }
 
-  async zip(params: channels.LocalUtilsZipParams, metadata: CallMetadata): Promise<void> {
+  async zip(params: channels.LocalUtilsZipParams): Promise<void> {
     const promise = new ManualPromise<void>();
     const zipFile = new yazl.ZipFile();
     (zipFile as any as EventEmitter).on('error', error => promise.reject(error));
 
-    for (const entry of params.entries) {
+    const addFile = (file: string, name: string) => {
       try {
-        if (fs.statSync(entry.value).isFile())
-          zipFile.addFile(entry.value, entry.name);
+        if (fs.statSync(file).isFile())
+          zipFile.addFile(file, name);
       } catch (e) {
+      }
+    };
+
+    for (const entry of params.entries)
+      addFile(entry.value, entry.name);
+
+    // Add stacks and the sources.
+    const stackSession = params.stacksId ? this._stackSessions.get(params.stacksId) : undefined;
+    if (stackSession?.callStacks.length) {
+      await stackSession.writer;
+      if (process.env.PW_LIVE_TRACE_STACKS) {
+        zipFile.addFile(stackSession.file, 'trace.stacks');
+      } else {
+        const buffer = Buffer.from(JSON.stringify(serializeClientSideCallMetadata(stackSession.callStacks)));
+        zipFile.addBuffer(buffer, 'trace.stacks');
       }
     }
 
-    if (!fs.existsSync(params.zipFile)) {
+    // Collect sources from stacks.
+    if (params.includeSources) {
+      const sourceFiles = new Set<string>();
+      for (const { stack } of stackSession?.callStacks || []) {
+        if (!stack)
+          continue;
+        for (const { file } of stack)
+          sourceFiles.add(file);
+      }
+      for (const sourceFile of sourceFiles)
+        addFile(sourceFile, 'resources/src@' + calculateSha1(sourceFile) + '.txt');
+    }
+
+    if (params.mode === 'write') {
       // New file, just compress the entries.
       await fs.promises.mkdir(path.dirname(params.zipFile), { recursive: true });
       zipFile.end(undefined, () => {
         zipFile.outputStream.pipe(fs.createWriteStream(params.zipFile)).on('close', () => promise.resolve());
       });
-      return promise;
+      await promise;
+      await this._deleteStackSession(params.stacksId);
+      return;
     }
 
     // File already exists. Repack and add new entries.
@@ -101,7 +139,8 @@ export class LocalUtilsDispatcher extends Dispatcher<{ guid: string }, channels.
         });
       });
     });
-    return promise;
+    await promise;
+    await this._deleteStackSession(params.stacksId);
   }
 
   async harOpen(params: channels.LocalUtilsHarOpenParams, metadata: CallMetadata): Promise<channels.LocalUtilsHarOpenResult> {
@@ -119,21 +158,21 @@ export class LocalUtilsDispatcher extends Dispatcher<{ guid: string }, channels.
       const harFile = JSON.parse(await fs.promises.readFile(params.file, 'utf-8')) as har.HARFile;
       harBackend = new HarBackend(harFile, path.dirname(params.file), null);
     }
-    this._harBakends.set(harBackend.id, harBackend);
+    this._harBackends.set(harBackend.id, harBackend);
     return { harId: harBackend.id };
   }
 
   async harLookup(params: channels.LocalUtilsHarLookupParams, metadata: CallMetadata): Promise<channels.LocalUtilsHarLookupResult> {
-    const harBackend = this._harBakends.get(params.harId);
+    const harBackend = this._harBackends.get(params.harId);
     if (!harBackend)
       return { action: 'error', message: `Internal error: har was not opened` };
     return await harBackend.lookup(params.url, params.method, params.headers, params.postData, params.isNavigationRequest);
   }
 
   async harClose(params: channels.LocalUtilsHarCloseParams, metadata: CallMetadata): Promise<void> {
-    const harBackend = this._harBakends.get(params.harId);
+    const harBackend = this._harBackends.get(params.harId);
     if (harBackend) {
-      this._harBakends.delete(harBackend.id);
+      this._harBackends.delete(harBackend.id);
       harBackend.dispose();
     }
   }
@@ -193,6 +232,40 @@ export class LocalUtilsDispatcher extends Dispatcher<{ guid: string }, channels.
     }, params.timeout || 0);
   }
 
+  async tracingStarted(params: channels.LocalUtilsTracingStartedParams, metadata?: CallMetadata | undefined): Promise<channels.LocalUtilsTracingStartedResult> {
+    let tmpDir = undefined;
+    if (!params.tracesDir)
+      tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'playwright-tracing-'));
+    const traceStacksFile = path.join(params.tracesDir || tmpDir!, params.traceName + '.stacks');
+    this._stackSessions.set(traceStacksFile, { callStacks: [], file: traceStacksFile, writer: Promise.resolve(), tmpDir });
+    return { stacksId: traceStacksFile };
+  }
+
+  async traceDiscarded(params: channels.LocalUtilsTraceDiscardedParams, metadata?: CallMetadata | undefined): Promise<void> {
+    await this._deleteStackSession(params.stacksId);
+  }
+
+  async addStackToTracingNoReply(params: channels.LocalUtilsAddStackToTracingNoReplyParams, metadata?: CallMetadata | undefined): Promise<void> {
+    for (const session of this._stackSessions.values()) {
+      session.callStacks.push(params.callData);
+      if (process.env.PW_LIVE_TRACE_STACKS) {
+        session.writer = session.writer.then(() => {
+          const buffer = Buffer.from(JSON.stringify(serializeClientSideCallMetadata(session.callStacks)));
+          return fs.promises.writeFile(session.file, buffer);
+        });
+      }
+    }
+  }
+
+  private async _deleteStackSession(stacksId?: string) {
+    const session = stacksId ? this._stackSessions.get(stacksId) : undefined;
+    if (!session)
+      return;
+    await session.writer;
+    if (session.tmpDir)
+      await removeFolders([session.tmpDir]);
+    this._stackSessions.delete(stacksId!);
+  }
 }
 
 const redirectStatus = [301, 302, 303, 307, 308];

@@ -73,7 +73,7 @@ test.describe('toHaveCount', () => {
     await page.setContent('<div><span></span></div>');
     const locator = page.locator('span');
     const error = await expect(locator).not.toHaveCount(1, { timeout: 1000 }).catch(e => e);
-    expect(error.message).toContain('expect.toHaveCount with timeout 1000ms');
+    expect(error.message).toContain('expect.not.toHaveCount with timeout 1000ms');
   });
 });
 
@@ -299,7 +299,8 @@ test.describe('toBeInViewport', () => {
     await expect(page.locator('#small')).toBeInViewport({ ratio: 1 });
   });
 
-  test('should respect ratio option', async ({ page }) => {
+  test('should respect ratio option', async ({ page, isAndroid }) => {
+    test.fixme(isAndroid, 'fails due an upstream bug in Chrome, updating Chrome will fix it.');
     await page.setContent(`
       <style>body, div, html { padding: 0; margin: 0; }</style>
       <div id=big style="height: 400vh;"></div>

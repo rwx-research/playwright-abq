@@ -413,12 +413,12 @@ Ensures that string value matches a regular expression.
 
 ```js
 const value = 'Is 42 enough?';
-expect(value).toMatches(/Is \d+ enough/);
+expect(value).toMatch(/Is \d+ enough/);
 ```
 
 ### param: GenericAssertions.toMatch.expected
 * since: v1.9
-- `expected` <[RegExp]>
+- `expected` <[RegExp]|[string]>
 
 Regular expression to match against.
 

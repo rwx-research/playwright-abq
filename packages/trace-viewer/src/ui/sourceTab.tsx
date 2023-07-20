@@ -14,74 +14,57 @@
  * limitations under the License.
  */
 
-import type { StackFrame } from '@protocol/channels';
 import type { ActionTraceEvent } from '@trace/trace';
-import { Source as SourceView } from '@web/components/source';
 import { SplitView } from '@web/components/splitView';
 import * as React from 'react';
 import { useAsyncMemo } from './helpers';
 import './sourceTab.css';
 import { StackTraceView } from './stackTrace';
-
-type StackInfo = string | {
-  frames: StackFrame[];
-  fileContent: Map<string, string>;
-};
+import { CodeMirrorWrapper } from '@web/components/codeMirrorWrapper';
+import type { SourceHighlight } from '@web/components/codeMirrorWrapper';
+import type { SourceModel } from './modelUtil';
 
 export const SourceTab: React.FunctionComponent<{
   action: ActionTraceEvent | undefined,
-}> = ({ action }) => {
+  sources: Map<string, SourceModel>,
+  hideStackFrames?: boolean,
+}> = ({ action, sources, hideStackFrames }) => {
   const [lastAction, setLastAction] = React.useState<ActionTraceEvent | undefined>();
   const [selectedFrame, setSelectedFrame] = React.useState<number>(0);
-  const [needReveal, setNeedReveal] = React.useState<boolean>(false);
 
-  if (lastAction !== action) {
-    setLastAction(action);
-    setSelectedFrame(0);
-    setNeedReveal(true);
-  }
+  React.useEffect(() => {
+    if (lastAction !== action) {
+      setLastAction(action);
+      setSelectedFrame(0);
+    }
+  }, [action, lastAction, setLastAction, setSelectedFrame]);
 
-  const stackInfo = React.useMemo<StackInfo>(() => {
-    if (!action)
-      return '';
-    const { metadata } = action;
-    if (!metadata.stack)
-      return '';
-    const frames = metadata.stack;
-    return {
-      frames,
-      fileContent: new Map(),
-    };
-  }, [action]);
-
-  const content = useAsyncMemo<string>(async () => {
-    let value: string;
-    if (typeof stackInfo === 'string') {
-      value = stackInfo;
-    } else {
-      const filePath = stackInfo.frames[selectedFrame].file;
-      if (!stackInfo.fileContent.has(filePath)) {
-        const sha1 = await calculateSha1(filePath);
-        stackInfo.fileContent.set(filePath, await fetch(`sha1/src@${sha1}.txt`).then(response => response.text()).catch(e => `<Unable to read "${filePath}">`));
+  const source = useAsyncMemo<SourceModel>(async () => {
+    const file = action?.stack?.[selectedFrame].file;
+    if (!file)
+      return { errors: [], content: undefined };
+    const source = sources.get(file)!;
+    if (source.content === undefined) {
+      const sha1 = await calculateSha1(file);
+      try {
+        let response = await fetch(`sha1/src@${sha1}.txt`);
+        if (response.status === 404)
+          response = await fetch(`file?path=${file}`);
+        source.content = await response.text();
+      } catch {
+        source.content = `<Unable to read "${file}">`;
       }
-      value = stackInfo.fileContent.get(filePath)!;
     }
-    return value;
-  }, [stackInfo, selectedFrame], '');
+    return source;
+  }, [action, selectedFrame], { errors: [], content: 'Loading\u2026' });
 
-  const targetLine = typeof stackInfo === 'string' ? 0 : stackInfo.frames[selectedFrame]?.line || 0;
+  const targetLine = action?.stack?.[selectedFrame]?.line || 0;
+  const highlight: SourceHighlight[] = source.errors.map(e => ({ type: 'error', line: e.location.line, message: e.error!.message }));
+  highlight.push({ line: targetLine, type: 'running' });
 
-  const targetLineRef = React.createRef<HTMLDivElement>();
-  React.useLayoutEffect(() => {
-    if (needReveal && targetLineRef.current) {
-      targetLineRef.current.scrollIntoView({ block: 'center', inline: 'nearest' });
-      setNeedReveal(false);
-    }
-  }, [needReveal, targetLineRef]);
-
-  return <SplitView sidebarSize={100} orientation='vertical'>
-    <SourceView text={content} language='javascript' highlight={[{ line: targetLine, type: 'running' }]} revealLine={targetLine}></SourceView>
-    <StackTraceView action={action} selectedFrame={selectedFrame} setSelectedFrame={setSelectedFrame}></StackTraceView>
+  return <SplitView sidebarSize={200} orientation='horizontal' sidebarHidden={hideStackFrames}>
+    <CodeMirrorWrapper text={source.content || ''} language='javascript' highlight={highlight} revealLine={targetLine} readOnly={true} lineNumbers={true} />
+    <StackTraceView action={action} selectedFrame={selectedFrame} setSelectedFrame={setSelectedFrame} />
   </SplitView>;
 };
 

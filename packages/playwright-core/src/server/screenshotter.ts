@@ -20,7 +20,7 @@ import type { Rect } from '../common/types';
 import { helper } from './helper';
 import type { Page } from './page';
 import type { Frame } from './frames';
-import type { ParsedSelector } from './isomorphic/selectorParser';
+import type { ParsedSelector } from '../utils/isomorphic/selectorParser';
 import type * as types from './types';
 import type { Progress } from './progress';
 import { assert } from '../utils';
@@ -261,7 +261,7 @@ export class Screenshotter {
       return cleanup;
 
     await Promise.all((options.mask || []).map(async ({ frame, selector }) => {
-      const pair = await frame.resolveFrameForSelectorNoWait(selector);
+      const pair = await frame.selectors.resolveFrameForSelector(selector);
       if (pair)
         framesToParsedSelectors.set(pair.frame, pair.info.parsed);
     }));

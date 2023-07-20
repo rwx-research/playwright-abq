@@ -9,7 +9,7 @@ Playwright executes tests in isolated environments called [browser contexts](./b
 
 Regardless of the authentication strategy you choose, you are likely to store authenticated browser state on the file system.
 
-We recommend to create `playwright/.auth` directory and add it to your `.gitignore`. You authentication routine will produce authenticated browser state and save it to a file in this `playwright/.auth` directory. Later on, tests will reuse this state and start already authenticated.
+We recommend to create `playwright/.auth` directory and add it to your `.gitignore`. Your authentication routine will produce authenticated browser state and save it to a file in this `playwright/.auth` directory. Later on, tests will reuse this state and start already authenticated.
 
 ```bash tab=bash-bash
 mkdir -p playwright/.auth
@@ -25,21 +25,6 @@ echo "playwright/.auth" >> .gitignore
 ```powershell tab=bash-powershell
 New-Item -ItemType Directory -Force -Path playwright\.auth
 Add-Content -path .gitignore "`r`nplaywright/.auth"
-```
-
-Usually you would want to reuse authenticated state between multiple test runs, especially when authoring tests. All the examples in this guide authenticate lazily, and reuse auth state when possible. However, your app may require to re-authenticate after some amount of time. In this case, just remove `playwright/.auth` directory, and re-run your tests.
-
-```bash tab=bash-bash
-# Remove auth state
-rm -rf playwright/.auth
-```
-
-```batch tab=bash-batch
-rd /s /q playwright/.auth
-```
-
-```powershell tab=bash-powershell
-Remove-Item -Recurse -Force playwright/.auth
 ```
 
 ## Basic: shared account in all tests
@@ -61,21 +46,23 @@ Create `auth.setup.ts` that will prepare authenticated browser state for all oth
 ```js
 // auth.setup.ts
 import { test as setup } from '@playwright/test';
-import fs from 'fs';
-import path from 'path';
 
 const authFile = 'playwright/.auth/user.json';
 
 setup('authenticate', async ({ page }) => {
-  // Reuse authenticate from previous runs.
-  if (fs.existsSync(authFile))
-    return;
-
   // Perform authentication steps. Replace these actions with your own.
   await page.goto('https://github.com/login');
   await page.getByLabel('Username or email address').fill('username');
   await page.getByLabel('Password').fill('password');
   await page.getByRole('button', { name: 'Sign in' }).click();
+  // Wait until the page receives the cookies.
+  //
+  // Sometimes login flow sets cookies in the process of several redirects.
+  // Wait for the final URL to ensure that the cookies are actually set.
+  await page.waitForURL('https://github.com/');
+  // Alternatively, you can wait until the page reaches a state where all cookies are set.
+  await expect(page.getByRole('button', { name: 'View profile and more' })).toBeVisible();
+
   // End of authentication steps.
 
   await page.context().storageState({ path: authFile });
@@ -160,7 +147,7 @@ export const test = baseTest.extend<{}, { workerStorageState: string }>({
   workerStorageState: [async ({ browser }, use) => {
     // Use parallelIndex as a unique identifier for each worker.
     const id = test.info().parallelIndex;
-    const fileName = path.resolve(__dirname, `.auth/${id}.json`);
+    const fileName = path.resolve(test.info().project.outputDir, `.auth/${id}.json`);
 
     if (fs.existsSync(fileName)) {
       // Reuse existing authentication state if any.
@@ -182,6 +169,14 @@ export const test = baseTest.extend<{}, { workerStorageState: string }>({
     await page.getByLabel('Username or email address').fill(account.username);
     await page.getByLabel('Password').fill(account.password);
     await page.getByRole('button', { name: 'Sign in' }).click();
+    // Wait until the page receives the cookies.
+    //
+    // Sometimes login flow sets cookies in the process of several redirects.
+    // Wait for the final URL to ensure that the cookies are actually set.
+    await page.waitForURL('https://github.com/');
+    // Alternatively, you can wait until the page reaches a state where all cookies are set.
+    await expect(page.getByRole('button', { name: 'View profile and more' })).toBeVisible();
+
     // End of authentication steps.
 
     await page.context().storageState({ path: fileName });
@@ -317,7 +312,7 @@ var context = await browser.NewContextAsync(new()
 * langs: js
 
 **When to use**
-- Your web application supports authenticating via API that is easier/faster than interacting witht the app UI.
+- Your web application supports authenticating via API that is easier/faster than interacting with the app UI.
 
 **Details**
 
@@ -327,17 +322,11 @@ In the [setup project](#basic-shared-account-in-all-tests):
 
 ```js
 // auth.setup.ts
-import { test } from '@playwright/test';
-import path from 'path';
-import fs from 'fs';
+import { test as setup } from '@playwright/test';
 
 const authFile = 'playwright/.auth/user.json';
 
-test('authenticate', async ({ request }) => {
-  // Reuse authenticate from previous runs.
-  if (fs.existsSync(authFile))
-    return;
-
+setup('authenticate', async ({ request }) => {
   // Send authentication request. Replace with your own.
   await request.post('https://github.com/login', {
     form: {
@@ -366,7 +355,7 @@ export const test = baseTest.extend<{}, { workerStorageState: string }>({
   workerStorageState: [async ({}, use) => {
     // Use parallelIndex as a unique identifier for each worker.
     const id = test.info().parallelIndex;
-    const fileName = path.resolve(__dirname, `.auth/${id}.json`);
+    const fileName = path.resolve(test.info().project.outputDir, `.auth/${id}.json`);
 
     if (fs.existsSync(fileName)) {
       // Reuse existing authentication state if any.
@@ -410,22 +399,24 @@ We will authenticate multiple times in the setup project.
 
 ```js
 // auth.setup.ts
-import { test } from '@playwright/test';
-import fs from 'fs';
-import path from 'path';
+import { test as setup } from '@playwright/test';
 
 const adminFile = 'playwright/.auth/admin.json';
 
-test('authenticate as admin', async ({ page }) => {
-  // Reuse authenticate from previous runs.
-  if (fs.existsSync(adminFile))
-    return;
-
+setup('authenticate as admin', async ({ page }) => {
   // Perform authentication steps. Replace these actions with your own.
   await page.goto('https://github.com/login');
   await page.getByLabel('Username or email address').fill('admin');
   await page.getByLabel('Password').fill('password');
   await page.getByRole('button', { name: 'Sign in' }).click();
+  // Wait until the page receives the cookies.
+  //
+  // Sometimes login flow sets cookies in the process of several redirects.
+  // Wait for the final URL to ensure that the cookies are actually set.
+  await page.waitForURL('https://github.com/');
+  // Alternatively, you can wait until the page reaches a state where all cookies are set.
+  await expect(page.getByRole('button', { name: 'View profile and more' })).toBeVisible();
+
   // End of authentication steps.
 
   await page.context().storageState({ path: adminFile });
@@ -433,16 +424,20 @@ test('authenticate as admin', async ({ page }) => {
 
 const userFile = 'playwright/.auth/user.json';
 
-test('authenticate as user', async ({ page }) => {
-  // Reuse authenticate from previous runs.
-  if (fs.existsSync(userFile))
-    return;
-
+setup('authenticate as user', async ({ page }) => {
   // Perform authentication steps. Replace these actions with your own.
   await page.goto('https://github.com/login');
   await page.getByLabel('Username or email address').fill('user');
   await page.getByLabel('Password').fill('password');
   await page.getByRole('button', { name: 'Sign in' }).click();
+  // Wait until the page receives the cookies.
+  //
+  // Sometimes login flow sets cookies in the process of several redirects.
+  // Wait for the final URL to ensure that the cookies are actually set.
+  await page.waitForURL('https://github.com/');
+  // Alternatively, you can wait until the page reaches a state where all cookies are set.
+  await expect(page.getByRole('button', { name: 'View profile and more' })).toBeVisible();
+
   // End of authentication steps.
 
   await page.context().storageState({ path: userFile });

@@ -6,11 +6,46 @@ title: "Network"
 Playwright provides APIs to **monitor** and **modify** network traffic, both HTTP and HTTPS. Any requests that a page does, including [XHRs](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest) and
 [fetch](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) requests, can be tracked, modified and handled.
 
+## Network mocking
+* langs: js
+
+You don't have to configure anything to mock network requests. Just define a custom [Route] that mocks network for a browser context.
+
+```js
+// example.spec.ts
+import { test, expect } from '@playwright/test';
+
+test.beforeEach(async ({ context }) => {
+  // Block any css requests for each test in this file.
+  await context.route(/.css$/, route => route.abort());
+});
+
+test('loads page without css', async ({ page }) => {
+  await page.goto('https://playwright.dev');
+  // ... test goes here
+});
+```
+
+Alternatively, you can use [`method: Page.route`] to mock network in a single page.
+
+```js
+// example.spec.ts
+import { test, expect } from '@playwright/test';
+
+test('loads page without images', async ({ page }) => {
+  // Block png and jpeg images.
+  await page.route(/(png|jpeg)$/, route => route.abort());
+
+  await page.goto('https://playwright.dev');
+  // ... test goes here
+});
+```
+
 ## HTTP Authentication
 
 Perform HTTP Authentication.
 
-```js tab=js-ts
+```js tab=js-test
 import { defineConfig } from '@playwright/test';
 export default defineConfig({
   use: {
@@ -78,7 +113,7 @@ bypass proxy for.
 
 Here is an example of a global proxy:
 
-```js tab=js-ts
+```js tab=js-test
 import { defineConfig } from '@playwright/test';
 export default defineConfig({
   use: {
@@ -139,7 +174,7 @@ await using var browser = await BrowserType.LaunchAsync(new()
 
 When specifying proxy for each context individually, **Chromium on Windows** needs a hint that proxy will be set. This is done via passing a non-empty proxy server to the browser itself. Here is an example of a context-specific proxy:
 
-```js tab=js-ts
+```js tab=js-test
 import { defineConfig } from '@playwright/test';
 export default defineConfig({
   use: {
@@ -504,7 +539,7 @@ page.route("**/*", lambda route: route.continue_(method="POST"))
 await page.RouteAsync("**/*", async route => {
     var headers = new Dictionary<string, string>(route.Request.Headers.ToDictionary(x => x.Key, x => x.Value));
     headers.Remove("X-Secret");
-    await route.ContinueAsync(new RouteContinueOptions { Headers = headers });
+    await route.ContinueAsync(new() { Headers = headers });
 });
 
 // Continue requests as POST.
