@@ -1,0 +1,49 @@
+name: "tests abq"
+
+on:
+  - push
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Force terminal colors. @see https://www.npmjs.com/package/colors
+  FORCE_COLOR: 1
+  FLAKINESS_CONNECTION_STRING: ${{ secrets.FLAKINESS_CONNECTION_STRING }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - node-version: 16
+          - node-version: 18
+    env:
+      AWS_DEFAULT_REGION: us-east-2
+      AWS_DEFAULT_OUTPUT: json
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+      - run: npm ci
+        env:
+          DEBUG: pw:install
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+
+      - name: Pull down abq tester harness
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_S3_ABQ_RELEASES_STAGING_ACCESS_KEY_ID }} --profile staging
+          aws configure set aws_secret_access_key ${{ secrets.AWS_S3_ABQ_RELEASES_STAGING_SECRET_ACCESS_KEY }} --profile staging
+          ABQ_BIN="$PWD/abq-bin"
+          mkdir -p "$ABQ_BIN"
+          aws s3 cp "s3://abq-releases-staging/abq/nightly/linux/x86_64/abq_tester_harness" "$ABQ_BIN/abq_tester_harness" --profile staging
+          chmod 755 "$ABQ_BIN/abq_tester_harness"
+          echo "$ABQ_BIN" >> "$GITHUB_PATH"
+
+      - name: Run tests
+        run: |
+          node abq-tests/runtests.js
