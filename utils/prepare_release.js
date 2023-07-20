@@ -26,13 +26,15 @@ const packages = {
 };
 
 const spawnedMessage = (function() {
-  const abqVersionTs = path.resolve(__dirname, "..", "packages", "playwright-test", "src", "abq", "version.ts");
+  const node_modules_tsc = path.resolve(__dirname, "..", "node_modules", ".bin", "tsc");
+  const abqVersionTs = path.resolve(__dirname, "..", "packages", "playwright-test", "src", "runner", "abq", "version.ts");
   try {
     execSync(
-      `tsc ${abqVersionTs} --module commonjs --moduleResolution node --outDir tmp`,
+      `${node_modules_tsc} ${abqVersionTs} --module commonjs --moduleResolution node --outDir tmp`,
       {
         cwd: path.resolve(__dirname, ".."),
-        timeout: 30000
+        timeout: 30000,
+        stdio: "inherit"
       }
     );
     return require("../tmp/version").spawnedMessage;
