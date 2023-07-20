@@ -8,3 +8,6 @@ common/
 
 [index.ts]
 @testIsomorphic/**
+
+[internalsForTest.ts]
+**

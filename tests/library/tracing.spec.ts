@@ -73,7 +73,7 @@ test('should use the correct apiName for event driven callbacks', async ({ conte
   await page.reload();
   // now we do it again with a dialog event listener attached which should produce an action.
   page.on('dialog', dialog => {
-    dialog.accept('answer!');
+    void dialog.accept('answer!');
   });
   await page.evaluate(() => alert('yo'));
 
@@ -182,7 +182,9 @@ test('should collect two traces', async ({ context, page, server }, testInfo) =>
   }
 });
 
-test('should respect tracesDir and name', async ({ browserType, server }, testInfo) => {
+test('should respect tracesDir and name', async ({ browserType, server, mode }, testInfo) => {
+  test.skip(mode === 'service', 'Service ignores tracesDir');
+
   const tracesDir = testInfo.outputPath('traces');
   const browser = await browserType.launch({ tracesDir });
   const context = await browser.newContext();
@@ -352,7 +354,7 @@ for (const params of [
 ]) {
   browserTest(`should produce screencast frames ${params.id}`, async ({ video, contextFactory, browserName, platform, headless }, testInfo) => {
     browserTest.skip(browserName === 'chromium' && video === 'on', 'Same screencast resolution conflicts');
-    browserTest.fixme(browserName === 'chromium' && !headless, 'Chromium screencast on headed has a min width issue');
+    browserTest.fixme(browserName === 'chromium' && (!headless || !!process.env.PLAYWRIGHT_CHROMIUM_USE_HEADLESS_NEW), 'Chromium screencast on headed has a min width issue');
     browserTest.fixme(params.id === 'fit' && browserName === 'chromium' && platform === 'darwin', 'High DPI maxes image at 600x600');
     browserTest.fixme(params.id === 'fit' && browserName === 'webkit' && platform === 'linux', 'Image size is flaky');
     browserTest.fixme(browserName === 'firefox' && !headless, 'Image size is different');
@@ -515,7 +517,7 @@ test('should hide internal stack frames', async ({ context, page }, testInfo) =>
   let evalPromise;
   page.on('dialog', dialog => {
     evalPromise = page.evaluate('2+2');
-    dialog.dismiss();
+    void dialog.dismiss();
   });
   await page.setContent(`<div onclick='window.alert(123)'>Click me</div>`);
   await page.click('div');
@@ -535,7 +537,7 @@ test('should hide internal stack frames in expect', async ({ context, page }, te
   let expectPromise;
   page.on('dialog', dialog => {
     expectPromise = expect(page).toHaveTitle('Hello');
-    dialog.dismiss();
+    void dialog.dismiss();
   });
   await page.setContent(`<title>Hello</title><div onclick='window.alert(123)'>Click me</div>`);
   await page.click('div');
@@ -578,7 +580,6 @@ test('should record global request trace', async ({ request, context, server }, 
 });
 
 test('should store global request traces separately', async ({ request, server, playwright, browserName, mode }, testInfo) => {
-  test.fixme(browserName === 'chromium' && mode === 'driver', 'https://github.com/microsoft/playwright/issues/23108');
   const request2 = await playwright.request.newContext();
   await Promise.all([
     (request as any)._tracing.start({ snapshots: true }),
@@ -636,9 +637,10 @@ test('should store postData for global request', async ({ request, server }, tes
   }));
 });
 
-test('should not flush console events', async ({ context, page }, testInfo) => {
-  test.fixme(true, 'https://github.com/microsoft/playwright/issues/23107');
-  await context.tracing.start();
+test('should not flush console events', async ({ context, page, mode }, testInfo) => {
+  test.skip(mode === 'service', 'Uses artifactsFolderName');
+  const testId = test.info().testId;
+  await context.tracing.start({ name: testId });
   const promise = new Promise<void>(f => {
     let counter = 0;
     page.on('console', () => {
@@ -661,7 +663,7 @@ test('should not flush console events', async ({ context, page }, testInfo) => {
 
   let content: string;
   await expect(async () => {
-    const traceName = fs.readdirSync(dir).find(name => name.endsWith('.trace'));
+    const traceName = fs.readdirSync(dir).find(name => name.endsWith(testId + '.trace'));
     content = await fs.promises.readFile(path.join(dir, traceName), 'utf8');
     expect(content).toContain('page.evaluate');
     expect(content).toContain('31415926');
@@ -671,7 +673,7 @@ test('should not flush console events', async ({ context, page }, testInfo) => {
   await page.evaluate(() => 42);
 
   await expect(async () => {
-    const traceName = fs.readdirSync(dir).find(name => name.endsWith('.trace'));
+    const traceName = fs.readdirSync(dir).find(name => name.endsWith(testId + '.trace'));
     const content = await fs.promises.readFile(path.join(dir, traceName), 'utf8');
     expect(content).toContain('hello 0');
     expect(content).toContain('hello 99');

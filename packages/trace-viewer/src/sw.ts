@@ -49,8 +49,6 @@ async function loadTrace(traceUrl: string, traceFileName: string | null, clientI
   } catch (error: any) {
     if (error?.message?.includes('Cannot find .trace file') && await traceModel.hasEntry('index.html'))
       throw new Error('Could not load trace. Did you upload a Playwright HTML report instead? Make sure to extract the archive first and then double-click the index.html file or put it on a web server.');
-    // eslint-disable-next-line no-console
-    console.error(error);
     if (traceFileName)
       throw new Error(`Could not load trace from ${traceFileName}. Make sure to upload a valid Playwright trace.`);
     throw new Error(`Could not load trace from ${traceUrl}. Make sure a valid Playwright Trace is accessible over this url.`);
@@ -116,8 +114,12 @@ async function doFetch(event: FetchEvent): Promise<Response> {
     }
 
     if (relativePath.startsWith('/sha1/')) {
-      // Sha1 is unique, load it from either of the models for simplicity.
-      for (const { traceModel } of loadedTraces.values()) {
+      // Sha1 for sources is based on the file path, can't load it of a random model.
+      const traceUrls = clientIdToTraceUrls.get(event.clientId);
+      for (const [trace, { traceModel }] of loadedTraces) {
+        // We will accept explicit ?trace= value as well as the clientId associated with the trace.
+        if (traceUrl !== trace && !traceUrls.includes(trace))
+          continue;
         const blob = await traceModel!.resourceForSha1(relativePath.slice('/sha1/'.length));
         if (blob)
           return new Response(blob, { status: 200 });

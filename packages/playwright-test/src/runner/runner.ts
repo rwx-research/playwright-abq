@@ -28,6 +28,17 @@ import * as Abq from './abq';
 import { runUIMode } from './uiMode';
 import { InternalReporter } from '../reporters/internalReporter';
 
+type ProjectConfigWithFiles = {
+  name: string;
+  testDir: string;
+  use: { testIdAttribute?: string };
+  files: string[];
+};
+
+type ConfigListFilesReport = {
+  projects: ProjectConfigWithFiles[];
+};
+
 export class Runner {
   private _config: FullConfigInternal;
 
@@ -36,17 +47,6 @@ export class Runner {
   }
 
   async listTestFiles(projectNames: string[] | undefined): Promise<any> {
-    type ProjectConfigWithFiles = {
-      name: string;
-      testDir: string;
-      use: { testIdAttribute?: string };
-      files: string[];
-    };
-
-    type ConfigListFilesReport = {
-      projects: ProjectConfigWithFiles[];
-    };
-
     const projects = filterProjects(this._config.projects, projectNames);
     const report: ConfigListFilesReport = {
       projects: []
@@ -116,9 +116,9 @@ export class Runner {
     return await runWatchModeLoop(config);
   }
 
-  async uiAllTests(): Promise<FullResult['status']> {
+  async uiAllTests(options: { host?: string, port?: number }): Promise<FullResult['status']> {
     const config = this._config;
     webServerPluginsForConfig(config).forEach(p => config.plugins.push({ factory: p }));
-    return await runUIMode(config);
+    return await runUIMode(config, options);
   }
 }

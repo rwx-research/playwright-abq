@@ -37,10 +37,13 @@ import { toggleTheme } from '@web/theme';
 import { artifactsFolderName } from '@testIsomorphic/folders';
 import { msToString, settings, useSetting } from '@web/uiUtils';
 import type { ActionTraceEvent } from '@trace/trace';
+import { connect } from './wsPort';
 
 let updateRootSuite: (config: FullConfig, rootSuite: Suite, loadErrors: TestError[], progress: Progress | undefined) => void = () => {};
 let runWatchedTests = (fileNames: string[]) => {};
 let xtermSize = { cols: 80, rows: 24 };
+
+let sendMessage: (method: string, params?: any) => Promise<any> = async () => {};
 
 const xtermDataSource: XtermDataSource = {
   pending: [],
@@ -80,6 +83,7 @@ export const UIModeView: React.FC<{}> = ({
   const runTestPromiseChain = React.useRef(Promise.resolve());
   const runTestBacklog = React.useRef<Set<string>>(new Set());
   const [collapseAllCount, setCollapseAllCount] = React.useState(0);
+  const [isDisconnected, setIsDisconnected] = React.useState(false);
 
   const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -94,7 +98,11 @@ export const UIModeView: React.FC<{}> = ({
 
   React.useEffect(() => {
     inputRef.current?.focus();
-    reloadTests();
+    setIsLoading(true);
+    connect({ onEvent: dispatchEvent, onClose: () => setIsDisconnected(true) }).then(send => {
+      sendMessage = send;
+      reloadTests();
+    });
   }, [reloadTests]);
 
   updateRootSuite = React.useCallback((config: FullConfig, rootSuite: Suite, loadErrors: TestError[], newProgress: Progress | undefined) => {
@@ -159,6 +167,9 @@ export const UIModeView: React.FC<{}> = ({
   const isRunningTest = !!runningState;
 
   return <div className='vbox ui-mode'>
+    {isDisconnected && <div className='drop-target'>
+      <div className='title'>Process disconnected</div>
+    </div>}
     <SplitView sidebarSize={250} orientation='horizontal' sidebarIsFirst={true}>
       <div className='vbox'>
         <div className={'vbox' + (isShowingOutput ? '' : ' hidden')}>
@@ -399,6 +410,8 @@ const TestList: React.FC<{
 
   // Update watch all.
   React.useEffect(() => {
+    if (isLoading)
+      return;
     if (watchAll) {
       sendMessageNoReply('watch', { fileNames: [...fileNames] });
     } else {
@@ -411,7 +424,7 @@ const TestList: React.FC<{
       }
       sendMessageNoReply('watch', { fileNames: [...fileNames] });
     }
-  }, [rootItem, fileNames, watchAll, watchedTreeIds, treeItemMap]);
+  }, [isLoading, rootItem, fileNames, watchAll, watchedTreeIds, treeItemMap]);
 
   const runTreeItem = (treeItem: TreeItem) => {
     setSelectedTreeItemId(treeItem.id);
@@ -452,7 +465,7 @@ const TestList: React.FC<{
         {!!treeItem.duration && treeItem.status !== 'skipped' && <div className='ui-mode-list-item-time'>{msToString(treeItem.duration)}</div>}
         <Toolbar noMinHeight={true} noShadow={true}>
           <ToolbarButton icon='play' title='Run' onClick={() => runTreeItem(treeItem)} disabled={!!runningState}></ToolbarButton>
-          <ToolbarButton icon='go-to-file' title='Open in VS Code' onClick={() => sendMessageNoReply('open', { location: locationToOpen(treeItem) })}></ToolbarButton>
+          <ToolbarButton icon='go-to-file' title='Open in VS Code' onClick={() => sendMessageNoReply('open', { location: locationToOpen(treeItem) })} style={(treeItem.kind === 'group' && treeItem.subKind === 'folder') ? { visibility: 'hidden' } : {}}></ToolbarButton>
           {!watchAll && <ToolbarButton icon='eye' title='Watch' onClick={() => {
             if (watchedTreeIds.value.has(treeItem.id))
               watchedTreeIds.value.delete(treeItem.id);
@@ -492,7 +505,7 @@ const TraceView: React.FC<{
   item: { testFile?: SourceLocation, testCase?: TestCase },
   rootDir?: string,
 }> = ({ item, rootDir }) => {
-  const [model, setModel] = React.useState<MultiTraceModel | undefined>();
+  const [model, setModel] = React.useState<{ model: MultiTraceModel, isLive: boolean } | undefined>();
   const [counter, setCounter] = React.useState(0);
   const pollTimer = React.useRef<NodeJS.Timeout | null>(null);
 
@@ -505,7 +518,7 @@ const TraceView: React.FC<{
   // This avoids auto-selection of the last action every time we reload the model.
   const [selectedActionId, setSelectedActionId] = React.useState<string | undefined>();
   const onSelectionChanged = React.useCallback((action: ActionTraceEvent) => setSelectedActionId(idForAction(action)), [setSelectedActionId]);
-  const initialSelection = selectedActionId ? model?.actions.find(a => idForAction(a) === selectedActionId) : undefined;
+  const initialSelection = selectedActionId ? model?.model.actions.find(a => idForAction(a) === selectedActionId) : undefined;
 
   React.useEffect(() => {
     if (pollTimer.current)
@@ -520,7 +533,7 @@ const TraceView: React.FC<{
     // Test finished.
     const attachment = result && result.duration >= 0 && result.attachments.find(a => a.name === 'trace');
     if (attachment && attachment.path) {
-      loadSingleTraceFile(attachment.path).then(model => setModel(model));
+      loadSingleTraceFile(attachment.path).then(model => setModel({ model, isLive: false }));
       return;
     }
 
@@ -534,7 +547,7 @@ const TraceView: React.FC<{
     pollTimer.current = setTimeout(async () => {
       try {
         const model = await loadSingleTraceFile(traceLocation);
-        setModel(model);
+        setModel({ model, isLive: true });
       } catch {
         setModel(undefined);
       } finally {
@@ -549,21 +562,17 @@ const TraceView: React.FC<{
 
   return <Workbench
     key='workbench'
-    model={model}
+    model={model?.model}
     hideTimelineBars={true}
     hideStackFrames={true}
     showSourcesFirst={true}
     rootDir={rootDir}
     initialSelection={initialSelection}
     onSelectionChanged={onSelectionChanged}
-    fallbackLocation={item.testFile} />;
+    fallbackLocation={item.testFile}
+    isLive={model?.isLive}
+    drawer='bottom' />;
 };
-
-declare global {
-  interface Window {
-    binding(data: any): Promise<void>;
-  }
-}
 
 let receiver: TeleReporterReceiver | undefined;
 
@@ -636,34 +645,6 @@ const refreshRootSuite = (eraseResults: boolean): Promise<void> => {
   return sendMessage('list', {});
 };
 
-(window as any).dispatch = (message: any) => {
-  if (message.method === 'listChanged') {
-    refreshRootSuite(false).catch(() => {});
-    return;
-  }
-
-  if (message.method === 'testFilesChanged') {
-    runWatchedTests(message.params.testFileNames);
-    return;
-  }
-
-  if (message.method === 'stdio') {
-    if (message.params.buffer) {
-      const data = atob(message.params.buffer);
-      xtermDataSource.write(data);
-    } else {
-      xtermDataSource.write(message.params.text);
-    }
-    return;
-  }
-
-  receiver?.dispatch(message)?.catch(() => {});
-};
-
-const sendMessage = async (method: string, params: any) => {
-  await (window as any).sendMessage({ method, params });
-};
-
 const sendMessageNoReply = (method: string, params?: any) => {
   if ((window as any)._overrideProtocolForTest) {
     (window as any)._overrideProtocolForTest({ method, params }).catch(() => {});
@@ -673,6 +654,30 @@ const sendMessageNoReply = (method: string, params?: any) => {
     // eslint-disable-next-line no-console
     console.error(e);
   });
+};
+
+const dispatchEvent = (method: string, params?: any) => {
+  if (method === 'listChanged') {
+    refreshRootSuite(false).catch(() => {});
+    return;
+  }
+
+  if (method === 'testFilesChanged') {
+    runWatchedTests(params.testFileNames);
+    return;
+  }
+
+  if (method === 'stdio') {
+    if (params.buffer) {
+      const data = atob(params.buffer);
+      xtermDataSource.write(data);
+    } else {
+      xtermDataSource.write(params.text);
+    }
+    return;
+  }
+
+  receiver?.dispatch({ method, params })?.catch(() => {});
 };
 
 const outputDirForTestCase = (testCase: TestCase): string | undefined => {

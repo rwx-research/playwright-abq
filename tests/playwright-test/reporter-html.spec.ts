@@ -17,7 +17,7 @@
 import fs from 'fs';
 import path from 'path';
 import url from 'url';
-import { test as baseTest, expect, createImage } from './playwright-test-fixtures';
+import { test as baseTest, expect as baseExpect, createImage } from './playwright-test-fixtures';
 import type { HttpServer } from '../../packages/playwright-core/src/utils';
 import { startHtmlReportServer } from '../../packages/playwright-test/lib/reporters/html';
 const { spawnAsync } = require('../../packages/playwright-core/lib/utils');
@@ -36,6 +36,9 @@ const test = baseTest.extend<{ showReport: (reportFolder?: string) => Promise<vo
 });
 
 test.use({ channel: 'chrome' });
+test.slow(!!process.env.CI);
+// Slow tests are 90s.
+const expect = baseExpect.configure({ timeout: process.env.CI ? 75000 : 25000 });
 
 test.describe.configure({ mode: 'parallel' });
 
@@ -670,10 +673,10 @@ test('should render text attachments as text', async ({ runInlineTest, page, sho
   expect(result.exitCode).toBe(0);
 
   await showReport();
-  await page.locator('text=passing').click();
-  await page.locator('text=example.txt').click();
-  await page.locator('text=example.json').click();
-  await page.locator('text=example-utf16.txt').click();
+  await page.getByText('passing', { exact: true }).click();
+  await page.getByText('example.txt', { exact: true }).click();
+  await page.getByText('example.json', { exact: true }).click();
+  await page.getByText('example-utf16.txt', { exact: true }).click();
   await expect(page.locator('.attachment-body')).toHaveText(['foo', '{"foo":1}', 'utf16 encoded']);
 });
 
@@ -1348,7 +1351,7 @@ test.describe('labels', () => {
     const result = await runInlineTest({
       'a.test.js': `
         const { expect, test } = require('@playwright/test');
-        const tags = ['@smoke:p1', '@issue[123]', '@issue#123', '@$$$', '@tl/dr'];
+        const tags = ['@smoke-p1', '@issue[123]', '@issue#123', '@$$$', '@tl/dr'];
 
         test.describe('Error Pages', () => {
           tags.forEach(tag => {
@@ -1364,7 +1367,7 @@ test.describe('labels', () => {
     expect(result.passed).toBe(5);
 
     await showReport();
-    const tags = ['smoke:p1', 'issue[123]', 'issue#123', '$$$', 'tl/dr'];
+    const tags = ['smoke-p1', 'issue[123]', 'issue#123', '$$$', 'tl/dr'];
     const searchInput = page.locator('.subnav-search-input');
 
     for (const tag of tags) {
@@ -1880,4 +1883,62 @@ test('should list tests in the right order', async ({ runInlineTest, showReport,
     /main › first › passes\d+m?sfirst.ts:12/,
     /main › second › passes\d+m?ssecond.ts:5/,
   ]);
+});
+
+test('tests should filter by file', async ({ runInlineTest, showReport, page }) => {
+  const result = await runInlineTest({
+    'file-a.test.js': `
+      const { test } = require('@playwright/test');
+      test('a test 1', async ({}) => {});
+      test('a test 2', async ({}) => {});
+    `,
+    'file-b.test.js': `
+      const { test } = require('@playwright/test');
+      test('b test 1', async ({}) => {});
+      test('b test 2', async ({}) => {});
+    `,
+  }, { reporter: 'dot,html' }, { PW_TEST_HTML_REPORT_OPEN: 'never' });
+
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(4);
+  expect(result.failed).toBe(0);
+
+  await showReport();
+
+  const searchInput = page.locator('.subnav-search-input');
+
+  await searchInput.fill('file-a');
+  await expect(page.getByText('file-a.test.js', { exact: true })).toBeVisible();
+  await expect(page.getByText('a test 1')).toBeVisible();
+  await expect(page.getByText('a test 2')).toBeVisible();
+  await expect(page.getByText('file-b.test.js', { exact: true })).not.toBeVisible();
+  await expect(page.getByText('b test 1')).not.toBeVisible();
+  await expect(page.getByText('b test 2')).not.toBeVisible();
+
+  await searchInput.fill('file-a:3');
+  await expect(page.getByText('a test 1')).toBeVisible();
+  await expect(page.getByText('a test 2')).not.toBeVisible();
+});
+
+test('tests should filter by status', async ({ runInlineTest, showReport, page }) => {
+  const result = await runInlineTest({
+    'a.test.js': `
+      const { test, expect } = require('@playwright/test');
+      test('failed title', async ({}) => { expect(1).toBe(1); });
+      test('passes title', async ({}) => { expect(1).toBe(2); });
+    `,
+  }, { reporter: 'dot,html' }, { PW_TEST_HTML_REPORT_OPEN: 'never' });
+
+  expect(result.exitCode).toBe(1);
+  expect(result.passed).toBe(1);
+  expect(result.failed).toBe(1);
+
+  await showReport();
+
+  const searchInput = page.locator('.subnav-search-input');
+
+  await searchInput.fill('s:failed');
+  await expect(page.getByText('a.test.js', { exact: true })).toBeVisible();
+  await expect(page.getByText('failed title')).not.toBeVisible();
+  await expect(page.getByText('passes title')).toBeVisible();
 });

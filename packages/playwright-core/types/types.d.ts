@@ -31,9 +31,9 @@ type ElementHandleWaitForSelectorOptionsNotHidden = ElementHandleWaitForSelector
 /**
  * - extends: [EventEmitter]
  *
- * Page provides methods to interact with a single tab in a [Browser], or an
- * [extension background page](https://developer.chrome.com/extensions/background_pages) in Chromium. One [Browser]
- * instance might have multiple [Page] instances.
+ * Page provides methods to interact with a single tab in a {@link Browser}, or an
+ * [extension background page](https://developer.chrome.com/extensions/background_pages) in Chromium. One {@link
+ * Browser} instance might have multiple {@link Page} instances.
  *
  * This example creates a page, navigates it to a URL, and then saves a screenshot:
  *
@@ -107,7 +107,7 @@ export interface Page {
    * console.log(await page.evaluate(`1 + ${x}`)); // prints "11"
    * ```
    *
-   * [ElementHandle] instances can be passed as an argument to the
+   * {@link ElementHandle} instances can be passed as an argument to the
    * [page.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate):
    *
    * ```js
@@ -154,7 +154,7 @@ export interface Page {
    * console.log(await page.evaluate(`1 + ${x}`)); // prints "11"
    * ```
    *
-   * [ElementHandle] instances can be passed as an argument to the
+   * {@link ElementHandle} instances can be passed as an argument to the
    * [page.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate):
    *
    * ```js
@@ -169,13 +169,13 @@ export interface Page {
   evaluate<R>(pageFunction: PageFunction<void, R>, arg?: any): Promise<R>;
 
   /**
-   * Returns the value of the `pageFunction` invocation as a [JSHandle].
+   * Returns the value of the `pageFunction` invocation as a {@link JSHandle}.
    *
    * The only difference between
    * [page.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate) and
    * [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle) is that
    * [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle) returns
-   * [JSHandle].
+   * {@link JSHandle}.
    *
    * If the function passed to the
    * [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle) returns
@@ -196,7 +196,7 @@ export interface Page {
    * const aHandle = await page.evaluateHandle('document'); // Handle for the 'document'
    * ```
    *
-   * [JSHandle] instances can be passed as an argument to the
+   * {@link JSHandle} instances can be passed as an argument to the
    * [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle):
    *
    * ```js
@@ -211,13 +211,13 @@ export interface Page {
    */
   evaluateHandle<R, Arg>(pageFunction: PageFunction<Arg, R>, arg: Arg): Promise<SmartHandle<R>>;
   /**
-   * Returns the value of the `pageFunction` invocation as a [JSHandle].
+   * Returns the value of the `pageFunction` invocation as a {@link JSHandle}.
    *
    * The only difference between
    * [page.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate) and
    * [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle) is that
    * [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle) returns
-   * [JSHandle].
+   * {@link JSHandle}.
    *
    * If the function passed to the
    * [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle) returns
@@ -238,7 +238,7 @@ export interface Page {
    * const aHandle = await page.evaluateHandle('document'); // Handle for the 'document'
    * ```
    *
-   * [JSHandle] instances can be passed as an argument to the
+   * {@link JSHandle} instances can be passed as an argument to the
    * [page.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate-handle):
    *
    * ```js
@@ -337,7 +337,7 @@ export interface Page {
    * **NOTE** This method does not wait for the element to pass actionability checks and therefore can lead to the flaky tests.
    * Use
    * [locator.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate),
-   * other [Locator] helper methods or web-first assertions instead.
+   * other {@link Locator} helper methods or web-first assertions instead.
    *
    * The method finds an element matching the specified selector within the page and passes it as a first argument to
    * `pageFunction`. If no elements match the selector, the method throws an error. Returns the value of `pageFunction`.
@@ -366,7 +366,7 @@ export interface Page {
    * **NOTE** This method does not wait for the element to pass actionability checks and therefore can lead to the flaky tests.
    * Use
    * [locator.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate),
-   * other [Locator] helper methods or web-first assertions instead.
+   * other {@link Locator} helper methods or web-first assertions instead.
    *
    * The method finds an element matching the specified selector within the page and passes it as a first argument to
    * `pageFunction`. If no elements match the selector, the method throws an error. Returns the value of `pageFunction`.
@@ -395,7 +395,7 @@ export interface Page {
    * **NOTE** This method does not wait for the element to pass actionability checks and therefore can lead to the flaky tests.
    * Use
    * [locator.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate),
-   * other [Locator] helper methods or web-first assertions instead.
+   * other {@link Locator} helper methods or web-first assertions instead.
    *
    * The method finds an element matching the specified selector within the page and passes it as a first argument to
    * `pageFunction`. If no elements match the selector, the method throws an error. Returns the value of `pageFunction`.
@@ -424,7 +424,7 @@ export interface Page {
    * **NOTE** This method does not wait for the element to pass actionability checks and therefore can lead to the flaky tests.
    * Use
    * [locator.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate),
-   * other [Locator] helper methods or web-first assertions instead.
+   * other {@link Locator} helper methods or web-first assertions instead.
    *
    * The method finds an element matching the specified selector within the page and passes it as a first argument to
    * `pageFunction`. If no elements match the selector, the method throws an error. Returns the value of `pageFunction`.
@@ -453,7 +453,7 @@ export interface Page {
   /**
    * **NOTE** In most cases,
    * [locator.evaluateAll(pageFunction[, arg])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
-   * other [Locator] helper methods and web-first assertions do a better job.
+   * other {@link Locator} helper methods and web-first assertions do a better job.
    *
    * The method finds all elements matching the specified selector within the page and passes an array of matched
    * elements as a first argument to `pageFunction`. Returns the result of `pageFunction` invocation.
@@ -476,7 +476,7 @@ export interface Page {
   /**
    * **NOTE** In most cases,
    * [locator.evaluateAll(pageFunction[, arg])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
-   * other [Locator] helper methods and web-first assertions do a better job.
+   * other {@link Locator} helper methods and web-first assertions do a better job.
    *
    * The method finds all elements matching the specified selector within the page and passes an array of matched
    * elements as a first argument to `pageFunction`. Returns the result of `pageFunction` invocation.
@@ -499,7 +499,7 @@ export interface Page {
   /**
    * **NOTE** In most cases,
    * [locator.evaluateAll(pageFunction[, arg])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
-   * other [Locator] helper methods and web-first assertions do a better job.
+   * other {@link Locator} helper methods and web-first assertions do a better job.
    *
    * The method finds all elements matching the specified selector within the page and passes an array of matched
    * elements as a first argument to `pageFunction`. Returns the result of `pageFunction` invocation.
@@ -522,7 +522,7 @@ export interface Page {
   /**
    * **NOTE** In most cases,
    * [locator.evaluateAll(pageFunction[, arg])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
-   * other [Locator] helper methods and web-first assertions do a better job.
+   * other {@link Locator} helper methods and web-first assertions do a better job.
    *
    * The method finds all elements matching the specified selector within the page and passes an array of matched
    * elements as a first argument to `pageFunction`. Returns the result of `pageFunction` invocation.
@@ -624,7 +624,7 @@ export interface Page {
    * Returns when element specified by selector satisfies `state` option. Returns `null` if waiting for `hidden` or
    * `detached`.
    *
-   * **NOTE** Playwright automatically waits for element to be ready before performing an action. Using [Locator]
+   * **NOTE** Playwright automatically waits for element to be ready before performing an action. Using {@link Locator}
    * objects and web-first assertions makes the code wait-for-selector-free.
    *
    * Wait for the `selector` to satisfy `state` option (either appear/disappear from dom, or become visible/hidden). If
@@ -662,7 +662,7 @@ export interface Page {
    * Returns when element specified by selector satisfies `state` option. Returns `null` if waiting for `hidden` or
    * `detached`.
    *
-   * **NOTE** Playwright automatically waits for element to be ready before performing an action. Using [Locator]
+   * **NOTE** Playwright automatically waits for element to be ready before performing an action. Using {@link Locator}
    * objects and web-first assertions makes the code wait-for-selector-free.
    *
    * Wait for the `selector` to satisfy `state` option (either appear/disappear from dom, or become visible/hidden). If
@@ -700,7 +700,7 @@ export interface Page {
    * Returns when element specified by selector satisfies `state` option. Returns `null` if waiting for `hidden` or
    * `detached`.
    *
-   * **NOTE** Playwright automatically waits for element to be ready before performing an action. Using [Locator]
+   * **NOTE** Playwright automatically waits for element to be ready before performing an action. Using {@link Locator}
    * objects and web-first assertions makes the code wait-for-selector-free.
    *
    * Wait for the `selector` to satisfy `state` option (either appear/disappear from dom, or become visible/hidden). If
@@ -738,7 +738,7 @@ export interface Page {
    * Returns when element specified by selector satisfies `state` option. Returns `null` if waiting for `hidden` or
    * `detached`.
    *
-   * **NOTE** Playwright automatically waits for element to be ready before performing an action. Using [Locator]
+   * **NOTE** Playwright automatically waits for element to be ready before performing an action. Using {@link Locator}
    * objects and web-first assertions makes the code wait-for-selector-free.
    *
    * Wait for the `selector` to satisfy `state` option (either appear/disappear from dom, or become visible/hidden). If
@@ -900,7 +900,7 @@ export interface Page {
    * Emitted when JavaScript within the page calls one of console API methods, e.g. `console.log` or `console.dir`. Also
    * emitted if the page throws an error or a warning.
    *
-   * The arguments passed into `console.log` are available on the [ConsoleMessage] event handler argument.
+   * The arguments passed into `console.log` are available on the {@link ConsoleMessage} event handler argument.
    *
    * **Usage**
    *
@@ -966,7 +966,7 @@ export interface Page {
 
   /**
    * Emitted when attachment download started. User can access basic file operations on downloaded content via the
-   * passed [Download] instance.
+   * passed {@link Download} instance.
    */
   on(event: 'download', listener: (download: Download) => void): this;
 
@@ -1082,7 +1082,7 @@ export interface Page {
   on(event: 'response', listener: (response: Response) => void): this;
 
   /**
-   * Emitted when [WebSocket] request is sent.
+   * Emitted when {@link WebSocket} request is sent.
    */
   on(event: 'websocket', listener: (webSocket: WebSocket) => void): this;
 
@@ -1196,7 +1196,7 @@ export interface Page {
    * Emitted when JavaScript within the page calls one of console API methods, e.g. `console.log` or `console.dir`. Also
    * emitted if the page throws an error or a warning.
    *
-   * The arguments passed into `console.log` are available on the [ConsoleMessage] event handler argument.
+   * The arguments passed into `console.log` are available on the {@link ConsoleMessage} event handler argument.
    *
    * **Usage**
    *
@@ -1262,7 +1262,7 @@ export interface Page {
 
   /**
    * Emitted when attachment download started. User can access basic file operations on downloaded content via the
-   * passed [Download] instance.
+   * passed {@link Download} instance.
    */
   addListener(event: 'download', listener: (download: Download) => void): this;
 
@@ -1378,7 +1378,7 @@ export interface Page {
   addListener(event: 'response', listener: (response: Response) => void): this;
 
   /**
-   * Emitted when [WebSocket] request is sent.
+   * Emitted when {@link WebSocket} request is sent.
    */
   addListener(event: 'websocket', listener: (webSocket: WebSocket) => void): this;
 
@@ -1587,7 +1587,7 @@ export interface Page {
    * Emitted when JavaScript within the page calls one of console API methods, e.g. `console.log` or `console.dir`. Also
    * emitted if the page throws an error or a warning.
    *
-   * The arguments passed into `console.log` are available on the [ConsoleMessage] event handler argument.
+   * The arguments passed into `console.log` are available on the {@link ConsoleMessage} event handler argument.
    *
    * **Usage**
    *
@@ -1653,7 +1653,7 @@ export interface Page {
 
   /**
    * Emitted when attachment download started. User can access basic file operations on downloaded content via the
-   * passed [Download] instance.
+   * passed {@link Download} instance.
    */
   prependListener(event: 'download', listener: (download: Download) => void): this;
 
@@ -1769,7 +1769,7 @@ export interface Page {
   prependListener(event: 'response', listener: (response: Response) => void): this;
 
   /**
-   * Emitted when [WebSocket] request is sent.
+   * Emitted when {@link WebSocket} request is sent.
    */
   prependListener(event: 'websocket', listener: (webSocket: WebSocket) => void): this;
 
@@ -1852,8 +1852,8 @@ export interface Page {
    * 1. Wait for initiated navigations to either succeed or fail, unless `noWaitAfter` option is set.
    * 1. Ensure that the element is now checked. If not, this method throws.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    * @param selector A selector to search for an element. If there are multiple elements satisfying the selector, the first will be
    * used.
    * @param options
@@ -1915,8 +1915,8 @@ export interface Page {
    *    element, or the specified `position`.
    * 1. Wait for initiated navigations to either succeed or fail, unless `noWaitAfter` option is set.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    * @param selector A selector to search for an element. If there are multiple elements satisfying the selector, the first will be
    * used.
    * @param options
@@ -2028,8 +2028,8 @@ export interface Page {
    * 1. Wait for initiated navigations to either succeed or fail, unless `noWaitAfter` option is set. Note that if
    *    the first click of the `dblclick()` triggers a navigation event, this method will throw.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    *
    * **NOTE** `page.dblclick()` dispatches two `click` events and a single `dblclick` event.
    * @param selector A selector to search for an element. If there are multiple elements satisfying the selector, the first will be
@@ -2921,8 +2921,8 @@ export interface Page {
    *    element, or the specified `position`.
    * 1. Wait for initiated navigations to either succeed or fail, unless `noWaitAfter` option is set.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    * @param selector A selector to search for an element. If there are multiple elements satisfying the selector, the first will be
    * used.
    * @param options
@@ -3228,7 +3228,8 @@ export interface Page {
      * Matches elements containing an element that matches an inner locator. Inner locator is queried against the outer
      * one. For example, `article` that has `text=Playwright` matches `<article><div>Playwright</div></article>`.
      *
-     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain [FrameLocator]s.
+     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain {@link
+     * FrameLocator}s.
      */
     has?: Locator;
 
@@ -3236,7 +3237,8 @@ export interface Page {
      * Matches elements that do not contain an element that matches an inner locator. Inner locator is queried against the
      * outer one. For example, `article` that does not have `div` matches `<article><span>Playwright</span></article>`.
      *
-     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain [FrameLocator]s.
+     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain {@link
+     * FrameLocator}s.
      */
     hasNot?: Locator;
 
@@ -3757,8 +3759,8 @@ export interface Page {
    * 1. Wait for initiated navigations to either succeed or fail, unless `noWaitAfter` option is set.
    * 1. Ensure that the element is now checked or unchecked. If not, this method throws.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    * @param selector A selector to search for an element. If there are multiple elements satisfying the selector, the first will be
    * used.
    * @param checked Whether to check or uncheck the checkbox.
@@ -3998,8 +4000,8 @@ export interface Page {
    *    element, or the specified `position`.
    * 1. Wait for initiated navigations to either succeed or fail, unless `noWaitAfter` option is set.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    *
    * **NOTE** [page.tap(selector[, options])](https://playwright.dev/docs/api/class-page#page-tap) the method will throw
    * if `hasTouch` option of the browser context is false.
@@ -4155,8 +4157,8 @@ export interface Page {
    * 1. Wait for initiated navigations to either succeed or fail, unless `noWaitAfter` option is set.
    * 1. Ensure that the element is now unchecked. If not, this method throws.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    * @param selector A selector to search for an element. If there are multiple elements satisfying the selector, the first will be
    * used.
    * @param options
@@ -4242,7 +4244,7 @@ export interface Page {
    * Emitted when JavaScript within the page calls one of console API methods, e.g. `console.log` or `console.dir`. Also
    * emitted if the page throws an error or a warning.
    *
-   * The arguments passed into `console.log` are available on the [ConsoleMessage] event handler argument.
+   * The arguments passed into `console.log` are available on the {@link ConsoleMessage} event handler argument.
    *
    * **Usage**
    *
@@ -4308,7 +4310,7 @@ export interface Page {
 
   /**
    * Emitted when attachment download started. User can access basic file operations on downloaded content via the
-   * passed [Download] instance.
+   * passed {@link Download} instance.
    */
   waitForEvent(event: 'download', optionsOrPredicate?: { predicate?: (download: Download) => boolean | Promise<boolean>, timeout?: number } | ((download: Download) => boolean | Promise<boolean>)): Promise<Download>;
 
@@ -4424,7 +4426,7 @@ export interface Page {
   waitForEvent(event: 'response', optionsOrPredicate?: { predicate?: (response: Response) => boolean | Promise<boolean>, timeout?: number } | ((response: Response) => boolean | Promise<boolean>)): Promise<Response>;
 
   /**
-   * Emitted when [WebSocket] request is sent.
+   * Emitted when {@link WebSocket} request is sent.
    */
   waitForEvent(event: 'websocket', optionsOrPredicate?: { predicate?: (webSocket: WebSocket) => boolean | Promise<boolean>, timeout?: number } | ((webSocket: WebSocket) => boolean | Promise<boolean>)): Promise<WebSocket>;
 
@@ -4549,7 +4551,7 @@ export interface Page {
    * const request = await requestPromise;
    * ```
    *
-   * @param urlOrPredicate Request URL string, regex or predicate receiving [Request] object.
+   * @param urlOrPredicate Request URL string, regex or predicate receiving {@link Request} object.
    * @param options
    */
   waitForRequest(urlOrPredicate: string|RegExp|((request: Request) => boolean|Promise<boolean>), options?: {
@@ -4579,8 +4581,8 @@ export interface Page {
    * const response = await responsePromise;
    * ```
    *
-   * @param urlOrPredicate Request URL string, regex or predicate receiving [Response] object. When a `baseURL` via the context options was
-   * provided and the passed URL is a path, it gets merged via the
+   * @param urlOrPredicate Request URL string, regex or predicate receiving {@link Response} object. When a `baseURL` via the context options
+   * was provided and the passed URL is a path, it gets merged via the
    * [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
    * @param options
    */
@@ -4595,8 +4597,8 @@ export interface Page {
   }): Promise<Response>;
 
   /**
-   * **NOTE** Never wait for timeout in production. Tests that wait for time are inherently flaky. Use [Locator] actions and web
-   * assertions that wait automatically.
+   * **NOTE** Never wait for timeout in production. Tests that wait for time are inherently flaky. Use {@link Locator} actions
+   * and web assertions that wait automatically.
    *
    * Waits for the given `timeout` in milliseconds.
    *
@@ -4670,7 +4672,7 @@ export interface Page {
   /**
    * **NOTE** Only available for Chromium atm.
    *
-   * Browser-specific Coverage implementation. See [Coverage] for more details.
+   * Browser-specific Coverage implementation. See {@link Coverage} for more details.
    */
   coverage: Coverage;
 
@@ -4695,7 +4697,7 @@ export interface Page {
  * [page.mainFrame()](https://playwright.dev/docs/api/class-page#page-main-frame) and
  * [frame.childFrames()](https://playwright.dev/docs/api/class-frame#frame-child-frames) methods.
  *
- * [Frame] object's lifecycle is controlled by three events, dispatched on the page object:
+ * {@link Frame} object's lifecycle is controlled by three events, dispatched on the page object:
  * - [page.on('frameattached')](https://playwright.dev/docs/api/class-page#page-event-frame-attached) - fired when
  *   the frame gets attached to the page. A Frame can be attached to the page only once.
  * - [page.on('framenavigated')](https://playwright.dev/docs/api/class-page#page-event-frame-navigated) - fired when
@@ -4756,7 +4758,7 @@ export interface Frame {
    * console.log(await frame.evaluate('1 + 2')); // prints "3"
    * ```
    *
-   * [ElementHandle] instances can be passed as an argument to the
+   * {@link ElementHandle} instances can be passed as an argument to the
    * [frame.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate):
    *
    * ```js
@@ -4799,7 +4801,7 @@ export interface Frame {
    * console.log(await frame.evaluate('1 + 2')); // prints "3"
    * ```
    *
-   * [ElementHandle] instances can be passed as an argument to the
+   * {@link ElementHandle} instances can be passed as an argument to the
    * [frame.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate):
    *
    * ```js
@@ -4814,13 +4816,13 @@ export interface Frame {
   evaluate<R>(pageFunction: PageFunction<void, R>, arg?: any): Promise<R>;
 
   /**
-   * Returns the return value of `pageFunction` as a [JSHandle].
+   * Returns the return value of `pageFunction` as a {@link JSHandle}.
    *
    * The only difference between
    * [frame.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate) and
    * [frame.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle) is
    * that [frame.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle)
-   * returns [JSHandle].
+   * returns {@link JSHandle}.
    *
    * If the function, passed to the
    * [frame.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle),
@@ -4841,7 +4843,7 @@ export interface Frame {
    * const aHandle = await frame.evaluateHandle('document'); // Handle for the 'document'.
    * ```
    *
-   * [JSHandle] instances can be passed as an argument to the
+   * {@link JSHandle} instances can be passed as an argument to the
    * [frame.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle):
    *
    * ```js
@@ -4856,13 +4858,13 @@ export interface Frame {
    */
   evaluateHandle<R, Arg>(pageFunction: PageFunction<Arg, R>, arg: Arg): Promise<SmartHandle<R>>;
   /**
-   * Returns the return value of `pageFunction` as a [JSHandle].
+   * Returns the return value of `pageFunction` as a {@link JSHandle}.
    *
    * The only difference between
    * [frame.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate) and
    * [frame.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle) is
    * that [frame.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle)
-   * returns [JSHandle].
+   * returns {@link JSHandle}.
    *
    * If the function, passed to the
    * [frame.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle),
@@ -4883,7 +4885,7 @@ export interface Frame {
    * const aHandle = await frame.evaluateHandle('document'); // Handle for the 'document'.
    * ```
    *
-   * [JSHandle] instances can be passed as an argument to the
+   * {@link JSHandle} instances can be passed as an argument to the
    * [frame.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-frame#frame-evaluate-handle):
    *
    * ```js
@@ -4904,7 +4906,8 @@ export interface Frame {
    *
    * Returns the ElementHandle pointing to the frame element.
    *
-   * **NOTE** The use of [ElementHandle] is discouraged, use [Locator] objects and web-first assertions instead.
+   * **NOTE** The use of {@link ElementHandle} is discouraged, use {@link Locator} objects and web-first assertions
+   * instead.
    *
    * The method finds an element matching the specified selector within the frame. If no elements match the selector,
    * returns `null`.
@@ -4918,7 +4921,8 @@ export interface Frame {
    *
    * Returns the ElementHandle pointing to the frame element.
    *
-   * **NOTE** The use of [ElementHandle] is discouraged, use [Locator] objects and web-first assertions instead.
+   * **NOTE** The use of {@link ElementHandle} is discouraged, use {@link Locator} objects and web-first assertions
+   * instead.
    *
    * The method finds an element matching the specified selector within the frame. If no elements match the selector,
    * returns `null`.
@@ -4933,7 +4937,7 @@ export interface Frame {
    *
    * Returns the ElementHandles pointing to the frame elements.
    *
-   * **NOTE** The use of [ElementHandle] is discouraged, use [Locator] objects instead.
+   * **NOTE** The use of {@link ElementHandle} is discouraged, use {@link Locator} objects instead.
    *
    * The method finds all elements matching the specified selector within the frame. If no elements match the selector,
    * returns empty array.
@@ -4946,7 +4950,7 @@ export interface Frame {
    *
    * Returns the ElementHandles pointing to the frame elements.
    *
-   * **NOTE** The use of [ElementHandle] is discouraged, use [Locator] objects instead.
+   * **NOTE** The use of {@link ElementHandle} is discouraged, use {@link Locator} objects instead.
    *
    * The method finds all elements matching the specified selector within the frame. If no elements match the selector,
    * returns empty array.
@@ -4958,7 +4962,7 @@ export interface Frame {
    * **NOTE** This method does not wait for the element to pass the actionability checks and therefore can lead to the flaky
    * tests. Use
    * [locator.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate),
-   * other [Locator] helper methods or web-first assertions instead.
+   * other {@link Locator} helper methods or web-first assertions instead.
    *
    * Returns the return value of `pageFunction`.
    *
@@ -4987,7 +4991,7 @@ export interface Frame {
    * **NOTE** This method does not wait for the element to pass the actionability checks and therefore can lead to the flaky
    * tests. Use
    * [locator.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate),
-   * other [Locator] helper methods or web-first assertions instead.
+   * other {@link Locator} helper methods or web-first assertions instead.
    *
    * Returns the return value of `pageFunction`.
    *
@@ -5016,7 +5020,7 @@ export interface Frame {
    * **NOTE** This method does not wait for the element to pass the actionability checks and therefore can lead to the flaky
    * tests. Use
    * [locator.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate),
-   * other [Locator] helper methods or web-first assertions instead.
+   * other {@link Locator} helper methods or web-first assertions instead.
    *
    * Returns the return value of `pageFunction`.
    *
@@ -5045,7 +5049,7 @@ export interface Frame {
    * **NOTE** This method does not wait for the element to pass the actionability checks and therefore can lead to the flaky
    * tests. Use
    * [locator.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate),
-   * other [Locator] helper methods or web-first assertions instead.
+   * other {@link Locator} helper methods or web-first assertions instead.
    *
    * Returns the return value of `pageFunction`.
    *
@@ -5074,7 +5078,7 @@ export interface Frame {
   /**
    * **NOTE** In most cases,
    * [locator.evaluateAll(pageFunction[, arg])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
-   * other [Locator] helper methods and web-first assertions do a better job.
+   * other {@link Locator} helper methods and web-first assertions do a better job.
    *
    * Returns the return value of `pageFunction`.
    *
@@ -5099,7 +5103,7 @@ export interface Frame {
   /**
    * **NOTE** In most cases,
    * [locator.evaluateAll(pageFunction[, arg])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
-   * other [Locator] helper methods and web-first assertions do a better job.
+   * other {@link Locator} helper methods and web-first assertions do a better job.
    *
    * Returns the return value of `pageFunction`.
    *
@@ -5124,7 +5128,7 @@ export interface Frame {
   /**
    * **NOTE** In most cases,
    * [locator.evaluateAll(pageFunction[, arg])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
-   * other [Locator] helper methods and web-first assertions do a better job.
+   * other {@link Locator} helper methods and web-first assertions do a better job.
    *
    * Returns the return value of `pageFunction`.
    *
@@ -5149,7 +5153,7 @@ export interface Frame {
   /**
    * **NOTE** In most cases,
    * [locator.evaluateAll(pageFunction[, arg])](https://playwright.dev/docs/api/class-locator#locator-evaluate-all),
-   * other [Locator] helper methods and web-first assertions do a better job.
+   * other {@link Locator} helper methods and web-first assertions do a better job.
    *
    * Returns the return value of `pageFunction`.
    *
@@ -5249,7 +5253,7 @@ export interface Frame {
    * Returns when element specified by selector satisfies `state` option. Returns `null` if waiting for `hidden` or
    * `detached`.
    *
-   * **NOTE** Playwright automatically waits for element to be ready before performing an action. Using [Locator]
+   * **NOTE** Playwright automatically waits for element to be ready before performing an action. Using {@link Locator}
    * objects and web-first assertions make the code wait-for-selector-free.
    *
    * Wait for the `selector` to satisfy `state` option (either appear/disappear from dom, or become visible/hidden). If
@@ -5287,7 +5291,7 @@ export interface Frame {
    * Returns when element specified by selector satisfies `state` option. Returns `null` if waiting for `hidden` or
    * `detached`.
    *
-   * **NOTE** Playwright automatically waits for element to be ready before performing an action. Using [Locator]
+   * **NOTE** Playwright automatically waits for element to be ready before performing an action. Using {@link Locator}
    * objects and web-first assertions make the code wait-for-selector-free.
    *
    * Wait for the `selector` to satisfy `state` option (either appear/disappear from dom, or become visible/hidden). If
@@ -5325,7 +5329,7 @@ export interface Frame {
    * Returns when element specified by selector satisfies `state` option. Returns `null` if waiting for `hidden` or
    * `detached`.
    *
-   * **NOTE** Playwright automatically waits for element to be ready before performing an action. Using [Locator]
+   * **NOTE** Playwright automatically waits for element to be ready before performing an action. Using {@link Locator}
    * objects and web-first assertions make the code wait-for-selector-free.
    *
    * Wait for the `selector` to satisfy `state` option (either appear/disappear from dom, or become visible/hidden). If
@@ -5363,7 +5367,7 @@ export interface Frame {
    * Returns when element specified by selector satisfies `state` option. Returns `null` if waiting for `hidden` or
    * `detached`.
    *
-   * **NOTE** Playwright automatically waits for element to be ready before performing an action. Using [Locator]
+   * **NOTE** Playwright automatically waits for element to be ready before performing an action. Using {@link Locator}
    * objects and web-first assertions make the code wait-for-selector-free.
    *
    * Wait for the `selector` to satisfy `state` option (either appear/disappear from dom, or become visible/hidden). If
@@ -5464,8 +5468,8 @@ export interface Frame {
    * 1. Wait for initiated navigations to either succeed or fail, unless `noWaitAfter` option is set.
    * 1. Ensure that the element is now checked. If not, this method throws.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    * @param selector A selector to search for an element. If there are multiple elements satisfying the selector, the first will be
    * used.
    * @param options
@@ -5529,8 +5533,8 @@ export interface Frame {
    *    element, or the specified `position`.
    * 1. Wait for initiated navigations to either succeed or fail, unless `noWaitAfter` option is set.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    * @param selector A selector to search for an element. If there are multiple elements satisfying the selector, the first will be
    * used.
    * @param options
@@ -5619,8 +5623,8 @@ export interface Frame {
    * 1. Wait for initiated navigations to either succeed or fail, unless `noWaitAfter` option is set. Note that if
    *    the first click of the `dblclick()` triggers a navigation event, this method will throw.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    *
    * **NOTE** `frame.dblclick()` dispatches two `click` events and a single `dblclick` event.
    * @param selector A selector to search for an element. If there are multiple elements satisfying the selector, the first will be
@@ -6317,8 +6321,8 @@ export interface Frame {
    *    element, or the specified `position`.
    * 1. Wait for initiated navigations to either succeed or fail, unless `noWaitAfter` option is set.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    * @param selector A selector to search for an element. If there are multiple elements satisfying the selector, the first will be
    * used.
    * @param options
@@ -6623,7 +6627,8 @@ export interface Frame {
      * Matches elements containing an element that matches an inner locator. Inner locator is queried against the outer
      * one. For example, `article` that has `text=Playwright` matches `<article><div>Playwright</div></article>`.
      *
-     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain [FrameLocator]s.
+     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain {@link
+     * FrameLocator}s.
      */
     has?: Locator;
 
@@ -6631,7 +6636,8 @@ export interface Frame {
      * Matches elements that do not contain an element that matches an inner locator. Inner locator is queried against the
      * outer one. For example, `article` that does not have `div` matches `<article><span>Playwright</span></article>`.
      *
-     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain [FrameLocator]s.
+     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain {@link
+     * FrameLocator}s.
      */
     hasNot?: Locator;
 
@@ -6835,8 +6841,8 @@ export interface Frame {
    * 1. Wait for initiated navigations to either succeed or fail, unless `noWaitAfter` option is set.
    * 1. Ensure that the element is now checked or unchecked. If not, this method throws.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    * @param selector A selector to search for an element. If there are multiple elements satisfying the selector, the first will be
    * used.
    * @param checked Whether to check or uncheck the checkbox.
@@ -6996,8 +7002,8 @@ export interface Frame {
    *    element, or the specified `position`.
    * 1. Wait for initiated navigations to either succeed or fail, unless `noWaitAfter` option is set.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    *
    * **NOTE** `frame.tap()` requires that the `hasTouch` option of the browser context be set to true.
    * @param selector A selector to search for an element. If there are multiple elements satisfying the selector, the first will be
@@ -7152,8 +7158,8 @@ export interface Frame {
    * 1. Wait for initiated navigations to either succeed or fail, unless `noWaitAfter` option is set.
    * 1. Ensure that the element is now unchecked. If not, this method throws.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    * @param selector A selector to search for an element. If there are multiple elements satisfying the selector, the first will be
    * used.
    * @param options
@@ -7295,8 +7301,8 @@ export interface Frame {
   }): Promise<null|Response>;
 
   /**
-   * **NOTE** Never wait for timeout in production. Tests that wait for time are inherently flaky. Use [Locator] actions and web
-   * assertions that wait automatically.
+   * **NOTE** Never wait for timeout in production. Tests that wait for time are inherently flaky. Use {@link Locator} actions
+   * and web assertions that wait automatically.
    *
    * Waits for the given `timeout` in milliseconds.
    *
@@ -7539,7 +7545,8 @@ export interface BrowserContext {
    * Emitted when JavaScript within the page calls one of console API methods, e.g. `console.log` or `console.dir`. Also
    * emitted if the page throws an error or a warning.
    *
-   * The arguments passed into `console.log` and the page are available on the [ConsoleMessage] event handler argument.
+   * The arguments passed into `console.log` and the page are available on the {@link ConsoleMessage} event handler
+   * argument.
    *
    * **Usage**
    *
@@ -7719,7 +7726,8 @@ export interface BrowserContext {
    * Emitted when JavaScript within the page calls one of console API methods, e.g. `console.log` or `console.dir`. Also
    * emitted if the page throws an error or a warning.
    *
-   * The arguments passed into `console.log` and the page are available on the [ConsoleMessage] event handler argument.
+   * The arguments passed into `console.log` and the page are available on the {@link ConsoleMessage} event handler
+   * argument.
    *
    * **Usage**
    *
@@ -7949,7 +7957,8 @@ export interface BrowserContext {
    * Emitted when JavaScript within the page calls one of console API methods, e.g. `console.log` or `console.dir`. Also
    * emitted if the page throws an error or a warning.
    *
-   * The arguments passed into `console.log` and the page are available on the [ConsoleMessage] event handler argument.
+   * The arguments passed into `console.log` and the page are available on the {@link ConsoleMessage} event handler
+   * argument.
    *
    * **Usage**
    *
@@ -8532,7 +8541,8 @@ export interface BrowserContext {
    * Emitted when JavaScript within the page calls one of console API methods, e.g. `console.log` or `console.dir`. Also
    * emitted if the page throws an error or a warning.
    *
-   * The arguments passed into `console.log` and the page are available on the [ConsoleMessage] event handler argument.
+   * The arguments passed into `console.log` and the page are available on the {@link ConsoleMessage} event handler
+   * argument.
    *
    * **Usage**
    *
@@ -8705,14 +8715,14 @@ export interface Worker {
   evaluate<R>(pageFunction: PageFunction<void, R>, arg?: any): Promise<R>;
 
   /**
-   * Returns the return value of `pageFunction` as a [JSHandle].
+   * Returns the return value of `pageFunction` as a {@link JSHandle}.
    *
    * The only difference between
    * [worker.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-worker#worker-evaluate) and
    * [worker.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-worker#worker-evaluate-handle)
    * is that
    * [worker.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-worker#worker-evaluate-handle)
-   * returns [JSHandle].
+   * returns {@link JSHandle}.
    *
    * If the function passed to the
    * [worker.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-worker#worker-evaluate-handle)
@@ -8724,14 +8734,14 @@ export interface Worker {
    */
   evaluateHandle<R, Arg>(pageFunction: PageFunction<Arg, R>, arg: Arg): Promise<SmartHandle<R>>;
   /**
-   * Returns the return value of `pageFunction` as a [JSHandle].
+   * Returns the return value of `pageFunction` as a {@link JSHandle}.
    *
    * The only difference between
    * [worker.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-worker#worker-evaluate) and
    * [worker.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-worker#worker-evaluate-handle)
    * is that
    * [worker.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-worker#worker-evaluate-handle)
-   * returns [JSHandle].
+   * returns {@link JSHandle}.
    *
    * If the function passed to the
    * [worker.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-worker#worker-evaluate-handle)
@@ -8838,12 +8848,12 @@ export interface JSHandle<T = any> {
   evaluate<R, O extends T = T>(pageFunction: PageFunctionOn<O, void, R>, arg?: any): Promise<R>;
 
   /**
-   * Returns the return value of `pageFunction` as a [JSHandle].
+   * Returns the return value of `pageFunction` as a {@link JSHandle}.
    *
    * This method passes this handle as the first argument to `pageFunction`.
    *
    * The only difference between `jsHandle.evaluate` and `jsHandle.evaluateHandle` is that `jsHandle.evaluateHandle`
-   * returns [JSHandle].
+   * returns {@link JSHandle}.
    *
    * If the function passed to the `jsHandle.evaluateHandle` returns a [Promise], then `jsHandle.evaluateHandle` would
    * wait for the promise to resolve and return its value.
@@ -8855,12 +8865,12 @@ export interface JSHandle<T = any> {
    */
   evaluateHandle<R, Arg, O extends T = T>(pageFunction: PageFunctionOn<O, Arg, R>, arg: Arg): Promise<SmartHandle<R>>;
   /**
-   * Returns the return value of `pageFunction` as a [JSHandle].
+   * Returns the return value of `pageFunction` as a {@link JSHandle}.
    *
    * This method passes this handle as the first argument to `pageFunction`.
    *
    * The only difference between `jsHandle.evaluate` and `jsHandle.evaluateHandle` is that `jsHandle.evaluateHandle`
-   * returns [JSHandle].
+   * returns {@link JSHandle}.
    *
    * If the function passed to the `jsHandle.evaluateHandle` returns a [Promise], then `jsHandle.evaluateHandle` would
    * wait for the promise to resolve and return its value.
@@ -8880,7 +8890,7 @@ export interface JSHandle<T = any> {
    */
   jsonValue(): Promise<T>;
   /**
-   * Returns either `null` or the object handle itself, if the object handle is an instance of [ElementHandle].
+   * Returns either `null` or the object handle itself, if the object handle is an instance of {@link ElementHandle}.
    */
   asElement(): T extends Node ? ElementHandle<T> : null;
   /**
@@ -8912,12 +8922,12 @@ export interface JSHandle<T = any> {
 }
 
 /**
- * - extends: [JSHandle]
+ * - extends: {@link JSHandle}
  *
  * ElementHandle represents an in-page DOM element. ElementHandles can be created with the
  * [page.$(selector[, options])](https://playwright.dev/docs/api/class-page#page-query-selector) method.
  *
- * **NOTE** The use of ElementHandle is discouraged, use [Locator] objects and web-first assertions instead.
+ * **NOTE** The use of ElementHandle is discouraged, use {@link Locator} objects and web-first assertions instead.
  *
  * ```js
  * const hrefElement = await page.$('a');
@@ -8932,8 +8942,8 @@ export interface JSHandle<T = any> {
  * [page.$eval(selector, pageFunction[, arg, options])](https://playwright.dev/docs/api/class-page#page-eval-on-selector)
  * and [page.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-page#page-evaluate) methods.
  *
- * The difference between the [Locator] and ElementHandle is that the ElementHandle points to a particular element,
- * while [Locator] captures the logic of how to retrieve an element.
+ * The difference between the {@link Locator} and ElementHandle is that the ElementHandle points to a particular
+ * element, while {@link Locator} captures the logic of how to retrieve an element.
  *
  * In the example below, handle points to a particular DOM element on page. If that element changes text or is used by
  * React to render an entirely different component, handle is still pointing to that very DOM element. This can lead
@@ -9351,8 +9361,8 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    *
    * If the element is detached from the DOM at any moment during the action, this method throws.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    * @param options
    */
   check(options?: {
@@ -9403,8 +9413,8 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    *
    * If the element is detached from the DOM at any moment during the action, this method throws.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    * @param options
    */
   click(options?: {
@@ -9482,8 +9492,8 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    *
    * If the element is detached from the DOM at any moment during the action, this method throws.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    *
    * **NOTE** `elementHandle.dblclick()` dispatches two `click` events and a single `dblclick` event.
    * @param options
@@ -9635,8 +9645,8 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    *
    * If the element is detached from the DOM at any moment during the action, this method throws.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    * @param options
    */
   hover(options?: {
@@ -9824,9 +9834,15 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
 
     /**
      * Specify locators that should be masked when the screenshot is taken. Masked elements will be overlaid with a pink
-     * box `#FF00FF` that completely covers its bounding box.
+     * box `#FF00FF` (customized by `maskColor`) that completely covers its bounding box.
      */
     mask?: Array<Locator>;
+
+    /**
+     * Specify the color of the overlay box for masked elements, in
+     * [CSS color format](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value). Default color is pink `#FF00FF`.
+     */
+    maskColor?: string;
 
     /**
      * Hides default white background and allows capturing screenshots with transparency. Not applicable to `jpeg` images.
@@ -10007,8 +10023,8 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    * 1. Wait for initiated navigations to either succeed or fail, unless `noWaitAfter` option is set.
    * 1. Ensure that the element is now checked or unchecked. If not, this method throws.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    * @param checked Whether to check or uncheck the checkbox.
    * @param options
    */
@@ -10054,7 +10070,7 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    * Sets the value of the file input to these file paths or files. If some of the `filePaths` are relative paths, then
    * they are resolved relative to the current working directory. For empty array, clears the selected files.
    *
-   * This method expects [ElementHandle] to point to an
+   * This method expects {@link ElementHandle} to point to an
    * [input element](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input). However, if the element is inside
    * the `<label>` element that has an associated
    * [control](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control), targets the control instead.
@@ -10118,8 +10134,8 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    *
    * If the element is detached from the DOM at any moment during the action, this method throws.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    *
    * **NOTE** `elementHandle.tap()` requires that the `hasTouch` option of the browser context be set to true.
    * @param options
@@ -10233,8 +10249,8 @@ export interface ElementHandle<T=Node> extends JSHandle<T> {
    *
    * If the element is detached from the DOM at any moment during the action, this method throws.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    * @param options
    */
   uncheck(options?: {
@@ -10412,7 +10428,8 @@ export interface Locator {
    */
   evaluateAll<R, E extends SVGElement | HTMLElement = SVGElement | HTMLElement>(pageFunction: PageFunctionOn<E[], void, R>): Promise<R>;
   /**
-   * **NOTE** Always prefer using [Locator]s and web assertions over [ElementHandle]s because latter are inherently racy.
+   * **NOTE** Always prefer using {@link Locator}s and web assertions over {@link ElementHandle}s because latter are inherently
+   * racy.
    *
    * Resolves given locator to the first matching DOM element. If there are no matching elements, waits for one. If
    * multiple elements match the locator, throws.
@@ -10566,8 +10583,8 @@ export interface Locator {
    *
    * If the element is detached from the DOM at any moment during the action, this method throws.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    *
    * **Usage**
    *
@@ -10672,8 +10689,8 @@ export interface Locator {
    *
    * If the element is detached from the DOM at any moment during the action, this method throws.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    *
    * **Usage**
    *
@@ -10781,8 +10798,8 @@ export interface Locator {
    *
    * If the element is detached from the DOM at any moment during the action, this method throws.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    *
    * **NOTE** `element.dblclick()` dispatches two `click` events and a single `dblclick` event.
    * @param options
@@ -10868,7 +10885,7 @@ export interface Locator {
    * - [TouchEvent](https://developer.mozilla.org/en-US/docs/Web/API/TouchEvent/TouchEvent)
    * - [Event](https://developer.mozilla.org/en-US/docs/Web/API/Event/Event)
    *
-   * You can also specify [JSHandle] as the property value if you want live objects to be passed into the event:
+   * You can also specify {@link JSHandle} as the property value if you want live objects to be passed into the event:
    *
    * ```js
    * // Note you can only create DataTransfer in Chromium and Firefox
@@ -10964,20 +10981,21 @@ export interface Locator {
   }): Promise<void>;
 
   /**
-   * **NOTE** Always prefer using [Locator]s and web assertions over [ElementHandle]s because latter are inherently racy.
+   * **NOTE** Always prefer using {@link Locator}s and web assertions over {@link ElementHandle}s because latter are inherently
+   * racy.
    *
    * Resolves given locator to all matching DOM elements. If there are no matching elements, returns an empty list.
    */
   elementHandles(): Promise<Array<ElementHandle>>;
 
   /**
-   * Execute JavaScript code in the page, taking the matching element as an argument, and return a [JSHandle] with the
-   * result.
+   * Execute JavaScript code in the page, taking the matching element as an argument, and return a {@link JSHandle} with
+   * the result.
    *
    * **Details**
    *
-   * Returns the return value of `pageFunction` as a[JSHandle], called with the matching element as a first argument,
-   * and `arg` as a second argument.
+   * Returns the return value of `pageFunction` as a{@link JSHandle}, called with the matching element as a first
+   * argument, and `arg` as a second argument.
    *
    * The only difference between
    * [locator.evaluate(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate)
@@ -10985,7 +11003,7 @@ export interface Locator {
    * [locator.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate-handle)
    * is that
    * [locator.evaluateHandle(pageFunction[, arg, options])](https://playwright.dev/docs/api/class-locator#locator-evaluate-handle)
-   * returns [JSHandle].
+   * returns {@link JSHandle}.
    *
    * If `pageFunction` returns a [Promise], this method will wait for the promise to resolve and return its value.
    *
@@ -11075,7 +11093,8 @@ export interface Locator {
      * Matches elements containing an element that matches an inner locator. Inner locator is queried against the outer
      * one. For example, `article` that has `text=Playwright` matches `<article><div>Playwright</div></article>`.
      *
-     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain [FrameLocator]s.
+     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain {@link
+     * FrameLocator}s.
      */
     has?: Locator;
 
@@ -11083,7 +11102,8 @@ export interface Locator {
      * Matches elements that do not contain an element that matches an inner locator. Inner locator is queried against the
      * outer one. For example, `article` that does not have `div` matches `<article><span>Playwright</span></article>`.
      *
-     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain [FrameLocator]s.
+     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain {@link
+     * FrameLocator}s.
      */
     hasNot?: Locator;
 
@@ -11484,8 +11504,8 @@ export interface Locator {
    *
    * If the element is detached from the DOM at any moment during the action, this method throws.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    * @param options
    */
   hover(options?: {
@@ -11737,7 +11757,8 @@ export interface Locator {
      * Matches elements containing an element that matches an inner locator. Inner locator is queried against the outer
      * one. For example, `article` that has `text=Playwright` matches `<article><div>Playwright</div></article>`.
      *
-     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain [FrameLocator]s.
+     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain {@link
+     * FrameLocator}s.
      */
     has?: Locator;
 
@@ -11745,7 +11766,8 @@ export interface Locator {
      * Matches elements that do not contain an element that matches an inner locator. Inner locator is queried against the
      * outer one. For example, `article` that does not have `div` matches `<article><span>Playwright</span></article>`.
      *
-     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain [FrameLocator]s.
+     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain {@link
+     * FrameLocator}s.
      */
     hasNot?: Locator;
 
@@ -12046,8 +12068,8 @@ export interface Locator {
    * 1. Wait for initiated navigations to either succeed or fail, unless `noWaitAfter` option is set.
    * 1. Ensure that the element is now checked or unchecked. If not, this method throws.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    * @param checked Whether to check or uncheck the checkbox.
    * @param options
    */
@@ -12117,7 +12139,7 @@ export interface Locator {
    * Sets the value of the file input to these file paths or files. If some of the `filePaths` are relative paths, then
    * they are resolved relative to the current working directory. For empty array, clears the selected files.
    *
-   * This method expects [Locator] to point to an
+   * This method expects {@link Locator} to point to an
    * [input element](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input). However, if the element is inside
    * the `<label>` element that has an associated
    * [control](https://developer.mozilla.org/en-US/docs/Web/API/HTMLLabelElement/control), targets the control instead.
@@ -12185,8 +12207,8 @@ export interface Locator {
    *
    * If the element is detached from the DOM at any moment during the action, this method throws.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    *
    * **NOTE** `element.tap()` requires that the `hasTouch` option of the browser context be set to true.
    * @param options
@@ -12319,8 +12341,8 @@ export interface Locator {
    *
    * If the element is detached from the DOM at any moment during the action, this method throws.
    *
-   * When all steps combined have not finished during the specified `timeout`, this method throws a [TimeoutError].
-   * Passing zero timeout disables this.
+   * When all steps combined have not finished during the specified `timeout`, this method throws a {@link
+   * TimeoutError}. Passing zero timeout disables this.
    * @param options
    */
   uncheck(options?: {
@@ -12553,7 +12575,7 @@ export interface BrowserType<Unused = {}> {
      * [page.waitForResponse(urlOrPredicate[, options])](https://playwright.dev/docs/api/class-page#page-wait-for-response)
      * it takes the base URL in consideration by using the
      * [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL.
-     * Examples:
+     * Unset by default. Examples:
      * - baseURL: `http://localhost:3000` and navigating to `/bar.html` results in `http://localhost:3000/bar.html`
      * - baseURL: `http://localhost:3000/foo/` and navigating to `./bar.html` results in
      *   `http://localhost:3000/foo/bar.html`
@@ -12563,7 +12585,7 @@ export interface BrowserType<Unused = {}> {
     baseURL?: string;
 
     /**
-     * Toggles bypassing page's Content-Security-Policy.
+     * Toggles bypassing page's Content-Security-Policy. Defaults to `false`.
      */
     bypassCSP?: boolean;
 
@@ -12618,7 +12640,7 @@ export interface BrowserType<Unused = {}> {
     executablePath?: string;
 
     /**
-     * An object containing additional HTTP headers to be sent with every request.
+     * An object containing additional HTTP headers to be sent with every request. Defaults to none.
      */
     extraHTTPHeaders?: { [key: string]: string; };
 
@@ -12716,8 +12738,8 @@ export interface BrowserType<Unused = {}> {
 
     /**
      * Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value,
-     * `Accept-Language` request header value as well as number and date formatting rules. Learn more about emulation in
-     * our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
+     * `Accept-Language` request header value as well as number and date formatting rules. Defaults to the system default
+     * locale. Learn more about emulation in our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
      */
     locale?: string;
 
@@ -12735,7 +12757,7 @@ export interface BrowserType<Unused = {}> {
     /**
      * A list of permissions to grant to all pages in this context. See
      * [browserContext.grantPermissions(permissions[, options])](https://playwright.dev/docs/api/class-browsercontext#browser-context-grant-permissions)
-     * for more details.
+     * for more details. Defaults to none.
      */
     permissions?: Array<string>;
 
@@ -12801,7 +12823,7 @@ export interface BrowserType<Unused = {}> {
       /**
        * A glob or regex pattern to filter requests that are stored in the HAR. When a `baseURL` via the context options was
        * provided and the passed URL is a path, it gets merged via the
-       * [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
+       * [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor. Defaults to none.
        */
       urlFilter?: string|RegExp;
     };
@@ -12876,8 +12898,8 @@ export interface BrowserType<Unused = {}> {
     /**
      * If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations on
      * selectors that imply single target DOM element will throw when more than one element matches the selector. This
-     * option does not affect any Locator APIs (Locators are always strict). See [Locator] to learn more about the strict
-     * mode.
+     * option does not affect any Locator APIs (Locators are always strict). Defaults to `false`. See {@link Locator} to
+     * learn more about the strict mode.
      */
     strictSelectors?: boolean;
 
@@ -12890,7 +12912,7 @@ export interface BrowserType<Unused = {}> {
     /**
      * Changes the timezone of the context. See
      * [ICU's metaZones.txt](https://cs.chromium.org/chromium/src/third_party/icu/source/data/misc/metaZones.txt?rcl=faee8bc70570192d82d2978a71e2a615788597d1)
-     * for a list of supported timezone IDs.
+     * for a list of supported timezone IDs. Defaults to the system timezone.
      */
     timezoneId?: string;
 
@@ -13371,7 +13393,7 @@ export interface ElectronApplication {
   evaluate<R>(pageFunction: PageFunctionOn<ElectronType, void, R>, arg?: any): Promise<R>;
 
   /**
-   * Returns the return value of `pageFunction` as a [JSHandle].
+   * Returns the return value of `pageFunction` as a {@link JSHandle}.
    *
    * The only difference between
    * [electronApplication.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-electronapplication#electron-application-evaluate)
@@ -13379,7 +13401,7 @@ export interface ElectronApplication {
    * [electronApplication.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-electronapplication#electron-application-evaluate-handle)
    * is that
    * [electronApplication.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-electronapplication#electron-application-evaluate-handle)
-   * returns [JSHandle].
+   * returns {@link JSHandle}.
    *
    * If the function passed to the
    * [electronApplication.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-electronapplication#electron-application-evaluate-handle)
@@ -13391,7 +13413,7 @@ export interface ElectronApplication {
    */
   evaluateHandle<R, Arg>(pageFunction: PageFunctionOn<ElectronType, Arg, R>, arg: Arg): Promise<SmartHandle<R>>;
   /**
-   * Returns the return value of `pageFunction` as a [JSHandle].
+   * Returns the return value of `pageFunction` as a {@link JSHandle}.
    *
    * The only difference between
    * [electronApplication.evaluate(pageFunction[, arg])](https://playwright.dev/docs/api/class-electronapplication#electron-application-evaluate)
@@ -13399,7 +13421,7 @@ export interface ElectronApplication {
    * [electronApplication.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-electronapplication#electron-application-evaluate-handle)
    * is that
    * [electronApplication.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-electronapplication#electron-application-evaluate-handle)
-   * returns [JSHandle].
+   * returns {@link JSHandle}.
    *
    * If the function passed to the
    * [electronApplication.evaluateHandle(pageFunction[, arg])](https://playwright.dev/docs/api/class-electronapplication#electron-application-evaluate-handle)
@@ -13416,8 +13438,8 @@ export interface ElectronApplication {
   on(event: 'close', listener: () => void): this;
 
   /**
-   * This event is issued for every window that is created **and loaded** in Electron. It contains a [Page] that can be
-   * used for Playwright automation.
+   * This event is issued for every window that is created **and loaded** in Electron. It contains a {@link Page} that
+   * can be used for Playwright automation.
    */
   on(event: 'window', listener: (page: Page) => void): this;
 
@@ -13437,8 +13459,8 @@ export interface ElectronApplication {
   addListener(event: 'close', listener: () => void): this;
 
   /**
-   * This event is issued for every window that is created **and loaded** in Electron. It contains a [Page] that can be
-   * used for Playwright automation.
+   * This event is issued for every window that is created **and loaded** in Electron. It contains a {@link Page} that
+   * can be used for Playwright automation.
    */
   addListener(event: 'window', listener: (page: Page) => void): this;
 
@@ -13468,8 +13490,8 @@ export interface ElectronApplication {
   prependListener(event: 'close', listener: () => void): this;
 
   /**
-   * This event is issued for every window that is created **and loaded** in Electron. It contains a [Page] that can be
-   * used for Playwright automation.
+   * This event is issued for every window that is created **and loaded** in Electron. It contains a {@link Page} that
+   * can be used for Playwright automation.
    */
   prependListener(event: 'window', listener: (page: Page) => void): this;
 
@@ -13524,8 +13546,8 @@ export interface ElectronApplication {
   waitForEvent(event: 'close', optionsOrPredicate?: { predicate?: () => boolean | Promise<boolean>, timeout?: number } | (() => boolean | Promise<boolean>)): Promise<void>;
 
   /**
-   * This event is issued for every window that is created **and loaded** in Electron. It contains a [Page] that can be
-   * used for Playwright automation.
+   * This event is issued for every window that is created **and loaded** in Electron. It contains a {@link Page} that
+   * can be used for Playwright automation.
    */
   waitForEvent(event: 'window', optionsOrPredicate?: { predicate?: (page: Page) => boolean | Promise<boolean>, timeout?: number } | ((page: Page) => boolean | Promise<boolean>)): Promise<Page>;
 
@@ -13847,8 +13869,8 @@ export interface Android {
 }
 
 /**
- * [AndroidDevice] represents a connected device, either real hardware or emulated. Devices can be obtained using
- * [android.devices([options])](https://playwright.dev/docs/api/class-android#android-devices).
+ * {@link AndroidDevice} represents a connected device, either real hardware or emulated. Devices can be obtained
+ * using [android.devices([options])](https://playwright.dev/docs/api/class-android#android-devices).
  */
 export interface AndroidDevice {
   /**
@@ -14021,7 +14043,7 @@ export interface AndroidDevice {
      * [page.waitForResponse(urlOrPredicate[, options])](https://playwright.dev/docs/api/class-page#page-wait-for-response)
      * it takes the base URL in consideration by using the
      * [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL.
-     * Examples:
+     * Unset by default. Examples:
      * - baseURL: `http://localhost:3000` and navigating to `/bar.html` results in `http://localhost:3000/bar.html`
      * - baseURL: `http://localhost:3000/foo/` and navigating to `./bar.html` results in
      *   `http://localhost:3000/foo/bar.html`
@@ -14031,7 +14053,7 @@ export interface AndroidDevice {
     baseURL?: string;
 
     /**
-     * Toggles bypassing page's Content-Security-Policy.
+     * Toggles bypassing page's Content-Security-Policy. Defaults to `false`.
      */
     bypassCSP?: boolean;
 
@@ -14054,7 +14076,7 @@ export interface AndroidDevice {
     deviceScaleFactor?: number;
 
     /**
-     * An object containing additional HTTP headers to be sent with every request.
+     * An object containing additional HTTP headers to be sent with every request. Defaults to none.
      */
     extraHTTPHeaders?: { [key: string]: string; };
 
@@ -14123,8 +14145,8 @@ export interface AndroidDevice {
 
     /**
      * Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value,
-     * `Accept-Language` request header value as well as number and date formatting rules. Learn more about emulation in
-     * our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
+     * `Accept-Language` request header value as well as number and date formatting rules. Defaults to the system default
+     * locale. Learn more about emulation in our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
      */
     locale?: string;
 
@@ -14142,7 +14164,7 @@ export interface AndroidDevice {
     /**
      * A list of permissions to grant to all pages in this context. See
      * [browserContext.grantPermissions(permissions[, options])](https://playwright.dev/docs/api/class-browsercontext#browser-context-grant-permissions)
-     * for more details.
+     * for more details. Defaults to none.
      */
     permissions?: Array<string>;
 
@@ -14208,7 +14230,7 @@ export interface AndroidDevice {
       /**
        * A glob or regex pattern to filter requests that are stored in the HAR. When a `baseURL` via the context options was
        * provided and the passed URL is a path, it gets merged via the
-       * [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
+       * [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor. Defaults to none.
        */
       urlFilter?: string|RegExp;
     };
@@ -14277,15 +14299,15 @@ export interface AndroidDevice {
     /**
      * If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations on
      * selectors that imply single target DOM element will throw when more than one element matches the selector. This
-     * option does not affect any Locator APIs (Locators are always strict). See [Locator] to learn more about the strict
-     * mode.
+     * option does not affect any Locator APIs (Locators are always strict). Defaults to `false`. See {@link Locator} to
+     * learn more about the strict mode.
      */
     strictSelectors?: boolean;
 
     /**
      * Changes the timezone of the context. See
      * [ICU's metaZones.txt](https://cs.chromium.org/chromium/src/third_party/icu/source/data/misc/metaZones.txt?rcl=faee8bc70570192d82d2978a71e2a615788597d1)
-     * for a list of supported timezone IDs.
+     * for a list of supported timezone IDs. Defaults to the system timezone.
      */
     timezoneId?: string;
 
@@ -14558,8 +14580,8 @@ export interface AndroidDevice {
 
 
   /**
-   * This method waits until [AndroidWebView] matching the `selector` is opened and returns it. If there is already an
-   * open [AndroidWebView] matching the `selector`, returns immediately.
+   * This method waits until {@link AndroidWebView} matching the `selector` is opened and returns it. If there is
+   * already an open {@link AndroidWebView} matching the `selector`, returns immediately.
    * @param selector
    * @param options
    */
@@ -14649,7 +14671,7 @@ export interface AndroidInput {
 }
 
 /**
- * [AndroidSocket] is a way to communicate with a process launched on the [AndroidDevice]. Use
+ * {@link AndroidSocket} is a way to communicate with a process launched on the {@link AndroidDevice}. Use
  * [androidDevice.open(command)](https://playwright.dev/docs/api/class-androiddevice#android-device-open) to open a
  * socket.
  */
@@ -14727,7 +14749,7 @@ export interface AndroidSocket {
 }
 
 /**
- * [AndroidWebView] represents a WebView open on the [AndroidDevice]. WebView is usually obtained using
+ * {@link AndroidWebView} represents a WebView open on the {@link AndroidDevice}. WebView is usually obtained using
  * [androidDevice.webView(selector[, options])](https://playwright.dev/docs/api/class-androiddevice#android-device-web-view).
  */
 export interface AndroidWebView {
@@ -14762,7 +14784,7 @@ export interface AndroidWebView {
   prependListener(event: 'close', listener: () => void): this;
 
   /**
-   * Connects to the WebView and returns a regular Playwright [Page] to interact with.
+   * Connects to the WebView and returns a regular Playwright {@link Page} to interact with.
    */
   page(): Promise<Page>;
 
@@ -14778,14 +14800,14 @@ export interface AndroidWebView {
 }
 
 /**
- * Exposes API that can be used for the Web API testing. This class is used for creating [APIRequestContext] instance
- * which in turn can be used for sending web requests. An instance of this class can be obtained via
+ * Exposes API that can be used for the Web API testing. This class is used for creating {@link APIRequestContext}
+ * instance which in turn can be used for sending web requests. An instance of this class can be obtained via
  * [playwright.request](https://playwright.dev/docs/api/class-playwright#playwright-request). For more information see
- * [APIRequestContext].
+ * {@link APIRequestContext}.
  */
 export interface APIRequest {
   /**
-   * Creates new instances of [APIRequestContext].
+   * Creates new instances of {@link APIRequestContext}.
    * @param options
    */
   newContext(options?: {
@@ -14804,7 +14826,7 @@ export interface APIRequest {
     baseURL?: string;
 
     /**
-     * An object containing additional HTTP headers to be sent with every request.
+     * An object containing additional HTTP headers to be sent with every request. Defaults to none.
      */
     extraHTTPHeaders?: { [key: string]: string; };
 
@@ -14916,8 +14938,8 @@ export interface APIRequest {
  * This API is used for the Web API testing. You can use it to trigger API endpoints, configure micro-services,
  * prepare environment or the service to your e2e test.
  *
- * Each Playwright browser context has associated with it [APIRequestContext] instance which shares cookie storage
- * with the browser context and can be accessed via
+ * Each Playwright browser context has associated with it {@link APIRequestContext} instance which shares cookie
+ * storage with the browser context and can be accessed via
  * [browserContext.request](https://playwright.dev/docs/api/class-browsercontext#browser-context-request) or
  * [page.request](https://playwright.dev/docs/api/class-page#page-request). It is also possible to create a new
  * APIRequestContext instance manually by calling
@@ -14925,16 +14947,16 @@ export interface APIRequest {
  *
  * **Cookie management**
  *
- * [APIRequestContext] returned by
+ * {@link APIRequestContext} returned by
  * [browserContext.request](https://playwright.dev/docs/api/class-browsercontext#browser-context-request) and
  * [page.request](https://playwright.dev/docs/api/class-page#page-request) shares cookie storage with the
- * corresponding [BrowserContext]. Each API request will have `Cookie` header populated with the values from the
- * browser context. If the API response contains `Set-Cookie` header it will automatically update [BrowserContext]
- * cookies and requests made from the page will pick them up. This means that if you log in using this API, your e2e
- * test will be logged in and vice versa.
+ * corresponding {@link BrowserContext}. Each API request will have `Cookie` header populated with the values from the
+ * browser context. If the API response contains `Set-Cookie` header it will automatically update {@link
+ * BrowserContext} cookies and requests made from the page will pick them up. This means that if you log in using this
+ * API, your e2e test will be logged in and vice versa.
  *
- * If you want API requests to not interfere with the browser cookies you should create a new [APIRequestContext] by
- * calling
+ * If you want API requests to not interfere with the browser cookies you should create a new {@link
+ * APIRequestContext} by calling
  * [apiRequest.newContext([options])](https://playwright.dev/docs/api/class-apirequest#api-request-new-context). Such
  * `APIRequestContext` object will have its own isolated cookie storage.
  */
@@ -15666,7 +15688,7 @@ export interface APIRequestContext {
 }
 
 /**
- * [APIResponse] class represents responses returned by
+ * {@link APIResponse} class represents responses returned by
  * [apiRequestContext.get(url[, options])](https://playwright.dev/docs/api/class-apirequestcontext#api-request-context-get)
  * and similar methods.
  */
@@ -15740,7 +15762,7 @@ export interface APIResponse {
  *
  * A Browser is created via
  * [browserType.launch([options])](https://playwright.dev/docs/api/class-browsertype#browser-type-launch). An example
- * of using a [Browser] to create a [Page]:
+ * of using a {@link Browser} to create a {@link Page}:
  *
  * ```js
  * const { firefox } = require('playwright');  // Or 'chromium' or 'webkit'.
@@ -15808,12 +15830,12 @@ export interface Browser extends EventEmitter {
    * the browser server.
    *
    * **NOTE** This is similar to force quitting the browser. Therefore, you should call
-   * [browserContext.close()](https://playwright.dev/docs/api/class-browsercontext#browser-context-close) on any
-   * [BrowserContext]'s you explicitly created earlier with
+   * [browserContext.close()](https://playwright.dev/docs/api/class-browsercontext#browser-context-close) on any {@link
+   * BrowserContext}'s you explicitly created earlier with
    * [browser.newContext([options])](https://playwright.dev/docs/api/class-browser#browser-new-context) **before**
    * calling [browser.close()](https://playwright.dev/docs/api/class-browser#browser-close).
    *
-   * The [Browser] object itself is considered to be disposed and cannot be used anymore.
+   * The {@link Browser} object itself is considered to be disposed and cannot be used anymore.
    */
   close(): Promise<void>;
 
@@ -15848,10 +15870,10 @@ export interface Browser extends EventEmitter {
   /**
    * Creates a new browser context. It won't share cookies/cache with other browser contexts.
    *
-   * **NOTE** If directly using this method to create [BrowserContext]s, it is best practice to explicitly close the
-   * returned context via
+   * **NOTE** If directly using this method to create {@link BrowserContext}s, it is best practice to explicitly close
+   * the returned context via
    * [browserContext.close()](https://playwright.dev/docs/api/class-browsercontext#browser-context-close) when your code
-   * is done with the [BrowserContext], and before calling
+   * is done with the {@link BrowserContext}, and before calling
    * [browser.close()](https://playwright.dev/docs/api/class-browser#browser-close). This will ensure the `context` is
    * closed gracefully and any artifacts—like HARs and videos—are fully flushed and saved.
    *
@@ -15901,7 +15923,7 @@ export interface Browser extends EventEmitter {
      * [page.waitForResponse(urlOrPredicate[, options])](https://playwright.dev/docs/api/class-page#page-wait-for-response)
      * it takes the base URL in consideration by using the
      * [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL.
-     * Examples:
+     * Unset by default. Examples:
      * - baseURL: `http://localhost:3000` and navigating to `/bar.html` results in `http://localhost:3000/bar.html`
      * - baseURL: `http://localhost:3000/foo/` and navigating to `./bar.html` results in
      *   `http://localhost:3000/foo/bar.html`
@@ -15911,7 +15933,7 @@ export interface Browser extends EventEmitter {
     baseURL?: string;
 
     /**
-     * Toggles bypassing page's Content-Security-Policy.
+     * Toggles bypassing page's Content-Security-Policy. Defaults to `false`.
      */
     bypassCSP?: boolean;
 
@@ -15929,7 +15951,7 @@ export interface Browser extends EventEmitter {
     deviceScaleFactor?: number;
 
     /**
-     * An object containing additional HTTP headers to be sent with every request.
+     * An object containing additional HTTP headers to be sent with every request. Defaults to none.
      */
     extraHTTPHeaders?: { [key: string]: string; };
 
@@ -15998,8 +16020,8 @@ export interface Browser extends EventEmitter {
 
     /**
      * Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value,
-     * `Accept-Language` request header value as well as number and date formatting rules. Learn more about emulation in
-     * our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
+     * `Accept-Language` request header value as well as number and date formatting rules. Defaults to the system default
+     * locale. Learn more about emulation in our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
      */
     locale?: string;
 
@@ -16017,12 +16039,12 @@ export interface Browser extends EventEmitter {
     /**
      * A list of permissions to grant to all pages in this context. See
      * [browserContext.grantPermissions(permissions[, options])](https://playwright.dev/docs/api/class-browsercontext#browser-context-grant-permissions)
-     * for more details.
+     * for more details. Defaults to none.
      */
     permissions?: Array<string>;
 
     /**
-     * Network proxy settings to use with this context.
+     * Network proxy settings to use with this context. Defaults to none.
      *
      * **NOTE** For Chromium on Windows the browser needs to be launched with the global proxy for this option to work. If
      * all contexts override the proxy, global proxy will be never used and can be any string, for example `launch({
@@ -16087,7 +16109,7 @@ export interface Browser extends EventEmitter {
       /**
        * A glob or regex pattern to filter requests that are stored in the HAR. When a `baseURL` via the context options was
        * provided and the passed URL is a path, it gets merged via the
-       * [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
+       * [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor. Defaults to none.
        */
       urlFilter?: string|RegExp;
     };
@@ -16212,15 +16234,15 @@ export interface Browser extends EventEmitter {
     /**
      * If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations on
      * selectors that imply single target DOM element will throw when more than one element matches the selector. This
-     * option does not affect any Locator APIs (Locators are always strict). See [Locator] to learn more about the strict
-     * mode.
+     * option does not affect any Locator APIs (Locators are always strict). Defaults to `false`. See {@link Locator} to
+     * learn more about the strict mode.
      */
     strictSelectors?: boolean;
 
     /**
      * Changes the timezone of the context. See
      * [ICU's metaZones.txt](https://cs.chromium.org/chromium/src/third_party/icu/source/data/misc/metaZones.txt?rcl=faee8bc70570192d82d2978a71e2a615788597d1)
-     * for a list of supported timezone IDs.
+     * for a list of supported timezone IDs. Defaults to the system timezone.
      */
     timezoneId?: string;
 
@@ -16381,7 +16403,7 @@ export interface BrowserServer {
 }
 
 /**
- * [ConsoleMessage] objects are dispatched by page via the
+ * {@link ConsoleMessage} objects are dispatched by page via the
  * [page.on('console')](https://playwright.dev/docs/api/class-page#page-event-console) event. For each console
  * messages logged in the page there will be corresponding event in the Playwright context.
  *
@@ -16435,7 +16457,7 @@ export interface ConsoleMessage {
   /**
    * The page that produced this console message, if any.
    */
-  page(): Page|null;
+  page(): null|Page;
 
   /**
    * The text of the console message.
@@ -16584,7 +16606,7 @@ export interface Coverage {
 }
 
 /**
- * [Dialog] objects are dispatched by page via the
+ * {@link Dialog} objects are dispatched by page via the
  * [page.on('dialog')](https://playwright.dev/docs/api/class-page#page-event-dialog) event.
  *
  * An example of using `Dialog` class:
@@ -16637,7 +16659,7 @@ export interface Dialog {
   /**
    * The page that initiated this dialog, if available.
    */
-  page(): Page|null;
+  page(): null|Page;
 
   /**
    * Returns dialog's type, can be one of `alert`, `beforeunload`, `confirm` or `prompt`.
@@ -16646,7 +16668,7 @@ export interface Dialog {
 }
 
 /**
- * [Download] objects are dispatched by page via the
+ * {@link Download} objects are dispatched by page via the
  * [page.on('download')](https://playwright.dev/docs/api/class-page#page-event-download) event.
  *
  * All the downloaded files belonging to the browser context are deleted when the browser context is closed.
@@ -16797,7 +16819,7 @@ export interface Electron {
     args?: Array<string>;
 
     /**
-     * Toggles bypassing page's Content-Security-Policy.
+     * Toggles bypassing page's Content-Security-Policy. Defaults to `false`.
      */
     bypassCSP?: boolean;
 
@@ -16825,7 +16847,7 @@ export interface Electron {
     executablePath?: string;
 
     /**
-     * An object containing additional HTTP headers to be sent with every request.
+     * An object containing additional HTTP headers to be sent with every request. Defaults to none.
      */
     extraHTTPHeaders?: { [key: string]: string; };
 
@@ -16868,8 +16890,8 @@ export interface Electron {
 
     /**
      * Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value,
-     * `Accept-Language` request header value as well as number and date formatting rules. Learn more about emulation in
-     * our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
+     * `Accept-Language` request header value as well as number and date formatting rules. Defaults to the system default
+     * locale. Learn more about emulation in our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
      */
     locale?: string;
 
@@ -16915,7 +16937,7 @@ export interface Electron {
       /**
        * A glob or regex pattern to filter requests that are stored in the HAR. When a `baseURL` via the context options was
        * provided and the passed URL is a path, it gets merged via the
-       * [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
+       * [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor. Defaults to none.
        */
       urlFilter?: string|RegExp;
     };
@@ -16959,14 +16981,14 @@ export interface Electron {
     /**
      * Changes the timezone of the context. See
      * [ICU's metaZones.txt](https://cs.chromium.org/chromium/src/third_party/icu/source/data/misc/metaZones.txt?rcl=faee8bc70570192d82d2978a71e2a615788597d1)
-     * for a list of supported timezone IDs.
+     * for a list of supported timezone IDs. Defaults to the system timezone.
      */
     timezoneId?: string;
   }): Promise<ElectronApplication>;
 }
 
 /**
- * [FileChooser] objects are dispatched by the page in the
+ * {@link FileChooser} objects are dispatched by the page in the
  * [page.on('filechooser')](https://playwright.dev/docs/api/class-page#page-event-file-chooser) event.
  *
  * ```js
@@ -17074,7 +17096,7 @@ export interface FileChooser {
  *
  * **Converting Locator to FrameLocator**
  *
- * If you have a [Locator] object pointing to an `iframe` it can be converted to [FrameLocator] using
+ * If you have a {@link Locator} object pointing to an `iframe` it can be converted to {@link FrameLocator} using
  * [`:scope`](https://developer.mozilla.org/en-US/docs/Web/CSS/:scope) CSS selector:
  *
  * ```js
@@ -17422,7 +17444,8 @@ export interface FrameLocator {
      * Matches elements containing an element that matches an inner locator. Inner locator is queried against the outer
      * one. For example, `article` that has `text=Playwright` matches `<article><div>Playwright</div></article>`.
      *
-     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain [FrameLocator]s.
+     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain {@link
+     * FrameLocator}s.
      */
     has?: Locator;
 
@@ -17430,7 +17453,8 @@ export interface FrameLocator {
      * Matches elements that do not contain an element that matches an inner locator. Inner locator is queried against the
      * outer one. For example, `article` that does not have `div` matches `<article><span>Playwright</span></article>`.
      *
-     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain [FrameLocator]s.
+     * Note that outer and inner locators must belong to the same frame. Inner locator must not contain {@link
+     * FrameLocator}s.
      */
     hasNot?: Locator;
 
@@ -17790,12 +17814,12 @@ export interface Mouse {
 }
 
 /**
- * This object can be used to launch or connect to Chromium, returning instances of [Browser].
+ * This object can be used to launch or connect to Chromium, returning instances of {@link Browser}.
  */
 export const chromium: BrowserType;
 
 /**
- * This object can be used to launch or connect to Firefox, returning instances of [Browser].
+ * This object can be used to launch or connect to Firefox, returning instances of {@link Browser}.
  */
 export const firefox: BrowserType;
 
@@ -17811,12 +17835,13 @@ export const request: APIRequest;
 export const selectors: Selectors;
 
 /**
- * This object can be used to launch or connect to WebKit, returning instances of [Browser].
+ * This object can be used to launch or connect to WebKit, returning instances of {@link Browser}.
  */
 export const webkit: BrowserType;
 
 /**
- * Whenever the page sends a request for a network resource the following sequence of events are emitted by [Page]:
+ * Whenever the page sends a request for a network resource the following sequence of events are emitted by {@link
+ * Page}:
  * - [page.on('request')](https://playwright.dev/docs/api/class-page#page-event-request) emitted when the request is
  *   issued by the page.
  * - [page.on('response')](https://playwright.dev/docs/api/class-page#page-event-response) emitted when/if the
@@ -17862,7 +17887,7 @@ export interface Request {
   };
 
   /**
-   * Returns the [Frame] that initiated this request.
+   * Returns the {@link Frame} that initiated this request.
    */
   frame(): Frame;
 
@@ -17928,9 +17953,9 @@ export interface Request {
   /**
    * Request that was redirected by the server to this one, if any.
    *
-   * When the server responds with a redirect, Playwright creates a new [Request] object. The two requests are connected
-   * by `redirectedFrom()` and `redirectedTo()` methods. When multiple server redirects has happened, it is possible to
-   * construct the whole redirect chain by repeatedly calling `redirectedFrom()`.
+   * When the server responds with a redirect, Playwright creates a new {@link Request} object. The two requests are
+   * connected by `redirectedFrom()` and `redirectedTo()` methods. When multiple server redirects has happened, it is
+   * possible to construct the whole redirect chain by repeatedly calling `redirectedFrom()`.
    *
    * **Usage**
    *
@@ -17974,14 +17999,14 @@ export interface Request {
   resourceType(): string;
 
   /**
-   * Returns the matching [Response] object, or `null` if the response was not received due to error.
+   * Returns the matching {@link Response} object, or `null` if the response was not received due to error.
    */
   response(): Promise<null|Response>;
 
   /**
    * **NOTE** This field is Chromium only. It's safe to call when using other browsers, but it will always be `null`.
    *
-   * The Service [Worker] that is performing the request.
+   * The Service {@link Worker} that is performing the request.
    */
   serviceWorker(): null|Worker;
 
@@ -18090,7 +18115,7 @@ export interface Request {
 }
 
 /**
- * [Response] class represents responses which are received by page.
+ * {@link Response} class represents responses which are received by page.
  */
 export interface Response {
   /**
@@ -18109,7 +18134,7 @@ export interface Response {
   finished(): Promise<null|Error>;
 
   /**
-   * Returns the [Frame] that initiated this response.
+   * Returns the {@link Frame} that initiated this response.
    */
   frame(): Frame;
 
@@ -18171,7 +18196,7 @@ export interface Response {
   ok(): boolean;
 
   /**
-   * Returns the matching [Request] object.
+   * Returns the matching {@link Request} object.
    */
   request(): Request;
 
@@ -18517,7 +18542,7 @@ export interface Route {
     path?: string;
 
     /**
-     * [APIResponse] to fulfill route's request with. Individual fields of the response (such as headers) can be
+     * {@link APIResponse} to fulfill route's request with. Individual fields of the response (such as headers) can be
      * overridden using fulfill options.
      */
     response?: APIResponse;
@@ -18694,7 +18719,7 @@ export interface Tracing {
   }): Promise<void>;
 
   /**
-   * Start a new trace chunk. If you'd like to record multiple traces on the same [BrowserContext], use
+   * Start a new trace chunk. If you'd like to record multiple traces on the same {@link BrowserContext}, use
    * [tracing.start([options])](https://playwright.dev/docs/api/class-tracing#tracing-start) once, and then create
    * multiple trace chunks with
    * [tracing.startChunk([options])](https://playwright.dev/docs/api/class-tracing#tracing-start-chunk) and
@@ -18790,7 +18815,7 @@ export interface Video {
 }
 
 /**
- * The [WebSocket] class represents websocket connections in the page.
+ * The {@link WebSocket} class represents websocket connections in the page.
  */
 export interface WebSocket {
   /**
@@ -19050,7 +19075,7 @@ export interface BrowserContextOptions {
    * [page.waitForResponse(urlOrPredicate[, options])](https://playwright.dev/docs/api/class-page#page-wait-for-response)
    * it takes the base URL in consideration by using the
    * [`URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor for building the corresponding URL.
-   * Examples:
+   * Unset by default. Examples:
    * - baseURL: `http://localhost:3000` and navigating to `/bar.html` results in `http://localhost:3000/bar.html`
    * - baseURL: `http://localhost:3000/foo/` and navigating to `./bar.html` results in
    *   `http://localhost:3000/foo/bar.html`
@@ -19060,7 +19085,7 @@ export interface BrowserContextOptions {
   baseURL?: string;
 
   /**
-   * Toggles bypassing page's Content-Security-Policy.
+   * Toggles bypassing page's Content-Security-Policy. Defaults to `false`.
    */
   bypassCSP?: boolean;
 
@@ -19078,7 +19103,7 @@ export interface BrowserContextOptions {
   deviceScaleFactor?: number;
 
   /**
-   * An object containing additional HTTP headers to be sent with every request.
+   * An object containing additional HTTP headers to be sent with every request. Defaults to none.
    */
   extraHTTPHeaders?: { [key: string]: string; };
 
@@ -19123,8 +19148,8 @@ export interface BrowserContextOptions {
 
   /**
    * Specify user locale, for example `en-GB`, `de-DE`, etc. Locale will affect `navigator.language` value,
-   * `Accept-Language` request header value as well as number and date formatting rules. Learn more about emulation in
-   * our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
+   * `Accept-Language` request header value as well as number and date formatting rules. Defaults to the system default
+   * locale. Learn more about emulation in our [emulation guide](https://playwright.dev/docs/emulation#locale--timezone).
    */
   locale?: string;
 
@@ -19142,12 +19167,12 @@ export interface BrowserContextOptions {
   /**
    * A list of permissions to grant to all pages in this context. See
    * [browserContext.grantPermissions(permissions[, options])](https://playwright.dev/docs/api/class-browsercontext#browser-context-grant-permissions)
-   * for more details.
+   * for more details. Defaults to none.
    */
   permissions?: Array<string>;
 
   /**
-   * Network proxy settings to use with this context.
+   * Network proxy settings to use with this context. Defaults to none.
    *
    * **NOTE** For Chromium on Windows the browser needs to be launched with the global proxy for this option to work. If
    * all contexts override the proxy, global proxy will be never used and can be any string, for example `launch({
@@ -19212,7 +19237,7 @@ export interface BrowserContextOptions {
     /**
      * A glob or regex pattern to filter requests that are stored in the HAR. When a `baseURL` via the context options was
      * provided and the passed URL is a path, it gets merged via the
-     * [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor.
+     * [`new URL()`](https://developer.mozilla.org/en-US/docs/Web/API/URL/URL) constructor. Defaults to none.
      */
     urlFilter?: string|RegExp;
   };
@@ -19337,15 +19362,15 @@ export interface BrowserContextOptions {
   /**
    * If set to true, enables strict selectors mode for this context. In the strict selectors mode all operations on
    * selectors that imply single target DOM element will throw when more than one element matches the selector. This
-   * option does not affect any Locator APIs (Locators are always strict). See [Locator] to learn more about the strict
-   * mode.
+   * option does not affect any Locator APIs (Locators are always strict). Defaults to `false`. See {@link Locator} to
+   * learn more about the strict mode.
    */
   strictSelectors?: boolean;
 
   /**
    * Changes the timezone of the context. See
    * [ICU's metaZones.txt](https://cs.chromium.org/chromium/src/third_party/icu/source/data/misc/metaZones.txt?rcl=faee8bc70570192d82d2978a71e2a615788597d1)
-   * for a list of supported timezone IDs.
+   * for a list of supported timezone IDs. Defaults to the system timezone.
    */
   timezoneId?: string;
 
@@ -19635,9 +19660,15 @@ export interface LocatorScreenshotOptions {
 
   /**
    * Specify locators that should be masked when the screenshot is taken. Masked elements will be overlaid with a pink
-   * box `#FF00FF` that completely covers its bounding box.
+   * box `#FF00FF` (customized by `maskColor`) that completely covers its bounding box.
    */
   mask?: Array<Locator>;
+
+  /**
+   * Specify the color of the overlay box for masked elements, in
+   * [CSS color format](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value). Default color is pink `#FF00FF`.
+   */
+  maskColor?: string;
 
   /**
    * Hides default white background and allows capturing screenshots with transparency. Not applicable to `jpeg` images.
@@ -19822,9 +19853,15 @@ export interface PageScreenshotOptions {
 
   /**
    * Specify locators that should be masked when the screenshot is taken. Masked elements will be overlaid with a pink
-   * box `#FF00FF` that completely covers its bounding box.
+   * box `#FF00FF` (customized by `maskColor`) that completely covers its bounding box.
    */
   mask?: Array<Locator>;
+
+  /**
+   * Specify the color of the overlay box for masked elements, in
+   * [CSS color format](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value). Default color is pink `#FF00FF`.
+   */
+  maskColor?: string;
 
   /**
    * Hides default white background and allows capturing screenshots with transparency. Not applicable to `jpeg` images.

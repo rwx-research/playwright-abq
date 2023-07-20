@@ -101,7 +101,11 @@ export class HarTracer {
           eventsHelper.addEventListener(this._context, BrowserContext.Events.Request, (request: network.Request) => this._onRequest(request)),
           eventsHelper.addEventListener(this._context, BrowserContext.Events.RequestFinished, ({ request, response }) => this._onRequestFinished(request, response).catch(() => {})),
           eventsHelper.addEventListener(this._context, BrowserContext.Events.RequestFailed, request => this._onRequestFailed(request)),
-          eventsHelper.addEventListener(this._context, BrowserContext.Events.Response, (response: network.Response) => this._onResponse(response)));
+          eventsHelper.addEventListener(this._context, BrowserContext.Events.Response, (response: network.Response) => this._onResponse(response)),
+          eventsHelper.addEventListener(this._context, BrowserContext.Events.RequestAborted, request => this._onRequestAborted(request)),
+          eventsHelper.addEventListener(this._context, BrowserContext.Events.RequestFulfilled, request => this._onRequestFulfilled(request)),
+          eventsHelper.addEventListener(this._context, BrowserContext.Events.RequestContinued, request => this._onRequestContinued(request)),
+      );
     }
   }
 
@@ -150,7 +154,7 @@ export class HarTracer {
         title: document.title,
         domContentLoaded: performance.timing.domContentLoadedEventStart,
       };
-    }), true, undefined, 'utility').then(result => {
+    }), { isFunction: true, world: 'utility' }).then(result => {
       pageEntry.title = result.title;
       if (!this._options.omitTiming)
         pageEntry.pageTimings.onContentLoad = result.domContentLoaded;
@@ -164,7 +168,7 @@ export class HarTracer {
         title: document.title,
         loaded: performance.timing.loadEventStart,
       };
-    }), true, undefined, 'utility').then(result => {
+    }), { isFunction: true, world: 'utility' }).then(result => {
       pageEntry.title = result.title;
       if (!this._options.omitTiming)
         pageEntry.pageTimings.onLoad = result.loaded;
@@ -192,6 +196,7 @@ export class HarTracer {
     if (!this._shouldIncludeEntryWithUrl(event.url.toString()))
       return;
     const harEntry = createHarEntry(event.method, event.url, undefined, this._options);
+    harEntry._apiRequest = true;
     if (!this._options.omitCookies)
       harEntry.request.cookies = event.cookies;
     harEntry.request.headers = Object.entries(event.headers).map(([name, value]) => ({ name, value }));
@@ -377,6 +382,24 @@ export class HarTracer {
       this._delegate.onEntryFinished(harEntry);
   }
 
+  private _onRequestAborted(request: network.Request) {
+    const harEntry = this._entryForRequest(request);
+    if (harEntry)
+      harEntry._wasAborted = true;
+  }
+
+  private _onRequestFulfilled(request: network.Request) {
+    const harEntry = this._entryForRequest(request);
+    if (harEntry)
+      harEntry._wasFulfilled = true;
+  }
+
+  private _onRequestContinued(request: network.Request) {
+    const harEntry = this._entryForRequest(request);
+    if (harEntry)
+      harEntry._wasContinued = true;
+  }
+
   private _storeResponseContent(buffer: Buffer | undefined, content: har.Content, resourceType: string) {
     if (!buffer) {
       content.size = 0;
@@ -456,16 +479,24 @@ export class HarTracer {
     this._addBarrier(page || request.serviceWorker(), request.rawRequestHeaders().then(headers => {
       this._recordRequestHeadersAndCookies(harEntry, headers);
     }));
+    // Record available headers including redirect location in case the tracing is stopped before
+    // reponse extra info is received (in Chromium).
+    this._recordResponseHeaders(harEntry, response.headers());
     this._addBarrier(page || request.serviceWorker(), response.rawResponseHeaders().then(headers => {
-      if (!this._options.omitCookies) {
-        for (const header of headers.filter(header => header.name.toLowerCase() === 'set-cookie'))
-          harEntry.response.cookies.push(parseCookie(header.value));
-      }
-      harEntry.response.headers = headers;
-      const contentType = headers.find(header => header.name.toLowerCase() === 'content-type');
-      if (contentType)
-        harEntry.response.content.mimeType = contentType.value;
+      this._recordResponseHeaders(harEntry, headers);
     }));
+  }
+
+  private _recordResponseHeaders(harEntry: har.Entry, headers: HeadersArray) {
+    if (!this._options.omitCookies) {
+      harEntry.response.cookies = headers
+          .filter(header => header.name.toLowerCase() === 'set-cookie')
+          .map(header => parseCookie(header.value));
+    }
+    harEntry.response.headers = headers;
+    const contentType = headers.find(header => header.name.toLowerCase() === 'content-type');
+    if (contentType)
+      harEntry.response.content.mimeType = contentType.value;
   }
 
   private _computeHarEntryTotalTime(harEntry: har.Entry) {

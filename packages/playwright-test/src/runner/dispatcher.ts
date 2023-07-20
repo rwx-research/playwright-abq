@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import type { TestBeginPayload, TestEndPayload, DonePayload, TestOutputPayload, StepBeginPayload, StepEndPayload, TeardownErrorsPayload, RunPayload, SerializedConfig } from '../common/ipc';
+import type { TestBeginPayload, TestEndPayload, DonePayload, TestOutputPayload, StepBeginPayload, StepEndPayload, TeardownErrorsPayload, RunPayload, SerializedConfig, AttachmentPayload } from '../common/ipc';
 import { serializeConfig } from '../common/ipc';
 import type { TestResult, TestStep, TestError } from '../../types/testReporter';
 import type { Suite } from '../common/test';
@@ -112,7 +112,7 @@ export class Dispatcher {
     this._checkFinished();
 
     // 5. We got a free worker - perhaps we can immediately start another job?
-    this._scheduleJob();
+    void this._scheduleJob();
   }
 
   protected async _startJobInWorker(index: number, job: TestGroup) {
@@ -184,7 +184,7 @@ export class Dispatcher {
       this._workerSlots.push({ busy: false });
     // 2. Schedule enough jobs.
     for (let i = 0; i < this._workerSlots.length; i++)
-      this._scheduleJob();
+      void this._scheduleJob();
     this._checkFinished();
     // 3. More jobs are scheduled when the worker becomes free, or a new job is added.
     // 4. Wait for all jobs to finish.
@@ -207,6 +207,7 @@ export class Dispatcher {
       worker.removeListener('testEnd', onTestEnd);
       worker.removeListener('stepBegin', onStepBegin);
       worker.removeListener('stepEnd', onStepEnd);
+      worker.removeListener('attach', onAttach);
       worker.removeListener('done', onDone);
       worker.removeListener('exit', onExit);
       doneCallback();
@@ -245,12 +246,6 @@ export class Dispatcher {
       result.duration = params.duration;
       result.errors = params.errors;
       result.error = result.errors[0];
-      result.attachments = params.attachments.map(a => ({
-        name: a.name,
-        path: a.path,
-        contentType: a.contentType,
-        body: a.body !== undefined ? Buffer.from(a.body, 'base64') : undefined
-      }));
       result.status = params.status;
       test.expectedStatus = params.expectedStatus;
       test.annotations = params.annotations;
@@ -312,6 +307,19 @@ export class Dispatcher {
     };
     worker.on('stepEnd', onStepEnd);
 
+    const onAttach = (params: AttachmentPayload) => {
+      const data = this._testById.get(params.testId)!;
+      const { result } = data.resultByWorkerIndex.get(worker.workerIndex)!;
+      const attachment = {
+        name: params.name,
+        path: params.path,
+        contentType: params.contentType,
+        body: params.body !== undefined ? Buffer.from(params.body, 'base64') : undefined
+      };
+      result.attachments.push(attachment);
+    };
+    worker.on('attach', onAttach);
+
     const onDone = (params: DonePayload & { unexpectedExitError?: TestError }) => {
       this._queuedOrRunningHashCount.set(worker.hash(), this._queuedOrRunningHashCount.get(worker.hash())! - 1);
       let remaining = [...remainingByTestId.values()];
@@ -322,13 +330,13 @@ export class Dispatcher {
       // - no unrecoverable worker error
       if (!remaining.length && !failedTestIds.size && !params.fatalErrors.length && !params.skipTestsDueToSetupFailure.length && !params.fatalUnknownTestIds && !params.unexpectedExitError) {
         if (this._isWorkerRedundant(worker))
-          worker.stop();
+          void worker.stop();
         doneWithJob();
         return;
       }
 
       // When worker encounters error, we will stop it and create a new one.
-      worker.stop(true /* didFail */);
+      void worker.stop(true /* didFail */);
 
       const massSkipTestsFromRemaining = (testIds: Set<string>, errors: TestError[], onlyStartedTests?: boolean) => {
         remaining = remaining.filter(test => {
@@ -436,7 +444,7 @@ export class Dispatcher {
         this._queue.unshift({ ...testGroup, tests: remaining });
         this._queuedOrRunningHashCount.set(testGroup.workerHash, this._queuedOrRunningHashCount.get(testGroup.workerHash)! + 1);
         // Perhaps we can immediately start the new job if there is a worker available?
-        this._scheduleJob();
+        void this._scheduleJob();
       }
 
       // This job is over, we just scheduled another one.

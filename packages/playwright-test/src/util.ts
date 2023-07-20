@@ -261,7 +261,7 @@ export function getPackageJsonPath(folderPath: string): string {
   return result;
 }
 
-export async function normalizeAndSaveAttachment(outputPath: string, name: string, options: { path?: string, body?: string | Buffer, contentType?: string } = {}): Promise<{ name: string; path?: string | undefined; body?: Buffer | undefined; contentType: string; }>  {
+export async function normalizeAndSaveAttachment(outputPath: string, name: string, options: { path?: string, body?: string | Buffer, contentType?: string } = {}): Promise<{ name: string; path?: string | undefined; body?: Buffer | undefined; contentType: string; }> {
   if ((options.path !== undefined ? 1 : 0) + (options.body !== undefined ? 1 : 0) !== 1)
     throw new Error(`Exactly one of "path" and "body" must be specified`);
   if (options.path !== undefined) {
@@ -300,7 +300,7 @@ function folderIsModule(folder: string): boolean {
 }
 
 export function experimentalLoaderOption() {
-  return ` --no-warnings --experimental-loader=${url.pathToFileURL(require.resolve('@playwright/test/lib/experimentalLoader')).toString()}`;
+  return ` --no-warnings --experimental-loader=${url.pathToFileURL(require.resolve('@playwright/test/lib/transform/esmLoader')).toString()}`;
 }
 
 export function envWithoutExperimentalLoaderOptions(): NodeJS.ProcessEnv {
@@ -321,16 +321,30 @@ const kExtLookups = new Map([
   ['', ['.js', '.ts', '.jsx', '.tsx', '.cjs', '.mjs', '.cts', '.mts']],
 ]);
 export function resolveImportSpecifierExtension(resolved: string): string | undefined {
-  if (fs.existsSync(resolved))
+  if (fileExists(resolved))
     return resolved;
+
   for (const [ext, others] of kExtLookups) {
     if (!resolved.endsWith(ext))
       continue;
     for (const other of others) {
       const modified = resolved.substring(0, resolved.length - ext.length) + other;
-      if (fs.existsSync(modified))
+      if (fileExists(modified))
         return modified;
     }
     break;  // Do not try '' when a more specific extesion like '.jsx' matched.
   }
+  // try directory imports last
+  if (dirExists(resolved)) {
+    const dirImport = path.join(resolved, 'index');
+    return resolveImportSpecifierExtension(dirImport);
+  }
+}
+
+function fileExists(resolved: string) {
+  return fs.statSync(resolved, { throwIfNoEntry: false })?.isFile();
+}
+
+function dirExists(resolved: string) {
+  return fs.statSync(resolved, { throwIfNoEntry: false })?.isDirectory();
 }

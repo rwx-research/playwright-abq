@@ -1046,6 +1046,7 @@ scheme.PageExpectScreenshotParams = tObject({
       frame: tChannel(['Frame']),
       selector: tString,
     }))),
+    maskColor: tOptional(tString),
   })),
 });
 scheme.PageExpectScreenshotResult = tObject({
@@ -1069,6 +1070,7 @@ scheme.PageScreenshotParams = tObject({
     frame: tChannel(['Frame']),
     selector: tString,
   }))),
+  maskColor: tOptional(tString),
 });
 scheme.PageScreenshotResult = tObject({
   binary: tBinary,
@@ -1876,6 +1878,7 @@ scheme.ElementHandleScreenshotParams = tObject({
     frame: tChannel(['Frame']),
     selector: tString,
   }))),
+  maskColor: tOptional(tString),
 });
 scheme.ElementHandleScreenshotResult = tObject({
   binary: tBinary,
@@ -2000,6 +2003,7 @@ scheme.RouteContinueParams = tObject({
   headers: tOptional(tArray(tType('NameValue'))),
   postData: tOptional(tBinary),
   requestUrl: tString,
+  isFallback: tBoolean,
 });
 scheme.RouteContinueResult = tOptional(tObject({}));
 scheme.RouteFulfillParams = tObject({

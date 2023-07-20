@@ -117,3 +117,36 @@ test('should work with |const| Type Parameters', async ({ runInlineTest }) => {
   expect(result.passed).toBe(1);
   expect(result.output).toContain('names: Alice, Bob, Eve');
 });
+
+test('should not read browserslist file', async ({ runInlineTest }) => {
+  test.info().annotations.push({ type: 'issue', description: 'https://github.com/microsoft/playwright/issues/23125' });
+  const result = await runInlineTest({
+    'package.json': `{ "browserslist": ["some invalid! value :)"] }`,
+    'one-success.spec.ts': `
+      import { test, expect } from '@playwright/test';
+      test('succeeds', () => {});
+    `
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(1);
+  expect(result.failed).toBe(0);
+});
+
+test('should not transform external', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'playwright.config.ts': `
+      import { defineConfig } from '@playwright/test';
+      export default defineConfig({
+        build: {
+          external: ['**/a.spec.ts']
+        }
+      });
+    `,
+    'a.spec.ts': `
+      import { test, expect } from '@playwright/test';
+      test('succeeds', () => {});
+    `
+  });
+  expect(result.exitCode).toBe(1);
+  expect(result.output).toContain('Cannot use import statement outside a module');
+});

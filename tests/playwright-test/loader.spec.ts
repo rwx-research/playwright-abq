@@ -488,6 +488,34 @@ test('should load a jsx/tsx files', async ({ runInlineTest }) => {
   expect(exitCode).toBe(0);
 });
 
+test('should load a jsx/tsx files in ESM mode', async ({ runInlineTest }) => {
+  const { exitCode, passed } = await runInlineTest({
+    'package.json': JSON.stringify({
+      type: 'module'
+    }),
+    'playwright.config.ts': `
+      import { defineConfig } from '@playwright/test';
+      export default defineConfig({ projects: [{name: 'foo'}] });
+    `,
+    'a.spec.tsx': `
+      import { test, expect } from '@playwright/test';
+      const component = () => <div></div>;
+      test('succeeds', () => {
+        expect(1 + 1).toBe(2);
+      });
+    `,
+    'b.spec.jsx': `
+      import { test, expect } from '@playwright/test';
+      const component = () => <div></div>;
+      test('succeeds', () => {
+        expect(1 + 1).toBe(2);
+      });
+    `
+  });
+  expect(passed).toBe(2);
+  expect(exitCode).toBe(0);
+});
+
 test('should load jsx with top-level component', async ({ runInlineTest }) => {
   const { exitCode, passed } = await runInlineTest({
     'a.spec.tsx': `
@@ -560,6 +588,126 @@ test('should remove type imports from ts', async ({ runInlineTest }) => {
     `,
     'node_modules/helper/index.d.ts': `
       export type Point = {};
+    `,
+  });
+  expect(result.passed).toBe(1);
+  expect(result.exitCode).toBe(0);
+});
+
+test('should resolve directory import to index.js file in non-ESM mode', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.test.ts': `
+      import { test, expect } from '@playwright/test';
+      import { gimmeAOne } from './playwright-utils';
+      test('pass', ({}) => {
+        expect(gimmeAOne()).toBe(1);
+      });
+    `,
+    'playwright-utils/index.js': `
+      export function gimmeAOne() {
+        return 1;
+      }
+    `,
+  });
+  expect(result.passed).toBe(1);
+  expect(result.exitCode).toBe(0);
+});
+
+test('should resolve directory import to index.ts file in non-ESM mode', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.test.ts': `
+      import { test, expect } from '@playwright/test';
+      import { gimmeAOne } from './playwright-utils';
+      test('pass', ({}) => {
+        expect(gimmeAOne()).toBe(1);
+      });
+    `,
+    'playwright-utils/index.ts': `
+      export function gimmeAOne() {
+        return 1;
+      }
+    `,
+  });
+  expect(result.passed).toBe(1);
+  expect(result.exitCode).toBe(0);
+});
+
+test('should resolve directory import to index.tsx file in non-ESM mode', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.test.ts': `
+      import { test, expect } from '@playwright/test';
+      import { gimmeAOne } from './playwright-utils';
+      test('pass', ({}) => {
+        expect(gimmeAOne()).toBe(1);
+      });
+    `,
+    'playwright-utils/index.tsx': `
+      export function gimmeAOne() {
+        return 1;
+      }
+    `,
+  });
+  expect(result.passed).toBe(1);
+  expect(result.exitCode).toBe(0);
+});
+
+test('should resolve directory import to index.mjs file in non-ESM mode', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.test.ts': `
+      import { test, expect } from '@playwright/test';
+      import { gimmeAOne } from './playwright-utils';
+      test('pass', ({}) => {
+        expect(gimmeAOne()).toBe(1);
+      });
+    `,
+    'playwright-utils/index.mjs': `
+      export function gimmeAOne() {
+        return 1;
+      }
+    `,
+  });
+  expect(result.passed).toBe(1);
+  expect(result.exitCode).toBe(0);
+});
+
+test('should resolve directory import to index.jsx file in non-ESM mode', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.test.ts': `
+      import { test, expect } from '@playwright/test';
+      import { gimmeAOne } from './playwright-utils';
+      test('pass', ({}) => {
+        expect(gimmeAOne()).toBe(1);
+      });
+    `,
+    'playwright-utils/index.jsx': `
+      export function gimmeAOne() {
+        return 1;
+      }
+    `,
+  });
+  expect(result.passed).toBe(1);
+  expect(result.exitCode).toBe(0);
+});
+
+test('should resolve file import before directory import in non-ESM mode', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.test.ts': `
+      import { test, expect } from '@playwright/test';
+      import { gimmeAOne } from './playwright-utils';
+      test('pass', ({}) => {
+        expect(gimmeAOne()).toBe(1);
+      });
+    `,
+    'playwright-utils.jsx': `
+      export function gimmeAOne() {
+        return 1;
+      }
+    `,
+    'playwright-utils/index.jsx': `
+      export function gimmeAOne() {
+        // intentionally return the wrong thing because this file shouldn't be resolved.
+        return 2;
+      }
     `,
   });
   expect(result.passed).toBe(1);

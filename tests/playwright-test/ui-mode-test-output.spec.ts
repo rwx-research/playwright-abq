@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { test, expect } from './ui-mode-fixtures';
+import { test, expect, retries } from './ui-mode-fixtures';
 
-test.describe.configure({ mode: 'parallel' });
+test.describe.configure({ mode: 'parallel', retries });
 
 test('should print load errors', async ({ runUITest }) => {
   const { page } = await runUITest({
@@ -45,7 +45,7 @@ test('should work after theme switch', async ({ runUITest, writeFiles }) => {
   await expect(page.getByTestId('output')).toContainText(`Hello world 1`);
 
   await page.getByTitle('Toggle color mode').click();
-  writeFiles({
+  await writeFiles({
     'a.test.ts': `
       import { test, expect } from '@playwright/test';
       test('syntax error', async () => {

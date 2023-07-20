@@ -24,6 +24,7 @@ import { getPackageJsonPath, mergeObjects } from '../util';
 import type { Matcher } from '../util';
 import type { ConfigCLIOverrides } from './ipc';
 import type { FullConfig, FullProject } from '../../types/test';
+import { setTransformConfig } from '../transform/transform';
 
 export type FixturesWithLocation = {
   fixtures: Fixtures;
@@ -124,6 +125,10 @@ export class FullConfigInternal {
     this.projects = projectConfigs.map(p => new FullProjectInternal(configDir, config, this, p, this.configCLIOverrides, throwawayArtifactsPath));
     resolveProjectDependencies(this.projects);
     this._assignUniqueProjectIds(this.projects);
+    setTransformConfig({
+      babelPlugins: (config as any).build?.babelPlugins || [],
+      external: config.build?.external || [],
+    });
     this.config.projects = this.projects.map(p => p.project);
   }
 
@@ -153,6 +158,10 @@ export class FullProjectInternal {
   id = '';
   deps: FullProjectInternal[] = [];
   teardown: FullProjectInternal | undefined;
+
+  static from(config: FullProject): FullProjectInternal {
+    return (config as any)[projectInternalSymbol];
+  }
 
   constructor(configDir: string, config: Config, fullConfig: FullConfigInternal, projectConfig: Project, configCLIOverrides: ConfigCLIOverrides, throwawayArtifactsPath: string) {
     this.fullConfig = fullConfig;

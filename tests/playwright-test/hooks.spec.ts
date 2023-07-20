@@ -673,7 +673,7 @@ test('unhandled rejection during beforeAll should be reported and prevent more t
         Promise.resolve().then(() => {
           throw new Error('Oh my');
         });
-        await new Promise(f => setTimeout(f, 100));
+        await new Promise(f => setTimeout(f, 1000));
       });
       test.afterAll(() => {
         console.log('\\n%%afterAll');
@@ -703,26 +703,26 @@ test('beforeAll and afterAll should have a separate timeout', async ({ runInline
       import { test, expect } from '@playwright/test';
       test.beforeAll(async () => {
         console.log('\\n%%beforeAll');
-        await new Promise(f => setTimeout(f, 300));
+        await new Promise(f => setTimeout(f, 1600));
       });
       test.beforeAll(async () => {
         console.log('\\n%%beforeAll2');
-        await new Promise(f => setTimeout(f, 300));
+        await new Promise(f => setTimeout(f, 1600));
       });
       test('passed', async () => {
         console.log('\\n%%test');
-        await new Promise(f => setTimeout(f, 300));
+        await new Promise(f => setTimeout(f, 1600));
       });
       test.afterAll(async () => {
         console.log('\\n%%afterAll');
-        await new Promise(f => setTimeout(f, 300));
+        await new Promise(f => setTimeout(f, 1600));
       });
       test.afterAll(async () => {
         console.log('\\n%%afterAll2');
-        await new Promise(f => setTimeout(f, 300));
+        await new Promise(f => setTimeout(f, 1600));
       });
     `,
-  }, { timeout: '500' });
+  }, { timeout: '3000' });
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(1);
   expect(result.outputLines).toEqual([

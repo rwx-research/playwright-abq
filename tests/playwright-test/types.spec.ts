@@ -16,8 +16,6 @@
 
 import { test, expect } from './playwright-test-fixtures';
 
-test.slow();
-
 test('should check types of fixtures', async ({ runTSC }) => {
   const result = await runTSC({
     'helper.ts': `
@@ -80,15 +78,15 @@ test('should check types of fixtures', async ({ runTSC }) => {
         }, { scope: 'test', auto: true } ],
       });
       const fail10 = test.extend<{}, {}>({
+        // @ts-expect-error
         bar: [ async ({}, use) => {
           await use(42);
-        // @ts-expect-error
         }, { scope: 'test' } ],
       });
       const fail11 = test.extend<{ yay: string }>({
+        // @ts-expect-error
         yay: [ async ({}, use) => {
           await use('foo');
-        // @ts-expect-error
         }, { scope: 'test', timeout: 'str' } ],
       });
 

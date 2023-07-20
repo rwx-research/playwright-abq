@@ -118,7 +118,7 @@ In addition to the above, Playwright Test, as a full-featured Test Runner, inclu
 
 ## Usage
 
-Use npm or Yarn to install Playwright library in your Node.js project. See [system requirements](./troubleshooting.md#system-requirements).
+Use npm or Yarn to install Playwright library in your Node.js project. See [system requirements](./intro.md#system-requirements).
 
 ```bash
 npm i -D playwright
@@ -149,7 +149,7 @@ Playwright APIs are asynchronous and return Promise objects. Our code examples u
 
 ## First script
 
-In our first script, we will navigate to `whatsmyuseragent.org` and take a screenshot in WebKit.
+In our first script, we will navigate to `https://playwright.dev/` and take a screenshot in WebKit.
 
 ```js
 const { webkit } = require('playwright');
@@ -157,7 +157,7 @@ const { webkit } = require('playwright');
 (async () => {
   const browser = await webkit.launch();
   const page = await browser.newPage();
-  await page.goto('http://whatsmyuseragent.org/');
+  await page.goto('https://playwright.dev/');
   await page.screenshot({ path: `example.png` });
   await browser.close();
 })();

@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-import { test, expect, dumpTestTree } from './ui-mode-fixtures';
-test.describe.configure({ mode: 'parallel' });
+import { test, expect, retries, dumpTestTree } from './ui-mode-fixtures';
+
+test.describe.configure({ mode: 'parallel', retries });
 
 const basicTestTree = {
   'a.test.ts': `
@@ -357,5 +358,39 @@ test('should ignore repeatEach', async ({ runUITest }) => {
         ✅ should pass
   `);
 
+  await expect(page.getByTestId('status-line')).toHaveText('1/1 passed (100%)');
+});
+
+test('should remove output folder before test run', async ({ runUITest }) => {
+  const { page } = await runUITest({
+    'playwright.config.ts': `
+      import { defineConfig } from '@playwright/test';
+    `,
+    'a.test.ts': `
+      import fs from 'fs';
+      import { test, expect } from '@playwright/test';
+      test('should pass', () => {
+        const path = test.info().outputPath('a.txt');
+        expect(fs.existsSync(path)).toBe(false);
+        fs.writeFileSync(path, 'dirty');
+      });
+    `,
+  });
+  await expect.poll(dumpTestTree(page)).toContain(`
+    ▼ ◯ a.test.ts
+  `);
+
+  await page.getByTitle('Run all').click();
+  await expect.poll(dumpTestTree(page)).toBe(`
+    ▼ ✅ a.test.ts
+        ✅ should pass
+  `);
+  await expect(page.getByTestId('status-line')).toHaveText('1/1 passed (100%)');
+
+  await page.getByTitle('Run all').click();
+  await expect.poll(dumpTestTree(page)).toBe(`
+    ▼ ✅ a.test.ts
+        ✅ should pass
+  `);
   await expect(page.getByTestId('status-line')).toHaveText('1/1 passed (100%)');
 });

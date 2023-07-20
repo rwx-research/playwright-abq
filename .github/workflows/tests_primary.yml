@@ -38,6 +38,9 @@ jobs:
           - os: ubuntu-22.04
             node-version: 18
             browser: chromium
+          - os: ubuntu-22.04
+            node-version: 20
+            browser: chromium
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
@@ -53,44 +56,30 @@ jobs:
     - run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" -- npm run test -- --project=${{ matrix.browser }}
       env:
         PWTEST_BLOB_REPORT: 1
-    - name: Upload artifacts to Azure Blob Storage
-      if: always() && github.event_name != 'pull_request'
-      run: az storage blob upload-batch -s test-results/blob-report -d '$web/run-${{ github.run_id }}-${{ github.sha }}-test_linux' --connection-string "${{ secrets.AZURE_CONNECTION_STRING_FOR_BLOB_REPORT }}"
+        PWTEST_BLOB_SUFFIX: "-${{ matrix.os }}-node${{ matrix.node-version }}"
     - run: node tests/config/checkCoverage.js ${{ matrix.browser }}
     - run: ./utils/upload_flakiness_dashboard.sh ./test-results/report.json
       if: always()
       shell: bash
-    - uses: actions/upload-artifact@v3
-      if: always()
+    - name: Upload blob report to Azure
+      if: always() && github.event_name == 'push'
+      run: az storage blob upload-batch -s test-results/blob-report -d '$web/run-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}' --connection-string "${{ secrets.AZURE_CONNECTION_STRING_FOR_BLOB_REPORT }}"
+    - name: Upload blob report to GitHub
+      uses: actions/upload-artifact@v3
+      if: always() && github.event_name == 'pull_request'
       with:
-        name: ${{ matrix.browser }}-${{ matrix.os }}-test-results
-        path: test-results
-
-  merge_test_linux:
-    if: ${{ always() && github.event_name != 'pull_request' }}
-    needs: [test_linux]
-    timeout-minutes: 10
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-node@v3
+        name: blob-report-${{ github.run_attempt }}
+        path: test-results/blob-report
+        retention-days: 30
+    - name: Write the pull request number in an file
+      if: always() && github.event_name == 'pull_request'
+      run: echo '${{ github.event.number }}' > pull_request_number.txt;
+    - name: Upload artifact with pull request number
+      uses: actions/upload-artifact@v3
+      if: always() && github.event_name == 'pull_request'
       with:
-        node-version: 16
-    - run: npm ci
-      env:
-        DEBUG: pw:install
-        PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
-    - run: npm run build
-    - name: Download Blob Reports from Azure Blob Storage
-      run: |
-        az storage blob download-batch -d . -s '$web'  --pattern 'run-${{ github.run_id }}-${{ github.sha }}-test_linux/*.jsonl' --connection-string "${{ secrets.AZURE_CONNECTION_STRING_FOR_BLOB_REPORT }}"
-    - name: Merge into HTML Report
-      run: |
-        npx playwright merge-reports --reporter html --attachments missing 'run-${{ github.run_id }}-${{ github.sha }}-test_linux'
-    - name: Upload HTML Report to Azure Blob Storage
-      run: |
-        az storage blob upload-batch -s playwright-report -d '$web/run-${{ github.run_id }}-${{ github.sha }}-test_linux' --connection-string "${{ secrets.AZURE_CONNECTION_STRING_FOR_BLOB_REPORT }}"
-        echo "Report url: https://mspwblobreport.z1.web.core.windows.net/run-${{ github.run_id }}-${{ github.sha }}-test_linux/index.html"
+        name: pull-request
+        path: pull_request_number.txt
 
   test_linux_chromium_tot:
     name: ${{ matrix.os }} (chromium tip-of-tree)
@@ -116,11 +105,6 @@ jobs:
     - run: ./utils/upload_flakiness_dashboard.sh ./test-results/report.json
       if: always()
       shell: bash
-    - uses: actions/upload-artifact@v3
-      if: always()
-      with:
-        name: ${{ matrix.browser }}-chromium-tip-of-tree-test-results
-        path: test-results
 
   test_test_runner:
     name: Test Runner
@@ -137,6 +121,12 @@ jobs:
           - os: ubuntu-latest
             node-version: 18
             shard: 2/2
+          - os: ubuntu-latest
+            node-version: 20
+            shard: 1/2
+          - os: ubuntu-latest
+            node-version: 20
+            shard: 2/2
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
@@ -151,43 +141,35 @@ jobs:
     - run: npm run ttest -- --shard ${{ matrix.shard }}
       env:
         PWTEST_BLOB_REPORT: 1
+        PWTEST_BLOB_SUFFIX: "-${{ matrix.os }}-node${{ matrix.node-version }}"
       if: matrix.os != 'ubuntu-latest'
     - run: xvfb-run npm run ttest --  --shard ${{ matrix.shard }}
       env:
         PWTEST_BLOB_REPORT: 1
+        PWTEST_BLOB_SUFFIX: "-${{ matrix.os }}-node${{ matrix.node-version }}"
       if: matrix.os == 'ubuntu-latest'
     - run: ./utils/upload_flakiness_dashboard.sh ./test-results/report.json
       if: always()
       shell: bash
-    - name: Upload artifacts to Azure Blob Storage
-      if: always() && github.event_name != 'pull_request'
-      run: az storage blob upload-batch -s test-results/blob-report -d '$web/run-${{ github.run_id }}-${{ github.sha }}-test_test_runner' --connection-string "${{ secrets.AZURE_CONNECTION_STRING_FOR_BLOB_REPORT }}"
-
-  merge_test_test_runner:
-    if: ${{ always() && github.event_name != 'pull_request' }}
-    needs: [test_test_runner]
-    timeout-minutes: 10
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-node@v3
+    - name: Upload blob report to Azure
+      if: always() && github.event_name == 'push'
+      run: az storage blob upload-batch -s test-results/blob-report -d '$web/run-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}' --connection-string "${{ secrets.AZURE_CONNECTION_STRING_FOR_BLOB_REPORT }}"
+    - name: Upload blob report to GitHub
+      uses: actions/upload-artifact@v3
+      if: always() && github.event_name == 'pull_request'
       with:
-        node-version: 16
-    - run: npm ci
-      env:
-        DEBUG: pw:install
-        PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
-    - run: npm run build
-    - name: Download Blob Reports from Azure Blob Storage
-      run: |
-        az storage blob download-batch -d . -s '$web'  --pattern 'run-${{ github.run_id }}-${{ github.sha }}-test_test_runner/*.jsonl' --connection-string "${{ secrets.AZURE_CONNECTION_STRING_FOR_BLOB_REPORT }}"
-    - name: Merge into HTML Report
-      run: |
-        npx playwright merge-reports --reporter html --attachments missing 'run-${{ github.run_id }}-${{ github.sha }}-test_test_runner'
-    - name: Upload HTML Report to Azure Blob Storage
-      run: |
-        az storage blob upload-batch -s playwright-report -d '$web/run-${{ github.run_id }}-${{ github.sha }}-test_test_runner' --connection-string "${{ secrets.AZURE_CONNECTION_STRING_FOR_BLOB_REPORT }}"
-        echo "Report url: https://mspwblobreport.z1.web.core.windows.net/run-${{ github.run_id }}-${{ github.sha }}-test_test_runner/index.html"
+        name: blob-report-${{ github.run_attempt }}
+        path: test-results/blob-report
+        retention-days: 30
+    - name: Write the pull request number in an file
+      if: always() && github.event_name == 'pull_request'
+      run: echo '${{ github.event.number }}' > pull_request_number.txt;
+    - name: Upload artifact with pull request number
+      uses: actions/upload-artifact@v3
+      if: always() && github.event_name == 'pull_request'
+      with:
+        name: pull-request
+        path: pull_request_number.txt
 
   test_web_components:
     name: Web Components
@@ -196,7 +178,6 @@ jobs:
     - uses: actions/checkout@v3
     - uses: actions/setup-node@v3
       with:
-        # Component tests require Node.js 16+ (they require ESM via TS)
         node-version: 16
     - run: npm ci
       env:
@@ -206,6 +187,34 @@ jobs:
     - run: npm run test-html-reporter
     - run: npm run test-web
       if: always()
+
+  test_vscode_extension:
+    name: VSCode Extension
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-node@v3
+      with:
+        node-version: 16
+    - run: npm ci
+      env:
+        DEBUG: pw:install
+    - run: npm run build
+    - run: npx playwright install chromium
+    - name: Checkout extension
+      run: git clone https://github.com/microsoft/playwright-vscode.git
+    - name: Print extension revision
+      run: git rev-parse HEAD
+      working-directory: ./playwright-vscode
+    - name: Remove @playwright/test from extension dependencies
+      run: node -e "const p = require('./package.json'); delete p.devDependencies['@playwright/test']; fs.writeFileSync('./package.json', JSON.stringify(p, null, 2));"
+      working-directory: ./playwright-vscode
+    - name: Build extension
+      run: npm install && npm run build
+      working-directory: ./playwright-vscode
+    - name: Run extension tests
+      run: npm run test -- --workers=1
+      working-directory: ./playwright-vscode
 
   test-package-installations:
     name: "Installation Test ${{ matrix.os }}"

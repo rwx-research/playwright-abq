@@ -176,7 +176,7 @@ export class CRPage implements PageDelegate {
 
   async exposeBinding(binding: PageBinding) {
     await this._forAllFrameSessions(frame => frame._initBinding(binding));
-    await Promise.all(this._page.frames().map(frame => frame.evaluateExpression(binding.source, false, {}).catch(e => {})));
+    await Promise.all(this._page.frames().map(frame => frame.evaluateExpression(binding.source).catch(e => {})));
   }
 
   async removeExposedBindings() {
@@ -507,9 +507,9 @@ class FrameSession {
             worldName: UTILITY_WORLD_NAME,
           });
           for (const binding of this._crPage._browserContext._pageBindings.values())
-            frame.evaluateExpression(binding.source, false, undefined).catch(e => {});
+            frame.evaluateExpression(binding.source).catch(e => {});
           for (const source of this._crPage._browserContext.initScripts)
-            frame.evaluateExpression(source, false, undefined, 'main').catch(e => {});
+            frame.evaluateExpression(source).catch(e => {});
         }
         const isInitialEmptyPage = this._isMainFrame() && this._page.mainFrame().url() === ':';
         if (isInitialEmptyPage) {
@@ -922,7 +922,7 @@ class FrameSession {
 
   async _createVideoRecorder(screencastId: string, options: types.PageScreencastOptions): Promise<void> {
     assert(!this._screencastId);
-    const ffmpegPath = registry.findExecutable('ffmpeg')!.executablePathOrDie(this._page._browserContext._browser.options.sdkLanguage);
+    const ffmpegPath = registry.findExecutable('ffmpeg')!.executablePathOrDie(this._page.attribution.playwright.options.sdkLanguage);
     this._videoRecorder = await VideoRecorder.launch(this._crPage._page, ffmpegPath, options);
     this._screencastId = screencastId;
   }

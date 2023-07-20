@@ -95,7 +95,7 @@ Emitted when Browser context gets closed. This might happen because of one of th
 * The [`method: Browser.close`] method was called.
 
 ## event: BrowserContext.console
-* since: v1.33
+* since: v1.34
 * langs:
   - alias-java: consoleMessage
 - argument: <[ConsoleMessage]>
@@ -156,7 +156,7 @@ await page.EvaluateAsync("console.log('hello', 5, { foo: 'bar' })");
 
 
 ## event: BrowserContext.dialog
-* since: v1.33
+* since: v1.34
 - argument: <[Dialog]>
 
 Emitted when a JavaScript dialog appears, such as `alert`, `prompt`, `confirm` or `beforeunload`. Listener **must** either [`method: Dialog.accept`] or [`method: Dialog.dismiss`] the dialog - otherwise the page will [freeze](https://developer.mozilla.org/en-US/docs/Web/JavaScript/EventLoop#never_blocking) waiting for the dialog, and actions like click will never finish.
@@ -180,10 +180,7 @@ context.on("dialog", lambda dialog: dialog.accept())
 ```
 
 ```csharp
-context.RequestFailed += (_, request) =>
-{
-    Console.WriteLine(request.Url + " " + request.Failure);
-};
+context.Dialog += (_, dialog) => dialog.AcceptAsync();
 ```
 
 :::note
@@ -1455,6 +1452,37 @@ Condition to wait for.
 
 ### option: BrowserContext.waitForCondition.timeout = %%-wait-for-function-timeout-%%
 * since: v1.32
+
+## async method: BrowserContext.waitForConsoleMessage
+* since: v1.34
+* langs: java, python, csharp
+  - alias-python: expect_console_message
+  - alias-csharp: RunAndWaitForConsoleMessage
+- returns: <[ConsoleMessage]>
+
+Performs action and waits for a [ConsoleMessage] to be logged by in the pages in the context. If predicate is provided, it passes
+[ConsoleMessage] value into the `predicate` function and waits for `predicate(message)` to return a truthy value.
+Will throw an error if the page is closed before the [`event: BrowserContext.console`] event is fired.
+
+## async method: BrowserContext.waitForConsoleMessage
+* since: v1.34
+* langs: python
+- returns: <[EventContextManager]<[ConsoleMessage]>>
+
+### param: BrowserContext.waitForConsoleMessage.action = %%-csharp-wait-for-event-action-%%
+* since: v1.34
+
+### option: BrowserContext.waitForConsoleMessage.predicate
+* since: v1.34
+- `predicate` <[function]\([ConsoleMessage]\):[boolean]>
+
+Receives the [ConsoleMessage] object and resolves to truthy value when the waiting should resolve.
+
+### option: BrowserContext.waitForConsoleMessage.timeout = %%-wait-for-event-timeout-%%
+* since: v1.34
+
+### param: BrowserContext.waitForConsoleMessage.callback = %%-java-wait-for-event-callback-%%
+* since: v1.34
 
 ## async method: BrowserContext.waitForEvent
 * since: v1.8

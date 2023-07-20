@@ -25,11 +25,11 @@ import type { PluginContext } from 'rollup';
 
 import fs from 'fs';
 import path from 'path';
-import { parse, traverse, types as t } from '@playwright/test/lib/common/babelBundle';
+import { parse, traverse, types as t } from '@playwright/test/lib/transform/babelBundle';
 import { stoppable } from '@playwright/test/lib/utilsBundle';
 import { assert, calculateSha1 } from 'playwright-core/lib/utils';
 import { getPlaywrightVersion } from 'playwright-core/lib/utils';
-import { setExternalDependencies } from '@playwright/test/lib/common/compilationCache';
+import { setExternalDependencies } from '@playwright/test/lib/transform/compilationCache';
 import { collectComponentUsages, componentInfo } from './tsxTransform';
 
 let stoppableServer: any;
@@ -57,10 +57,6 @@ export function createPlugin(
       config = configObject;
       configDir = configDirectory;
     },
-
-    babelPlugins: async () => [
-      [require.resolve('./tsxTransform')]
-    ],
 
     begin: async (suite: Suite) => {
       const use = config.projects[0].use as CtConfig;
@@ -109,6 +105,8 @@ export function createPlugin(
 
       viteConfig.root = rootDir;
       viteConfig.preview = { port, ...viteConfig.preview };
+      // Vite preview server will otherwise always return the index.html with 200.
+      viteConfig.appType = viteConfig.appType || 'custom';
 
       // React heuristic. If we see a component in a file with .js extension,
       // consider it a potential JSX-in-JS scenario and enable JSX loader for all
