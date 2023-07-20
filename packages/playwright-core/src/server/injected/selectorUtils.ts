@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { type AttributeSelectorPart } from '../isomorphic/selectorParser';
+import { type AttributeSelectorPart } from '../../utils/isomorphic/selectorParser';
 
 export function matchesComponentAttribute(obj: any, attr: AttributeSelectorPart) {
   for (const token of attr.jsonPath) {
@@ -51,6 +51,7 @@ export function matchesAttributePart(value: any, attr: AttributeSelectorPart) {
 }
 
 export function shouldSkipForTextMatching(element: Element | ShadowRoot) {
+  const document = element.ownerDocument;
   return element.nodeName === 'SCRIPT' || element.nodeName === 'NOSCRIPT' || element.nodeName === 'STYLE' || document.head && document.head.contains(element);
 }
 

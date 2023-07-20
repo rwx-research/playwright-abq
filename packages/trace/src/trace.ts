@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-import type { CallMetadata } from '@protocol/callMetadata';
-import type { Language } from '../../playwright-core/src/server/isomorphic/locatorGenerators';
+import type { Point, SerializedError, StackFrame } from '@protocol/channels';
+import type { Language } from '../../playwright-core/src/utils/isomorphic/locatorGenerators';
 import type { FrameSnapshot, ResourceSnapshot } from './snapshot';
 
 export type Size = { width: number, height: number };
 
 // Make sure you add _modernize_N_to_N1(event: any) to traceModel.ts.
-export type VERSION = 3;
+export type VERSION = 4;
 
 export type BrowserContextEventOptions = {
   viewport?: Size,
@@ -39,6 +39,7 @@ export type ContextCreatedTraceEvent = {
   title?: string,
   options: BrowserContextEventOptions,
   sdkLanguage?: Language,
+  testIdAttributeName?: string,
 };
 
 export type ScreencastFrameTraceEvent = {
@@ -50,9 +51,51 @@ export type ScreencastFrameTraceEvent = {
   timestamp: number,
 };
 
-export type ActionTraceEvent = {
-  type: 'action' | 'event',
-  metadata: CallMetadata,
+export type BeforeActionTraceEvent = {
+  type: 'before',
+  callId: string;
+  startTime: number;
+  apiName: string;
+  class: string;
+  method: string;
+  params: any;
+  wallTime: number;
+  beforeSnapshot?: string;
+  stack?: StackFrame[];
+  pageId?: string;
+};
+
+export type InputActionTraceEvent = {
+  type: 'input',
+  callId: string;
+  inputSnapshot?: string;
+  point?: Point;
+};
+
+export type AfterActionTraceEvent = {
+  type: 'after',
+  callId: string;
+  endTime: number;
+  afterSnapshot?: string;
+  log: string[];
+  error?: SerializedError['error'];
+  result?: any;
+};
+
+export type EventTraceEvent = {
+  type: 'event',
+  time: number;
+  class: string;
+  method: string;
+  params: any;
+  pageId?: string;
+};
+
+export type ObjectTraceEvent = {
+  type: 'object';
+  class: string;
+  initializer: any;
+  guid: string;
 };
 
 export type ResourceSnapshotTraceEvent = {
@@ -65,9 +108,20 @@ export type FrameSnapshotTraceEvent = {
   snapshot: FrameSnapshot,
 };
 
+export type ActionTraceEvent = {
+  type: 'action',
+} & Omit<BeforeActionTraceEvent, 'type'>
+  & Omit<AfterActionTraceEvent, 'type'>
+  & Omit<InputActionTraceEvent, 'type'>;
+
 export type TraceEvent =
     ContextCreatedTraceEvent |
     ScreencastFrameTraceEvent |
     ActionTraceEvent |
+    BeforeActionTraceEvent |
+    InputActionTraceEvent |
+    AfterActionTraceEvent |
+    EventTraceEvent |
+    ObjectTraceEvent |
     ResourceSnapshotTraceEvent |
     FrameSnapshotTraceEvent;

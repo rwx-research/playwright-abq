@@ -553,19 +553,7 @@ By default, [`method: Page.getByTestId`] will locate elements based on the `data
 
 Set the test id to use a custom data attribute for your tests.
 
-```js tab=js-js
-// playwright.config.js
-// @ts-check
-
-const { defineConfig } = require('@playwright/test');
-module.exports = defineConfig({
-  use: {
-    testIdAttribute: 'data-pw'
-  },
-});
-```
-
-```js tab=js-ts
+```js
 // playwright.config.ts
 import { defineConfig } from '@playwright/test';
 
@@ -1042,6 +1030,44 @@ var product = page
 await product
     .GetByRole(AriaRole.Button), new() { Name = "Add to cart" })
     .ClickAsync();
+```
+
+You can also chain two locators together, for example to find a "Save" button inside a particular dialog:
+
+```js
+const saveButton = page.getByRole('button', { name: 'Save' });
+// ...
+const dialog = page.getByTestId('settings-dialog');
+await dialog.locator(saveButton).click();
+```
+
+```python async
+save_button = page.get_by_role("button", name="Save")
+# ...
+dialog = page.get_by_test_id("settings-dialog")
+await dialog.locator(save_button).click()
+```
+
+```python sync
+save_button = page.get_by_role("button", name="Save")
+# ...
+dialog = page.get_by_test_id("settings-dialog")
+dialog.locator(save_button).click()
+```
+
+```java
+Locator saveButton = page.getByRole(AriaRole.BUTTON,
+                                    new Page.GetByRoleOptions().setName("Save"));
+// ...
+Locator dialog = page.getByTestId("settings-dialog");
+dialog.locator(saveButton).click();
+```
+
+```csharp
+var saveButton = page.GetByRole(AriaRole.Button, new() { Name = "Save" });
+// ...
+var dialog = page.GetByTestId("settings-dialog");
+await dialog.Locator(saveButton).ClickAsync();
 ```
 
 ## Lists

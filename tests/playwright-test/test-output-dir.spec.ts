@@ -87,7 +87,7 @@ test('should default to package.json directory', async ({ runInlineTest }, testI
   const result = await runInlineTest({
     'foo/package.json': `{ "name": "foo" }`,
     'foo/bar/playwright.config.js': `
-      module.exports = { projects: [ {} ] };
+      module.exports = { reporters: [], projects: [ {} ] };
     `,
     'foo/bar/baz/tests/a.spec.js': `
       import { test, expect } from '@playwright/test';
@@ -97,9 +97,8 @@ test('should default to package.json directory', async ({ runInlineTest }, testI
         fs.writeFileSync(testInfo.outputPath('foo.ts'), 'foobar');
       });
     `
-  }, { 'reporter': '' }, {}, {
+  }, {}, { PW_TEST_REPORTER: '' }, {
     cwd: 'foo/bar/baz/tests',
-    usesCustomOutputDir: true
   });
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(1);
@@ -364,7 +363,7 @@ test('should accept a relative path for outputDir', async ({ runInlineTest }, te
       { outputDir: './my-output-dir' },
     ] };
     `,
-  }, {}, {}, { usesCustomOutputDir: true });
+  });
   expect(result.exitCode).toBe(0);
 });
 
@@ -383,7 +382,7 @@ test('should have output dir based on rootDir (cwd)', async ({ runInlineTest }, 
         fs.writeFileSync(testInfo.outputPath('foo.txt'), 'hello');
       });
     `,
-  }, {}, {}, { usesCustomOutputDir: true });
+  });
   expect(result.exitCode).toBe(0);
   expect(fs.existsSync(testInfo.outputPath('test-results', 'example-hello-world', 'foo.txt'))).toBe(true);
 });

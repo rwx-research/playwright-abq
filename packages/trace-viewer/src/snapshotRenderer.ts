@@ -22,12 +22,14 @@ export class SnapshotRenderer {
   readonly snapshotName: string | undefined;
   _resources: ResourceSnapshot[];
   private _snapshot: FrameSnapshot;
+  private _callId: string;
 
   constructor(resources: ResourceSnapshot[], snapshots: FrameSnapshot[], index: number) {
     this._resources = resources;
     this._snapshots = snapshots;
     this._index = index;
     this._snapshot = snapshots[index];
+    this._callId = snapshots[index].callId;
     this.snapshotName = snapshots[index].snapshotName;
   }
 
@@ -67,9 +69,16 @@ export class SnapshotRenderer {
           builder.push('<', n[0]);
           // Never set relative URLs as <iframe src> - they start fetching frames immediately.
           const isFrame = n[0] === 'IFRAME' || n[0] === 'FRAME';
+          const isAnchor = n[0] === 'A';
           for (const [attr, value] of Object.entries(n[1] || {})) {
             const attrName = isFrame && attr.toLowerCase() === 'src' ? '__playwright_src__' : attr;
-            const attrValue = attr.toLowerCase() === 'href' || attr.toLowerCase() === 'src' ? rewriteURLForCustomProtocol(value) : value;
+            let attrValue = value;
+            if (attr.toLowerCase() === 'href' || attr.toLowerCase() === 'src') {
+              if (isAnchor)
+                attrValue = 'link://' + value;
+              else
+                attrValue = rewriteURLForCustomProtocol(value);
+            }
             builder.push(' ', attrName, '="', escapeAttribute(attrValue as string), '"');
           }
           builder.push('>');
@@ -95,7 +104,7 @@ export class SnapshotRenderer {
     const prefix = snapshot.doctype ? `<!DOCTYPE ${snapshot.doctype}>` : '';
     html = prefix + [
       '<style>*,*::before,*::after { visibility: hidden }</style>',
-      `<style>*[__playwright_target__="${this.snapshotName}"] { background-color: #6fa8dc7f; }</style>`,
+      `<style>*[__playwright_target__="${this._callId}"] { background-color: #6fa8dc7f; }</style>`,
       `<script>${snapshotScript()}</script>`
     ].join('') + html;
 
@@ -219,6 +228,15 @@ function snapshotScript() {
             url.pathname = url.pathname.substring(0, index + 1);
           url.pathname += src.substring(1);
           iframe.setAttribute('src', url.toString());
+        }
+      }
+
+      {
+        const body = root.querySelector(`body[__playwright_custom_elements__]`);
+        if (body && window.customElements) {
+          const customElements = (body.getAttribute('__playwright_custom_elements__') || '').split(',');
+          for (const elementName of customElements)
+            window.customElements.define(elementName, class extends HTMLElement {});
         }
       }
 

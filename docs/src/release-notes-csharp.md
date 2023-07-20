@@ -4,6 +4,48 @@ title: "Release notes"
 toc_max_heading_level: 2
 ---
 
+## Version 1.31
+
+### New APIs
+
+- New assertion [`method: LocatorAssertions.toBeInViewport`] ensures that locator points to an element that intersects viewport, according to the [intersection observer API](https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API).
+
+
+  ```csharp
+  var locator = Page.GetByRole(AriaRole.Button);
+
+  // Make sure at least some part of element intersects viewport.
+  await Expect(locator).ToBeInViewportAsync();
+
+  // Make sure element is fully outside of viewport.
+  await Expect(locator).Not.ToBeInViewportAsync();
+
+  // Make sure that at least half of the element intersects viewport.
+  await Expect(locator).ToBeInViewportAsync(new() { Ratio = 0.5 });
+  ```
+
+- New methods [`method: BrowserContext.newCDPSession`] and [`method: Browser.newBrowserCDPSession`] create a [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/) session for the page and browser respectively.
+
+
+### Miscellaneous
+
+- DOM snapshots in trace viewer can be now opened in a separate window.
+- New option [`option: Route.fetch.maxRedirects`] for method [`method: Route.fetch`].
+- Playwright now supports Debian 11 arm64.
+- Official [docker images](./docker.md) now include Node 18 instead of Node 16.
+
+### Browser Versions
+
+* Chromium 111.0.5563.19
+* Mozilla Firefox 109.0
+* WebKit 16.4
+
+This version was also tested against the following stable channels:
+
+* Google Chrome 110
+* Microsoft Edge 110
+
+
 ## Version 1.30
 
 ### Browser Versions
@@ -395,7 +437,7 @@ Note that the new methods [`method: Page.routeFromHAR`] and [`method: BrowserCon
   ```csharp
   var buttons = page.Locator("role=button");
   // ...
-  var submitLocator = buttons.Filter(new LocatorFilterOptions { HasText = "Sign up" });
+  var submitLocator = buttons.Filter(new() { HasText = "Sign up" });
   await submitLocator.ClickAsync();
   ```
 

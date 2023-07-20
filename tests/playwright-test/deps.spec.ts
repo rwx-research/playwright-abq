@@ -38,6 +38,50 @@ test('should run projects with dependencies', async ({ runInlineTest }) => {
   expect(result.outputLines).toEqual(['A', 'B', 'C']);
 });
 
+test('should inherit env changes from dependencies', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'playwright.config.ts': `
+      module.exports = { projects: [
+        { name: 'A', testMatch: '**/a.spec.ts' },
+        { name: 'B', testMatch: '**/b.spec.ts' },
+        { name: 'C', testMatch: '**/c.spec.ts', dependencies: ['A'] },
+        { name: 'D', testMatch: '**/d.spec.ts', dependencies: ['B'] },
+      ] };
+    `,
+    'a.spec.ts': `
+      import { test, expect } from '@playwright/test';
+      test('pass', async ({}, testInfo) => {
+        process.env.SET_IN_A = 'valuea';
+        delete process.env.SET_OUTSIDE;
+        console.log('\\n%%A');
+      });
+    `,
+    'b.spec.ts': `
+      import { test, expect } from '@playwright/test';
+      test('pass', async ({}, testInfo) => {
+        process.env.SET_IN_B = 'valueb';
+        console.log('\\n%%B');
+      });
+    `,
+    'c.spec.ts': `
+      import { test, expect } from '@playwright/test';
+      test('pass', async ({}, testInfo) => {
+        console.log('\\n%%C-' + process.env.SET_IN_A + '-' + process.env.SET_IN_B + '-' + process.env.SET_OUTSIDE);
+      });
+    `,
+    'd.spec.ts': `
+      import { test, expect } from '@playwright/test';
+      test('pass', async ({}, testInfo) => {
+        console.log('\\n%%D-' + process.env.SET_IN_A + '-' + process.env.SET_IN_B + '-' + process.env.SET_OUTSIDE);
+      });
+    `,
+  }, {}, { SET_OUTSIDE: 'outside' });
+  expect(result.passed).toBe(4);
+  expect(result.failed).toBe(0);
+  expect(result.skipped).toBe(0);
+  expect(result.outputLines.sort()).toEqual(['A', 'B', 'C-valuea-undefined-undefined', 'D-undefined-valueb-outside']);
+});
+
 test('should not run projects with dependencies when --no-deps is passed', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'playwright.config.ts': `
@@ -187,7 +231,7 @@ test('should not filter dependency by only', async ({ runInlineTest }) => {
   expect(result.outputLines).toEqual(['setup in setup', 'setup 2 in setup', 'test in browser']);
 });
 
-test('should not filter dependency by only 2', async ({ runInlineTest }) => {
+test('should filter dependency by only when running explicitly', async ({ runInlineTest }) => {
   const result = await runInlineTest({
     'playwright.config.ts': `
       module.exports = { projects: [
@@ -329,4 +373,53 @@ test('should run dependency in each shard', async ({ runInlineTest }) => {
     expect(result.passed).toBe(2);
     expect(result.outputLines).toEqual(['setup', 'test2']);
   }
+});
+
+test('should run setup project with zero tests', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'playwright.config.ts': `
+      module.exports = {
+        projects: [
+          { name: 'setup', testMatch: /not-matching/ },
+          { name: 'real', dependencies: ['setup'] },
+        ],
+      };`,
+    'test.spec.ts': `
+      import { test, expect } from '@playwright/test';
+      test('test', async ({}, testInfo) => {
+        console.log('\\n%%' + testInfo.project.name);
+      });
+    `,
+  }, { workers: 1 });
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(1);
+  expect(result.outputLines).toEqual(['real']);
+});
+
+test('should run setup project with zero tests recursively', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'playwright.config.ts': `
+      module.exports = {
+        projects: [
+          { name: 'A', testMatch: /a.spec/ },
+          { name: 'B', testMatch: /not-matching/, dependencies: ['A'] },
+          { name: 'C', testMatch: /c.spec/, dependencies: ['B'] },
+        ],
+      };`,
+    'a.spec.ts': `
+      import { test, expect } from '@playwright/test';
+      test('test', async ({}, testInfo) => {
+        console.log('\\n%%' + testInfo.project.name);
+      });
+    `,
+    'c.spec.ts': `
+      import { test, expect } from '@playwright/test';
+      test('test', async ({}, testInfo) => {
+        console.log('\\n%%' + testInfo.project.name);
+      });
+    `,
+  }, { workers: 1, project: 'C' });
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(2);
+  expect(result.outputLines).toEqual(['A', 'C']);
 });

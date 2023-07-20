@@ -22,14 +22,23 @@ export { ValidationError, findValidator, maybeFindValidator, createMetadataValid
 
 scheme.StackFrame = tObject({
   file: tString,
-  line: tOptional(tNumber),
-  column: tOptional(tNumber),
+  line: tNumber,
+  column: tNumber,
   function: tOptional(tString),
 });
 scheme.Metadata = tObject({
-  stack: tOptional(tArray(tType('StackFrame'))),
+  location: tOptional(tObject({
+    file: tString,
+    line: tOptional(tNumber),
+    column: tOptional(tNumber),
+  })),
   apiName: tOptional(tString),
   internal: tOptional(tBoolean),
+  wallTime: tOptional(tNumber),
+});
+scheme.ClientSideCallMetadata = tObject({
+  id: tNumber,
+  stack: tOptional(tArray(tType('StackFrame'))),
 });
 scheme.Point = tObject({
   x: tNumber,
@@ -211,6 +220,9 @@ scheme.LocalUtilsInitializer = tOptional(tObject({}));
 scheme.LocalUtilsZipParams = tObject({
   zipFile: tString,
   entries: tArray(tType('NameValue')),
+  stacksId: tOptional(tString),
+  mode: tEnum(['write', 'append']),
+  includeSources: tBoolean,
 });
 scheme.LocalUtilsZipResult = tOptional(tObject({}));
 scheme.LocalUtilsHarOpenParams = tObject({
@@ -256,6 +268,21 @@ scheme.LocalUtilsConnectParams = tObject({
 scheme.LocalUtilsConnectResult = tObject({
   pipe: tChannel(['JsonPipe']),
 });
+scheme.LocalUtilsTracingStartedParams = tObject({
+  tracesDir: tOptional(tString),
+  traceName: tString,
+});
+scheme.LocalUtilsTracingStartedResult = tObject({
+  stacksId: tString,
+});
+scheme.LocalUtilsAddStackToTracingNoReplyParams = tObject({
+  callData: tType('ClientSideCallMetadata'),
+});
+scheme.LocalUtilsAddStackToTracingNoReplyResult = tOptional(tObject({}));
+scheme.LocalUtilsTraceDiscardedParams = tObject({
+  stacksId: tString,
+});
+scheme.LocalUtilsTraceDiscardedResult = tOptional(tObject({}));
 scheme.RootInitializer = tOptional(tObject({}));
 scheme.RootInitializeParams = tObject({
   sdkLanguage: tEnum(['javascript', 'python', 'java', 'csharp']),
@@ -1586,7 +1613,6 @@ scheme.FrameExpectParams = tObject({
   expectedText: tOptional(tArray(tType('ExpectedTextValue'))),
   expectedNumber: tOptional(tNumber),
   expectedValue: tOptional(tType('SerializedArgument')),
-  viewportRatio: tOptional(tNumber),
   useInnerText: tOptional(tBoolean),
   isNot: tBoolean,
   timeout: tOptional(tNumber),
@@ -2081,15 +2107,18 @@ scheme.TracingTracingStartParams = tObject({
 });
 scheme.TracingTracingStartResult = tOptional(tObject({}));
 scheme.TracingTracingStartChunkParams = tObject({
+  name: tOptional(tString),
   title: tOptional(tString),
 });
-scheme.TracingTracingStartChunkResult = tOptional(tObject({}));
+scheme.TracingTracingStartChunkResult = tObject({
+  traceName: tString,
+});
 scheme.TracingTracingStopChunkParams = tObject({
-  mode: tEnum(['doNotSave', 'compressTrace', 'compressTraceAndSources']),
+  mode: tEnum(['archive', 'discard', 'entries']),
 });
 scheme.TracingTracingStopChunkResult = tObject({
   artifact: tOptional(tChannel(['Artifact'])),
-  sourceEntries: tOptional(tArray(tType('NameValue'))),
+  entries: tOptional(tArray(tType('NameValue'))),
 });
 scheme.TracingTracingStopParams = tOptional(tObject({}));
 scheme.TracingTracingStopResult = tOptional(tObject({}));

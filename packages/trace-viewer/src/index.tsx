@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import '@web/third_party/vscode/codicon.css';
-import { Workbench } from './ui/workbench';
-import * as React from 'react';
-import * as ReactDOM from 'react-dom';
-import { applyTheme } from '@web/theme';
 import '@web/common.css';
+import { applyTheme } from '@web/theme';
+import '@web/third_party/vscode/codicon.css';
+import React from 'react';
+import * as ReactDOM from 'react-dom';
+import { WorkbenchLoader } from './ui/workbenchLoader';
 
 (async () => {
   applyTheme();
@@ -37,5 +37,5 @@ import '@web/common.css';
     setInterval(function() { fetch('ping'); }, 10000);
   }
 
-  ReactDOM.render(<Workbench/>, document.querySelector('#root'));
+  ReactDOM.render(<WorkbenchLoader/>, document.querySelector('#root'));
 })();

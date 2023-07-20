@@ -14,12 +14,14 @@
   limitations under the License.
 */
 
+import React from 'react';
+
 export function msToString(ms: number): string {
   if (!isFinite(ms))
     return '-';
 
   if (ms === 0)
-    return '0ms';
+    return '0';
 
   if (ms < 1000)
     return ms.toFixed(0) + 'ms';
@@ -65,3 +67,54 @@ export function upperBound<S, T>(array: S[], object: T, comparator: (object: T, 
   }
   return r;
 }
+
+export function copy(text: string) {
+  const textArea = document.createElement('textarea');
+  textArea.style.position = 'absolute';
+  textArea.style.zIndex = '-1000';
+  textArea.value = text;
+  document.body.appendChild(textArea);
+  textArea.select();
+  document.execCommand('copy');
+  textArea.remove();
+}
+
+export function useSetting<S>(name: string, defaultValue: S): [S, React.Dispatch<React.SetStateAction<S>>] {
+  const value = settings.getObject(name, defaultValue);
+  const [state, setState] = React.useState<S>(value);
+  const setStateWrapper = (value: React.SetStateAction<S>) => {
+    settings.setObject(name, value);
+    setState(value);
+  };
+  return [state, setStateWrapper];
+}
+
+export class Settings {
+  getString(name: string, defaultValue: string): string {
+    return localStorage[name] || defaultValue;
+  }
+
+  setString(name: string, value: string) {
+    localStorage[name] = value;
+    if ((window as any).saveSettings)
+      (window as any).saveSettings();
+  }
+
+  getObject<T>(name: string, defaultValue: T): T {
+    if (!localStorage[name])
+      return defaultValue;
+    try {
+      return JSON.parse(localStorage[name]);
+    } catch {
+      return defaultValue;
+    }
+  }
+
+  setObject<T>(name: string, value: T) {
+    localStorage[name] = JSON.stringify(value);
+    if ((window as any).saveSettings)
+      (window as any).saveSettings();
+  }
+}
+
+export const settings = new Settings();

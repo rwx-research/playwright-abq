@@ -38,12 +38,12 @@ export class TracingDispatcher extends Dispatcher<Tracing, channels.TracingChann
   }
 
   async tracingStartChunk(params: channels.TracingTracingStartChunkParams): Promise<channels.TracingTracingStartChunkResult> {
-    await this._object.startChunk(params);
+    return await this._object.startChunk(params);
   }
 
   async tracingStopChunk(params: channels.TracingTracingStopChunkParams): Promise<channels.TracingTracingStopChunkResult> {
-    const { artifact, sourceEntries } = await this._object.stopChunk(params);
-    return { artifact: artifact ? ArtifactDispatcher.from(this, artifact) : undefined, sourceEntries };
+    const { artifact, entries } = await this._object.stopChunk(params);
+    return { artifact: artifact ? ArtifactDispatcher.from(this, artifact) : undefined, entries };
   }
 
   async tracingStop(params: channels.TracingTracingStopParams): Promise<channels.TracingTracingStopResult> {

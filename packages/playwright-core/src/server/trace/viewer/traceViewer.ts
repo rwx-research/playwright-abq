@@ -20,20 +20,29 @@ import * as consoleApiSource from '../../../generated/consoleApiSource';
 import { HttpServer } from '../../../utils/httpServer';
 import { findChromiumChannel } from '../../registry';
 import { isUnderTest } from '../../../utils';
-import type { BrowserContext } from '../../browserContext';
 import { installAppIcon, syncLocalStorageWithSettings } from '../../chromium/crApp';
 import { serverSideCallMetadata } from '../../instrumentation';
 import { createPlaywright } from '../../playwright';
 import { ProgressController } from '../../progress';
+import type { Page } from '../../page';
 
-export async function showTraceViewer(traceUrls: string[], browserName: string, { headless = false, host, port }: { headless?: boolean, host?: string, port?: number }): Promise<BrowserContext | undefined> {
+type Options = { app?: string, headless?: boolean, host?: string, port?: number };
+
+export async function showTraceViewer(traceUrls: string[], browserName: string, options?: Options): Promise<Page> {
+  const { headless = false, host, port, app } = options || {};
   for (const traceUrl of traceUrls) {
-    if (!traceUrl.startsWith('http://') && !traceUrl.startsWith('https://') && !fs.existsSync(traceUrl)) {
+    let traceFile = traceUrl;
+    // If .json is requested, we'll synthesize it.
+    if (traceUrl.endsWith('.json'))
+      traceFile = traceUrl.substring(0, traceUrl.length - '.json'.length);
+
+    if (!traceUrl.startsWith('http://') && !traceUrl.startsWith('https://') && !fs.existsSync(traceFile) && !fs.existsSync(traceFile + '.trace')) {
       // eslint-disable-next-line no-console
       console.error(`Trace file ${traceUrl} does not exist!`);
       process.exit(1);
     }
   }
+
   const server = new HttpServer();
   server.routePrefix('/trace', (request, response) => {
     const url = new URL('http://localhost' + request.url!);
@@ -42,7 +51,18 @@ export async function showTraceViewer(traceUrls: string[], browserName: string, 
       return true;
     if (relativePath.startsWith('/file')) {
       try {
-        return server.serveFile(request, response, url.searchParams.get('path')!);
+        const filePath = url.searchParams.get('path')!;
+        if (fs.existsSync(filePath))
+          return server.serveFile(request, response, url.searchParams.get('path')!);
+
+        // If .json is requested, we'll synthesize it for zip-less operation.
+        if (filePath.endsWith('.json')) {
+          const traceName = filePath.substring(0, filePath.length - '.json'.length);
+          response.statusCode = 200;
+          response.setHeader('Content-Type', 'application/json');
+          response.end(JSON.stringify(traceDescriptor(traceName)));
+          return true;
+        }
       } catch (e) {
         return false;
       }
@@ -60,8 +80,6 @@ export async function showTraceViewer(traceUrls: string[], browserName: string, 
     '--window-size=1280,800',
     '--test-type=',
   ] : [];
-  if (isUnderTest())
-    args.push(`--remote-debugging-port=0`);
 
   const context = await traceViewerPlaywright[traceViewerBrowser as 'chromium'].launchPersistentContext(serverSideCallMetadata(), '', {
     // TODO: store language in the trace.
@@ -71,7 +89,7 @@ export async function showTraceViewer(traceUrls: string[], browserName: string, 
     ignoreDefaultArgs: ['--enable-automation'],
     headless,
     colorScheme: 'no-override',
-    useWebSocket: isUnderTest()
+    useWebSocket: isUnderTest(),
   });
 
   const controller = new ProgressController(serverSideCallMetadata(), context._browser);
@@ -81,9 +99,13 @@ export async function showTraceViewer(traceUrls: string[], browserName: string, 
   await context.extendInjectedScript(consoleApiSource.source);
   const [page] = context.pages();
 
+  if (process.env.PWTEST_PRINT_WS_ENDPOINT)
+    process.stderr.write('DevTools listening on: ' + context._browser.options.wsEndpoint + '\n');
+
   if (traceViewerBrowser === 'chromium')
     await installAppIcon(page);
-  await syncLocalStorageWithSettings(page, 'traceviewer');
+  if (!isUnderTest())
+    await syncLocalStorageWithSettings(page, 'traceviewer');
 
   const params = traceUrls.map(t => `trace=${t}`);
   if (isUnderTest()) {
@@ -94,6 +116,27 @@ export async function showTraceViewer(traceUrls: string[], browserName: string, 
   }
 
   const searchQuery = params.length ? '?' + params.join('&') : '';
-  await page.mainFrame().goto(serverSideCallMetadata(), urlPrefix + `/trace/index.html${searchQuery}`);
-  return context;
+  await page.mainFrame().goto(serverSideCallMetadata(), urlPrefix + `/trace/${app || 'index.html'}${searchQuery}`);
+  return page;
+}
+
+function traceDescriptor(traceName: string) {
+  const result: { entries: { name: string, path: string }[] } = {
+    entries: []
+  };
+
+  const traceDir = path.dirname(traceName);
+  const traceFile = path.basename(traceName);
+  for (const name of fs.readdirSync(traceDir)) {
+    // 23423423.trace => 23423423-trace.trace
+    if (name.startsWith(traceFile))
+      result.entries.push({ name: name.replace(traceFile, traceFile + '-trace'), path: path.join(traceDir, name) });
+  }
+
+  const resourcesDir = path.join(traceDir, 'resources');
+  if (fs.existsSync(resourcesDir)) {
+    for (const name of fs.readdirSync(resourcesDir))
+      result.entries.push({ name: 'resources/' + name, path: path.join(resourcesDir, name) });
+  }
+  return result;
 }

@@ -26,6 +26,7 @@ import type { FullConfigInternal } from '../common/types';
 import { colors } from 'playwright-core/lib/utilsBundle';
 import { runWatchModeLoop } from './watchMode';
 import * as Abq from './abq';
+import { runUIMode } from './uiMode';
 
 export class Runner {
   private _config: FullConfigInternal;
@@ -65,7 +66,7 @@ export class Runner {
     webServerPluginsForConfig(config).forEach(p => config._internal.plugins.push({ factory: p }));
 
     const reporter = await createReporter(config, configuredListOnly ? 'list' : 'run');
-    const taskRunner = effectiveListOnly ? createTaskRunnerForList(config, reporter)
+    const taskRunner = effectiveListOnly ? createTaskRunnerForList(config, reporter, 'in-process')
       : createTaskRunner(config, reporter);
 
     const context: TaskRunnerState = {
@@ -105,6 +106,12 @@ export class Runner {
     const config = this._config;
     webServerPluginsForConfig(config).forEach(p => config._internal.plugins.push({ factory: p }));
     return await runWatchModeLoop(config);
+  }
+
+  async uiAllTests(): Promise<FullResult['status']> {
+    const config = this._config;
+    webServerPluginsForConfig(config).forEach(p => config._internal.plugins.push({ factory: p }));
+    return await runUIMode(config);
   }
 }
 
