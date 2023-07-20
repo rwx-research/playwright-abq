@@ -24,13 +24,13 @@ import { Dispatcher, EnvByProjectId } from "../dispatcher";
 import { getAbqSocket } from ".";
 import { FullConfigInternal } from "../../common/config";
 import { TestGroup } from "../testGroups";
-import {Multiplexer} from "../../reporters/multiplexer";
+import { InternalReporter } from "../../reporters/internalReporter";
 
 export class AbqDispatcher extends Dispatcher {
   private _abqSocket: Socket;
   private _queueIndexedByTestId!: Map<string, TestGroup>;
 
-  constructor(config: FullConfigInternal, reporter: Multiplexer) {
+  constructor(config: FullConfigInternal, reporter: InternalReporter) {
     super(config, reporter);
     this._abqSocket = getAbqSocket();
   }

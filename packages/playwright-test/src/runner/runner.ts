@@ -19,13 +19,14 @@ import { monotonicTime } from 'playwright-core/lib/utils';
 import type { FullResult } from '../../types/testReporter';
 import { webServerPluginsForConfig } from '../plugins/webServerPlugin';
 import { collectFilesForProject, filterProjects } from './projectUtils';
-import { createReporter } from './reporters';
+import { createReporters } from './reporters';
 import { TestRun, createTaskRunner, createTaskRunnerForList } from './tasks';
 import type { FullConfigInternal } from '../common/config';
 import { colors } from 'playwright-core/lib/utilsBundle';
 import { runWatchModeLoop } from './watchMode';
 import * as Abq from './abq';
 import { runUIMode } from './uiMode';
+import { InternalReporter } from '../reporters/internalReporter';
 
 export class Runner {
   private _config: FullConfigInternal;
@@ -35,13 +36,26 @@ export class Runner {
   }
 
   async listTestFiles(projectNames: string[] | undefined): Promise<any> {
+    type ProjectConfigWithFiles = {
+      name: string;
+      testDir: string;
+      use: { testIdAttribute?: string };
+      files: string[];
+    };
+
+    type ConfigListFilesReport = {
+      projects: ProjectConfigWithFiles[];
+    };
+
     const projects = filterProjects(this._config.projects, projectNames);
-    const report: any = {
+    const report: ConfigListFilesReport = {
       projects: []
     };
     for (const project of projects) {
       report.projects.push({
-        ...sanitizeConfigForJSON(project, new Set()),
+        name: project.project.name,
+        testDir: project.project.testDir,
+        use: { testIdAttribute: project.project.use.testIdAttribute },
         files: await collectFilesForProject(project)
       });
     }
@@ -64,8 +78,8 @@ export class Runner {
     // Legacy webServer support.
     webServerPluginsForConfig(config).forEach(p => config.plugins.push({ factory: p }));
 
-    const reporter = await createReporter(config, configuredListOnly ? 'list' : 'run');
-    const taskRunner = effectiveListOnly ? createTaskRunnerForList(config, reporter, 'in-process')
+    const reporter = new InternalReporter(await createReporters(config, configuredListOnly ? 'list' : 'run'));
+    const taskRunner = effectiveListOnly ? createTaskRunnerForList(config, reporter, 'in-process', { failOnLoadErrors: true })
       : createTaskRunner(config, reporter);
 
     const testRun = new TestRun(config, reporter);
@@ -107,33 +121,4 @@ export class Runner {
     webServerPluginsForConfig(config).forEach(p => config.plugins.push({ factory: p }));
     return await runUIMode(config);
   }
-}
-
-function sanitizeConfigForJSON(object: any, visited: Set<any>): any {
-  const type = typeof object;
-  if (type === 'function' || type === 'symbol')
-    return undefined;
-  if (!object || type !== 'object')
-    return object;
-
-  if (object instanceof RegExp)
-    return String(object);
-  if (object instanceof Date)
-    return object.toISOString();
-
-  if (visited.has(object))
-    return undefined;
-  visited.add(object);
-
-  if (Array.isArray(object))
-    return object.map(a => sanitizeConfigForJSON(a, visited));
-
-  const result: any = {};
-  const keys = Object.keys(object).slice(0, 100);
-  for (const key of keys) {
-    if (key.startsWith('_'))
-      continue;
-    result[key] = sanitizeConfigForJSON(object[key], visited);
-  }
-  return result;
 }
