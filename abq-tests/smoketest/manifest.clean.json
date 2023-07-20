@@ -42,9 +42,9 @@
   "native_runner_specification": {
     "type": "abq_native_runner_specification",
     "name": "playwright-abq",
-    "version": "1.30.0-next",
+    "version": "1.31.0",
     "test_framework": "playwright",
-    "test_framework_version": "1.30.0-next",
+    "test_framework_version": "1.31.0",
     "language": "javascript",
     "language_version": "STRIPPED",
     "host": "STRIPPED"
