@@ -28,6 +28,7 @@ import type { Suite } from '../common/test';
 import type { FullConfigInternal, FullProjectInternal } from '../common/types';
 import { collectProjectsAndTestFiles, createRootSuite, loadFileSuites, loadGlobalHook } from './loadUtils';
 import type { Matcher } from '../util';
+import * as Abq from './abq';
 
 const removeFolderAsync = promisify(rimraf);
 const readDirAsync = promisify(fs.readdir);
@@ -96,6 +97,10 @@ export function createTaskRunnerForList(config: FullConfigInternal, reporter: Mu
   const taskRunner = new TaskRunner<TaskRunnerState>(reporter, config.globalTimeout);
   taskRunner.addTask('load tests', createLoadTask(mode, false));
   taskRunner.addTask('report begin', async ({ reporter, rootSuite }) => {
+    if (Abq.shouldGenerateManifest()) {
+      Abq.sendManifest(rootSuite!);
+      return;
+    }
     reporter.onBegin?.(config, rootSuite!);
     return () => reporter.onEnd();
   });
@@ -164,6 +169,11 @@ function createLoadTask(mode: 'out-of-process' | 'in-process', shouldFilterOnly:
     // Fail when no tests.
     if (!context.rootSuite.allTests().length && !config._internal.passWithNoTests && !config.shard)
       throw new Error(`No tests found`);
+
+    const abqIncompatibilityErrors = Abq.checkForConfigurationIncompatibility(config, config._internal.cliProjectFilter ?? []);
+    if (abqIncompatibilityErrors.length) {
+      throw new Error(abqIncompatibilityErrors.join('\n'));
+    }
   };
 }
 
@@ -189,7 +199,8 @@ function createPhasesTask(): Task<TaskRunnerState> {
         processed.add(project);
       if (phaseProjects.length) {
         let testGroupsInPhase = 0;
-        const phase: Phase = { dispatcher: new Dispatcher(context.config, context.reporter), projects: [] };
+        const dispatcher = Abq.enabled() ? new Abq.AbqDispatcher(context.config, context.reporter) : new Dispatcher(context.config, context.reporter);
+        const phase: Phase = { dispatcher, projects: [] };
         context.phases.push(phase);
         for (const project of phaseProjects) {
           const projectSuite = projectToSuite.get(project)!;

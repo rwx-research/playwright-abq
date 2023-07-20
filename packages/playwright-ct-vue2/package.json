@@ -2,7 +2,7 @@
   "name": "@playwright/experimental-ct-vue2",
   "version": "1.32.3",
   "description": "Playwright Component Testing for Vue2",
-  "repository": "github:Microsoft/playwright",
+  "repository": "github:rwx-research/playwright",
   "homepage": "https://playwright.dev",
   "engines": {
     "node": ">=14"

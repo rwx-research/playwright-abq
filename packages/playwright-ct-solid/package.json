@@ -2,7 +2,7 @@
   "name": "@playwright/experimental-ct-solid",
   "version": "1.32.3",
   "description": "Playwright Component Testing for Solid",
-  "repository": "github:Microsoft/playwright",
+  "repository": "github:rwx-research/playwright",
   "homepage": "https://playwright.dev",
   "engines": {
     "node": ">=14"

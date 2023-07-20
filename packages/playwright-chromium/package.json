@@ -2,7 +2,7 @@
   "name": "playwright-chromium",
   "version": "1.32.3",
   "description": "A high-level API to automate Chromium",
-  "repository": "github:Microsoft/playwright",
+  "repository": "github:rwx-research/playwright",
   "homepage": "https://playwright.dev",
   "engines": {
     "node": ">=14"
