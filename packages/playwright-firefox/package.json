@@ -2,7 +2,7 @@
   "name": "playwright-firefox",
   "version": "1.35.1",
   "description": "A high-level API to automate Firefox",
-  "repository": "github:Microsoft/playwright",
+  "repository": "github:rwx-research/playwright",
   "homepage": "https://playwright.dev",
   "engines": {
     "node": ">=16"
