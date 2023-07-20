@@ -43,9 +43,9 @@ class PlaywrightClient {
       },
     });
     this._driverProcess.unref();
-    this._driverProcess.on('exit', this._onExit.bind(this));
+    this._driverProcess.stderr!.on('data', data => process.stderr.write(data));
 
-    const connection = new Connection();
+    const connection = new Connection(undefined, undefined);
     connection.markAsRemote();
     const transport = new PipeTransport(this._driverProcess.stdin!, this._driverProcess.stdout!);
     connection.onmessage = message => transport.send(JSON.stringify(message));
@@ -56,14 +56,9 @@ class PlaywrightClient {
   }
 
   async stop() {
-    this._driverProcess.removeListener('exit', this._onExit);
     this._driverProcess.stdin!.destroy();
     this._driverProcess.stdout!.destroy();
     this._driverProcess.stderr!.destroy();
     await this._closePromise;
-  }
-
-  private _onExit(exitCode: number | null, signal: string | null) {
-    throw new Error(`Server closed with exitCode=${exitCode} signal=${signal}`);
   }
 }

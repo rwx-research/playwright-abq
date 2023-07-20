@@ -16,8 +16,7 @@
  */
 
 import fs from 'fs';
-import http from 'http';
-import https from 'https';
+import type http from 'http';
 import mime from 'mime';
 import type net from 'net';
 import path from 'path';
@@ -25,6 +24,7 @@ import url from 'url';
 import util from 'util';
 import ws from 'ws';
 import zlib, { gzip } from 'zlib';
+import { createHttpServer, createHttpsServer } from '../../../packages/playwright-core/lib/utils/network';
 
 const fulfillSymbol = Symbol('fullfil callback');
 const rejectSymbol = Symbol('reject callback');
@@ -38,7 +38,6 @@ export class TestServer {
   readonly debugServer: any;
   private _startTime: Date;
   private _cachedPathPrefix: string | null;
-  private _sockets = new Set<net.Socket>();
   private _routes = new Map<string, (arg0: http.IncomingMessage, arg1: http.ServerResponse) => any>();
   private _auths = new Map<string, { username: string; password: string; }>();
   private _csp = new Map<string, string>();
@@ -68,9 +67,9 @@ export class TestServer {
 
   constructor(dirPath: string, port: number, loopback?: string, sslOptions?: object) {
     if (sslOptions)
-      this._server = https.createServer(sslOptions, this._onRequest.bind(this));
+      this._server = createHttpsServer(sslOptions, this._onRequest.bind(this));
     else
-      this._server = http.createServer(this._onRequest.bind(this));
+      this._server = createHttpServer(this._onRequest.bind(this));
     this._server.on('connection', socket => this._onSocket(socket));
     this._wsServer = new ws.WebSocketServer({ noServer: true });
     this._server.on('upgrade', async (request, socket, head) => {
@@ -109,14 +108,12 @@ export class TestServer {
   }
 
   _onSocket(socket: net.Socket) {
-    this._sockets.add(socket);
     // ECONNRESET and HPE_INVALID_EOF_STATE are legit errors given
     // that tab closing aborts outgoing connections to the server.
     socket.on('error', error => {
       if ((error as any).code !== 'ECONNRESET' && (error as any).code !== 'HPE_INVALID_EOF_STATE')
         throw error;
     });
-    socket.once('close', () => this._sockets.delete(socket));
   }
 
   enableHTTPCache(pathPrefix: string) {
@@ -142,9 +139,6 @@ export class TestServer {
 
   async stop() {
     this.reset();
-    for (const socket of this._sockets)
-      socket.destroy();
-    this._sockets.clear();
     await new Promise(x => this._server.close(x));
   }
 
@@ -227,7 +221,13 @@ export class TestServer {
       this.serveFile(request, response);
   }
 
-  async serveFile(request: http.IncomingMessage, response: http.ServerResponse, filePath?: string) {
+  serveFile(request: http.IncomingMessage, response: http.ServerResponse, filePath?: string): void {
+    this._serveFile(request, response, filePath).catch(e => {
+      this.debugServer(`error: ${e}`);
+    });
+  }
+
+  private async _serveFile(request: http.IncomingMessage, response: http.ServerResponse, filePath?: string): Promise<void> {
     let pathName = url.parse(request.url!).path;
     if (!filePath) {
       if (pathName === '/')
@@ -262,7 +262,7 @@ export class TestServer {
     if (err) {
       response.statusCode = 404;
       response.setHeader('Content-Type', 'text/plain');
-      response.end(`File not found: ${filePath}`);
+      response.end(request.method !== 'HEAD' ? `File not found: ${filePath}` : null);
       return;
     }
     const extension = filePath.substring(filePath.lastIndexOf('.') + 1);
@@ -275,9 +275,9 @@ export class TestServer {
       const result = await gzipAsync(data);
       // The HTTP transaction might be already terminated after async hop here.
       if (!response.writableEnded)
-        response.end(result);
+        response.end(request.method !== 'HEAD' ? result : null);
     } else {
-      response.end(data);
+      response.end(request.method !== 'HEAD' ? data : null);
     }
   }
 

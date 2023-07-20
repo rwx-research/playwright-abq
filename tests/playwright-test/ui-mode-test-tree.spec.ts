@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { test, expect, dumpTestTree } from './ui-mode-fixtures';
+import { test, expect, retries, dumpTestTree } from './ui-mode-fixtures';
 
-test.describe.configure({ mode: 'parallel' });
+test.describe.configure({ mode: 'parallel', retries });
 
 const basicTestTree = {
   'a.test.ts': `
@@ -200,7 +200,7 @@ test('should update parametrized tests', async ({ runUITest, writeFiles }) => {
             ◯ test LT
   `);
 
-  writeFiles({
+  await writeFiles({
     'a.test.ts': `
       import { test } from '@playwright/test';
       test.describe('cookies', () => {

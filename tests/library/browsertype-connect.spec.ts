@@ -17,7 +17,7 @@
 
 import fs from 'fs';
 import os from 'os';
-import http from 'http';
+import type http from 'http';
 import type net from 'net';
 import * as path from 'path';
 import { getUserAgent } from '../../packages/playwright-core/lib/utils/userAgent';
@@ -26,6 +26,7 @@ import { expect, playwrightTest } from '../config/browserTest';
 import { parseTrace, suppressCertificateWarning } from '../config/utils';
 import formidable from 'formidable';
 import type { Browser, ConnectOptions } from 'playwright-core';
+import { createHttpServer } from '../../packages/playwright-core/lib/utils/network';
 
 type ExtraFixtures = {
   connect: (wsEndpoint: string, options?: ConnectOptions, redirectPortForTest?: number) => Promise<Browser>,
@@ -48,7 +49,7 @@ const test = playwrightTest.extend<ExtraFixtures>({
   },
 
   dummyServerPort: async ({}, use) => {
-    const server = http.createServer((req: http.IncomingMessage, res: http.ServerResponse) => {
+    const server = createHttpServer((req: http.IncomingMessage, res: http.ServerResponse) => {
       res.end('<html><body>from-dummy-server</body></html>');
     });
     await new Promise<void>(resolve => server.listen(0, resolve));
@@ -58,7 +59,7 @@ const test = playwrightTest.extend<ExtraFixtures>({
 
   ipV6ServerPort: async ({}, use) => {
     test.skip(!!process.env.INSIDE_DOCKER, 'docker does not support IPv6 by default');
-    const server = http.createServer((req: http.IncomingMessage, res: http.ServerResponse) => {
+    const server = createHttpServer((req: http.IncomingMessage, res: http.ServerResponse) => {
       res.end('<html><body>from-ipv6-server</body></html>');
     });
     await new Promise<void>(resolve => server.listen(0, '::1', resolve));
@@ -154,6 +155,18 @@ for (const kind of ['launchServer', 'run-server'] as const) {
       await page.goto(ipV6Url);
       expect(await page.content()).toContain('from-ipv6-server');
       await browser.close();
+    });
+
+    test('should ignore page.pause when headed', async ({ connect, startRemoteServer, browserType }) => {
+      const headless = (browserType as any)._defaultLaunchOptions.headless;
+      (browserType as any)._defaultLaunchOptions.headless = false;
+      const remoteServer = await startRemoteServer(kind);
+      const browser = await connect(remoteServer.wsEndpoint());
+      const browserContext = await browser.newContext();
+      const page = await browserContext.newPage();
+      await page.pause();
+      await browser.close();
+      (browserType as any)._defaultLaunchOptions.headless = headless;
     });
 
     test('should be able to visit ipv6 through localhost', async ({ connect, startRemoteServer, ipV6ServerPort }) => {
@@ -457,7 +470,9 @@ for (const kind of ['launchServer', 'run-server'] as const) {
       expect(error.message).toContain('Path is not available when connecting remotely. Use saveAs() to save a local copy.');
     });
 
-    test('should be able to connect 20 times to a single server without warnings', async ({ connect, startRemoteServer }) => {
+    test('should be able to connect 20 times to a single server without warnings', async ({ connect, startRemoteServer, platform }) => {
+      test.skip(platform !== 'linux', 'Testing non-platform specific code');
+
       const remoteServer = await startRemoteServer(kind);
 
       let warning = null;
@@ -622,7 +637,7 @@ for (const kind of ['launchServer', 'run-server'] as const) {
       await page.route('**/*', async route => {
         const request = await playwright.request.newContext();
         const response = await request.get(server.PREFIX + '/simple.json');
-        route.fulfill({ response });
+        await route.fulfill({ response });
       });
       const response = await page.goto(server.EMPTY_PAGE);
       expect(response.status()).toBe(200);

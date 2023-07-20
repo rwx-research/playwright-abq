@@ -15,11 +15,11 @@
  */
 
 import { createImage } from './playwright-test-fixtures';
-import { test, expect } from './ui-mode-fixtures';
-test.describe.configure({ mode: 'parallel' });
+import { test, expect, retries } from './ui-mode-fixtures';
+
+test.describe.configure({ mode: 'parallel', retries });
 
 test('should merge trace events', async ({ runUITest, server }) => {
-  test.fixme(true, 'https://github.com/microsoft/playwright/issues/23114');
   const { page } = await runUITest({
     'a.test.ts': `
       import { test, expect } from '@playwright/test';
@@ -51,7 +51,6 @@ test('should merge trace events', async ({ runUITest, server }) => {
 });
 
 test('should merge web assertion events', async ({  runUITest }, testInfo) => {
-  test.fixme(process.platform === 'darwin' || process.platform === 'win32', 'https://github.com/microsoft/playwright/issues/23114');
   const { page } = await runUITest({
     'a.test.ts': `
       import { test, expect } from '@playwright/test';
@@ -98,9 +97,12 @@ test('should merge screenshot assertions', async ({  runUITest }, testInfo) => {
       'action list'
   ).toHaveText([
     /Before Hooks[\d.]+m?s/,
-    /page\.setContent[\d.]+m?s/,
-    /expect\.toHaveScreenshot[\d.]+m?s/,
-    /After Hooks/,
+    /page.setContent[\d.]+m?s/,
+    /expect.toHaveScreenshot[\d.]+m?s/,
+    /attach "trace-test-1-actual\.png"[\d.]+m?s/,
+    /After Hooks[\d.]+m?s/,
+    /fixture: page[\d.]+m?s/,
+    /fixture: context[\d.]+m?s/,
   ]);
 });
 
@@ -124,7 +126,6 @@ test('should locate sync assertions in source', async ({ runUITest, server }) =>
 });
 
 test('should show snapshots for sync assertions', async ({ runUITest, server }) => {
-  test.fixme(true, 'https://github.com/microsoft/playwright/issues/23114');
   const { page } = await runUITest({
     'a.test.ts': `
       import { test, expect } from '@playwright/test';
@@ -181,4 +182,27 @@ test('should show image diff', async ({ runUITest, server }) => {
   await expect(page.getByText('Actual', { exact: true })).toBeVisible();
   await expect(page.getByText('Expected', { exact: true })).toBeVisible();
   await expect(page.locator('.image-diff-view .image-wrapper img')).toBeVisible();
+});
+
+test('should show screenshot', async ({ runUITest, server }) => {
+  const { page } = await runUITest({
+    'playwright.config.js': `
+      module.exports = {
+        use: {
+          screenshot: 'on',
+          viewport: { width: 100, height: 100 }
+        }
+      };
+    `,
+    'a.test.ts': `
+      import { test, expect } from '@playwright/test';
+      test('vrt test', async ({ page }) => {
+      });
+    `,
+  });
+
+  await page.getByText('vrt test').dblclick();
+  await page.getByText(/Attachments/).click();
+  await expect(page.getByText('Screenshots', { exact: true })).toBeVisible();
+  await expect(page.locator('.attachment-item img')).toHaveCount(1);
 });

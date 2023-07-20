@@ -279,7 +279,7 @@ it.describe('download event', () => {
     const page = await browser.newPage();
     const onDownloadPath = new Promise<string>(res => {
       page.on('download', dl => {
-        dl.path().then(res);
+        void dl.path().then(res);
       });
     });
     await page.setContent(`<a href="${server.PREFIX}/download">download</a>`);
@@ -293,7 +293,7 @@ it.describe('download event', () => {
     const page = await browser.newPage();
     const onDownloadPath = new Promise<string>(res => {
       page.on('download', dl => {
-        dl.path().then(res);
+        void dl.path().then(res);
       });
     });
     await page.goto(server.PREFIX + '/download-blob.html');
@@ -635,7 +635,7 @@ it('should be able to download a inline PDF file via response interception', asy
 });
 
 it('should be able to download a inline PDF file via navigation', async ({ browser, server, asset, browserName, headless }) => {
-  it.fixme((!headless && browserName === 'chromium'));
+  it.fixme(((!headless || !!process.env.PLAYWRIGHT_CHROMIUM_USE_HEADLESS_NEW) && browserName === 'chromium'));
   const page = await browser.newPage();
   await page.goto(server.EMPTY_PAGE);
   await page.setContent(`
@@ -730,7 +730,7 @@ async function assertDownloadToPDF(download: Download, filePath: string) {
   assertBuffer(data, fs.readFileSync(filePath));
 }
 
-async function assertBuffer(expected: Buffer, actual: Buffer) {
+function assertBuffer(expected: Buffer, actual: Buffer) {
   expect(expected.byteLength).toBe(actual.byteLength);
   for (let i = 0; i < expected.byteLength; i++)
     expect(expected[i]).toBe(actual[i]);

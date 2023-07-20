@@ -17,7 +17,7 @@
 
 import { test as it, expect } from './pageTest';
 import type { Frame } from 'playwright-core';
-import type { TestServer } from '../../utils/testserver';
+import type { TestServer } from '../config/testserver';
 
 it('should navigate to empty page with networkidle', async ({ page, server }) => {
   const response = await page.goto(server.EMPTY_PAGE, { waitUntil: 'networkidle' });
@@ -47,7 +47,7 @@ async function networkIdleTest(frame: Frame, server: TestServer, action: () => P
 
   // Track when the action gets completed.
   let actionFinished = false;
-  actionPromise.then(() => actionFinished = true);
+  void actionPromise.then(() => actionFinished = true);
 
   // Wait for the frame's 'load' event.
   await waitForLoadPromise;
@@ -98,7 +98,7 @@ it('should wait for networkidle to succeed navigation with request from previous
 it('should wait for networkidle in waitForNavigation', async ({ page, server }) => {
   await networkIdleTest(page.mainFrame(), server, () => {
     const promise = page.waitForNavigation({ waitUntil: 'networkidle' });
-    page.goto(server.PREFIX + '/networkidle.html');
+    void page.goto(server.PREFIX + '/networkidle.html');
     return promise;
   });
 });
@@ -182,7 +182,7 @@ it('should work after repeated navigations in the same page', async ({ page, ser
 
   let requestCount = 0;
   await page.route('**/empty.html', route => {
-    route.fulfill({
+    void route.fulfill({
       contentType: 'text/html',
       body: `
         <script>
@@ -193,7 +193,7 @@ it('should work after repeated navigations in the same page', async ({ page, ser
 
   await page.route('**/sample', route => {
     requestCount++;
-    route.fulfill({
+    void route.fulfill({
       contentType: 'application/json',
       body: JSON.stringify({
         content: 'sample'

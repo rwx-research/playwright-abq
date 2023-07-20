@@ -106,7 +106,7 @@ var texts = await page.GetByRole(AriaRole.Link).AllTextContentsAsync();
 
 
 ## method: Locator.and
-* since: v1.33
+* since: v1.34
 * langs:
   - alias-python: and_
 - returns: <[Locator]>
@@ -138,7 +138,7 @@ var button = page.GetByRole(AriaRole.Button).And(page.GetByTitle("Subscribe"));
 ```
 
 ### param: Locator.and.locator
-* since: v1.33
+* since: v1.34
 - `locator` <[Locator]>
 
 Additional locator to match.
@@ -1488,11 +1488,11 @@ const banana = await page.getByRole('listitem').last();
 ```
 
 ```python async
-banana = await page.get_by_role("listitem").last()
+banana = await page.get_by_role("listitem").last
 ```
 
 ```python sync
-banana = page.get_by_role("listitem").last()
+banana = page.get_by_role("listitem").last
 ```
 
 ```java
@@ -1767,6 +1767,9 @@ Returns the buffer with the captured screenshot.
 
 ### option: Locator.screenshot.timeout = %%-input-timeout-js-%%
 * since: v1.14
+
+### option: Locator.screenshot.maskColor = %%-screenshot-option-mask-color-%%
+* since: v1.34
 
 ## async method: Locator.scrollIntoViewIfNeeded
 * since: v1.14

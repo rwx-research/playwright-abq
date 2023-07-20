@@ -18,7 +18,7 @@ import { colors, rimraf } from 'playwright-core/lib/utilsBundle';
 import util from 'util';
 import { debugTest, formatLocation, relativeFilePath, serializeError } from '../util';
 import type { TestBeginPayload, TestEndPayload, RunPayload, DonePayload, WorkerInitParams, TeardownErrorsPayload, TestOutputPayload } from '../common/ipc';
-import { setCurrentTestInfo, setIsWorkerProcess, currentTestInstrumentation } from '../common/globals';
+import { setCurrentTestInfo, setIsWorkerProcess } from '../common/globals';
 import { ConfigLoader } from '../common/configLoader';
 import type { Suite, TestCase } from '../common/test';
 import type { Annotation, FullConfigInternal, FullProjectInternal } from '../common/config';
@@ -30,7 +30,6 @@ import { ProcessRunner } from '../common/process';
 import { loadTestFile } from '../common/testLoader';
 import { buildFileSuiteForProject, filterTestsRemoveEmptySuites } from '../common/suiteUtils';
 import { PoolBuilder } from '../common/poolBuilder';
-import { addToCompilationCache } from '../common/compilationCache';
 import type { TestInfoError } from '../../types/test';
 
 const removeFolderAsync = util.promisify(rimraf);
@@ -67,7 +66,6 @@ export class WorkerMain extends ProcessRunner {
     process.env.TEST_WORKER_INDEX = String(params.workerIndex);
     process.env.TEST_PARALLEL_INDEX = String(params.parallelIndex);
     setIsWorkerProcess();
-    addToCompilationCache(params.config.compilationCache);
 
     this._params = params;
     this._fixtureRunner = new FixtureRunner();
@@ -183,7 +181,7 @@ export class WorkerMain extends ProcessRunner {
       if (!this._fatalErrors.length)
         this._fatalErrors.push(serializeError(error));
     }
-    this._stop();
+    void this._stop();
   }
 
   private async _loadIfNeeded() {
@@ -222,14 +220,14 @@ export class WorkerMain extends ProcessRunner {
         }
       } else {
         fatalUnknownTestIds = runPayload.entries.map(e => e.testId);
-        this._stop();
+        void this._stop();
       }
     } catch (e) {
       // In theory, we should run above code without any errors.
       // However, in the case we screwed up, or loadTestFile failed in the worker
       // but not in the runner, let's do a fatal error.
       this._fatalErrors.push(serializeError(e));
-      this._stop();
+      void this._stop();
     } finally {
       const donePayload: DonePayload = {
         fatalErrors: this._fatalErrors,
@@ -250,7 +248,8 @@ export class WorkerMain extends ProcessRunner {
   private async _runTest(test: TestCase, retry: number, nextTest: TestCase | undefined) {
     const testInfo = new TestInfoImpl(this._config, this._project, this._params, test, retry,
         stepBeginPayload => this.dispatchEvent('stepBegin', stepBeginPayload),
-        stepEndPayload => this.dispatchEvent('stepEnd', stepEndPayload));
+        stepEndPayload => this.dispatchEvent('stepEnd', stepEndPayload),
+        attachment => this.dispatchEvent('attach', attachment));
 
     const processAnnotation = (annotation: Annotation) => {
       testInfo.annotations.push(annotation);
@@ -320,14 +319,14 @@ export class WorkerMain extends ProcessRunner {
         return;
       }
 
+      await removeFolderAsync(testInfo.outputDir).catch(() => {});
+
       let testFunctionParams: object | null = null;
       await testInfo._runAsStep({ category: 'hook', title: 'Before Hooks' }, async step => {
         testInfo._beforeHooksStep = step;
         // Note: wrap all preparation steps together, because failure/skip in any of them
         // prevents further setup and/or test from running.
         const beforeHooksError = await testInfo._runAndFailOnError(async () => {
-          await currentTestInstrumentation()?.willStartTest(testInfo);
-
           // Run "beforeAll" modifiers on parent suites, unless already run during previous tests.
           for (const suite of suites) {
             if (this._extraSuiteAnnotations.has(suite))
@@ -401,7 +400,7 @@ export class WorkerMain extends ProcessRunner {
 
         // Run "immediately upon test function finish" callback.
         debugTest(`on-test-function-finish callback started`);
-        const didFinishTestFunctionError = await testInfo._runAndFailOnError(async () => await currentTestInstrumentation()?.didFinishTestFunction(testInfo));
+        const didFinishTestFunctionError = await testInfo._runAndFailOnError(async () => testInfo._onDidFinishTestFunction?.());
         firstAfterHooksError = firstAfterHooksError || didFinishTestFunctionError;
         debugTest(`on-test-function-finish callback finished`);
 
@@ -468,8 +467,6 @@ export class WorkerMain extends ProcessRunner {
         step.complete({ error: firstAfterHooksError });
     });
 
-    await testInfo._runAndFailOnError(async () => await currentTestInstrumentation()?.didFinishTest(testInfo));
-
     this._currentTest = null;
     setCurrentTestInfo(null);
     this.dispatchEvent('testEnd', buildTestEndPayload(testInfo));
@@ -477,7 +474,7 @@ export class WorkerMain extends ProcessRunner {
     const preserveOutput = this._config.config.preserveOutput === 'always' ||
       (this._config.config.preserveOutput === 'failures-only' && testInfo._isFailure());
     if (!preserveOutput)
-      await removeFolderAsync(testInfo.outputDir).catch(e => {});
+      await removeFolderAsync(testInfo.outputDir).catch(() => {});
   }
 
   private async _runModifiersForSuite(suite: Suite, testInfo: TestInfoImpl, scope: 'worker' | 'test', timeSlot: TimeSlot | undefined, extraAnnotations?: Annotation[]) {
@@ -605,12 +602,6 @@ function buildTestEndPayload(testInfo: TestInfoImpl): TestEndPayload {
     expectedStatus: testInfo.expectedStatus,
     annotations: testInfo.annotations,
     timeout: testInfo.timeout,
-    attachments: testInfo.attachments.map(a => ({
-      name: a.name,
-      contentType: a.contentType,
-      path: a.path,
-      body: a.body?.toString('base64')
-    }))
   };
 }
 

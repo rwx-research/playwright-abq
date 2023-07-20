@@ -18,7 +18,7 @@ import fs from 'fs';
 import path from 'path';
 import { captureRawStack, createAfterActionTraceEventForStep, createBeforeActionTraceEventForStep, monotonicTime, zones } from 'playwright-core/lib/utils';
 import type { TestInfoError, TestInfo, TestStatus, FullProject, FullConfig } from '../../types/test';
-import type { StepBeginPayload, StepEndPayload, WorkerInitParams } from '../common/ipc';
+import type { AttachmentPayload, StepBeginPayload, StepEndPayload, WorkerInitParams } from '../common/ipc';
 import type { TestCase } from '../common/test';
 import { TimeoutManager } from './timeoutManager';
 import type { Annotation, FullConfigInternal, FullProjectInternal } from '../common/config';
@@ -39,11 +39,13 @@ export interface TestStepInternal {
   apiName?: string;
   params?: Record<string, any>;
   error?: TestInfoError;
+  insulateChildErrors?: boolean;
 }
 
 export class TestInfoImpl implements TestInfo {
   private _onStepBegin: (payload: StepBeginPayload) => void;
   private _onStepEnd: (payload: StepEndPayload) => void;
+  private _onAttach: (payload: AttachmentPayload) => void;
   readonly _test: TestCase;
   readonly _timeoutManager: TimeoutManager;
   readonly _startTime: number;
@@ -58,6 +60,7 @@ export class TestInfoImpl implements TestInfo {
   readonly _steps: TestStepInternal[] = [];
   _beforeHooksStep: TestStepInternal | undefined;
   _afterHooksStep: TestStepInternal | undefined;
+  _onDidFinishTestFunction: (() => Promise<void>) | undefined;
 
   // ------------ TestInfo fields ------------
   readonly testId: string;
@@ -84,6 +87,7 @@ export class TestInfoImpl implements TestInfo {
   readonly outputDir: string;
   readonly snapshotDir: string;
   errors: TestInfoError[] = [];
+  private _attachmentsPush: (...items: TestInfo['attachments']) => number;
 
   get error(): TestInfoError | undefined {
     return this.errors[0];
@@ -111,11 +115,13 @@ export class TestInfoImpl implements TestInfo {
     retry: number,
     onStepBegin: (payload: StepBeginPayload) => void,
     onStepEnd: (payload: StepEndPayload) => void,
+    onAttach: (payload: AttachmentPayload) => void,
   ) {
     this._test = test;
     this.testId = test.id;
     this._onStepBegin = onStepBegin;
     this._onStepEnd = onStepEnd;
+    this._onAttach = onAttach;
     this._startTime = monotonicTime();
     this._startWallTime = Date.now();
 
@@ -156,6 +162,13 @@ export class TestInfoImpl implements TestInfo {
       const relativeTestFilePath = path.relative(this.project.testDir, test._requireFile);
       return path.join(this.project.snapshotDir, relativeTestFilePath + '-snapshots');
     })();
+
+    this._attachmentsPush = this.attachments.push.bind(this.attachments);
+    this.attachments.push = (...attachments: TestInfo['attachments']) => {
+      for (const a of attachments)
+        this._attach(a.name, a);
+      return this.attachments.length;
+    };
   }
 
   private _modifier(type: 'skip' | 'fail' | 'fixme' | 'slow', modifierArgs: [arg?: any, description?: string]) {
@@ -215,7 +228,7 @@ export class TestInfoImpl implements TestInfo {
   }
 
   _addStep(data: Omit<TestStepInternal, 'complete' | 'stepId' | 'steps'>, parentStep?: TestStepInternal): TestStepInternal {
-    const stepId = `${data.category}@${data.title}@${++this._lastStepId}`;
+    const stepId = `${data.category}@${++this._lastStepId}`;
     if (!parentStep)
       parentStep = zones.zoneData<TestStepInternal>('stepZone', captureRawStack()) || undefined;
 
@@ -251,7 +264,7 @@ export class TestInfoImpl implements TestInfo {
         } else if (result.error) {
           // Internal API step reported an error.
           error = result.error;
-        } else {
+        } else if (!data.insulateChildErrors) {
           // One of the child steps failed (probably soft expect).
           // Report this step as failed to make it easier to spot.
           error = step.steps.map(s => s.error).find(e => !!e);
@@ -331,13 +344,28 @@ export class TestInfoImpl implements TestInfo {
   // ------------ TestInfo methods ------------
 
   async attach(name: string, options: { path?: string, body?: string | Buffer, contentType?: string } = {}) {
+    this._attach(name, await normalizeAndSaveAttachment(this.outputPath(), name, options));
+  }
+
+  private _attach(name: string, attachment: TestInfo['attachments'][0]) {
     const step = this._addStep({
-      title: `attach  "${name}"`,
+      title: `attach "${name}"`,
       category: 'attach',
       wallTime: Date.now(),
     });
-    this.attachments.push(await normalizeAndSaveAttachment(this.outputPath(), name, options));
+    this._attachWithoutStep(attachment);
     step.complete({});
+  }
+
+  _attachWithoutStep(attachment: TestInfo['attachments'][0]) {
+    this._attachmentsPush(attachment);
+    this._onAttach({
+      testId: this._test.id,
+      name: attachment.name,
+      contentType: attachment.contentType,
+      path: attachment.path,
+      body: attachment.body?.toString('base64')
+    });
   }
 
   outputPath(...pathSegments: string[]){
@@ -399,7 +427,7 @@ export class TestInfoImpl implements TestInfo {
 }
 
 function serializeAttachments(attachments: TestInfo['attachments'], initialAttachments: Set<TestInfo['attachments'][0]>): trace.AfterActionTraceEvent['attachments'] {
-  return attachments.filter(a => !initialAttachments.has(a)).map(a => {
+  return attachments.filter(a => a.name !== 'trace' && !initialAttachments.has(a)).map(a => {
     return {
       name: a.name,
       contentType: a.contentType,

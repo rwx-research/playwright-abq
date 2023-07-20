@@ -37,6 +37,10 @@ export type SourceModel = {
   content: string | undefined;
 };
 
+export type ActionTraceEventInContext = ActionTraceEvent & {
+  context: ContextEntry;
+};
+
 export class MultiTraceModel {
   readonly startTime: number;
   readonly endTime: number;
@@ -46,7 +50,7 @@ export class MultiTraceModel {
   readonly title?: string;
   readonly options: trace.BrowserContextEventOptions;
   readonly pages: PageEntry[];
-  readonly actions: trace.ActionTraceEvent[];
+  readonly actions: ActionTraceEventInContext[];
   readonly events: trace.EventTraceEvent[];
   readonly hasSource: boolean;
   readonly sdkLanguage: Language | undefined;
@@ -82,14 +86,20 @@ function indexModel(context: ContextEntry) {
   for (let i = 0; i < context.actions.length; ++i) {
     const action = context.actions[i] as any;
     action[contextSymbol] = context;
-    action[nextInContextSymbol] = context.actions[i + 1];
+  }
+  let lastNonRouteAction = undefined;
+  for (let i = context.actions.length - 1; i >= 0; i--) {
+    const action = context.actions[i] as any;
+    action[nextInContextSymbol] = lastNonRouteAction;
+    if (!action.apiName.includes('route.'))
+      lastNonRouteAction = action;
   }
   for (const event of context.events)
     (event as any)[contextSymbol] = context;
 }
 
 function mergeActions(contexts: ContextEntry[]) {
-  const map = new Map<string, ActionTraceEvent>();
+  const map = new Map<string, ActionTraceEventInContext>();
 
   // Protocol call aka isPrimary contexts have startTime/endTime as server-side times.
   // Step aka non-isPrimary contexts have startTime/endTime are client-side times.
@@ -100,11 +110,12 @@ function mergeActions(contexts: ContextEntry[]) {
 
   for (const context of primaryContexts) {
     for (const action of context.actions)
-      map.set(`${action.apiName}@${action.wallTime}`, action);
+      map.set(`${action.apiName}@${action.wallTime}`, { ...action, context });
     if (!offset && context.actions.length)
       offset = context.actions[0].startTime - context.actions[0].wallTime;
   }
 
+  const nonPrimaryIdToPrimaryId = new Map<string, string>();
   for (const context of nonPrimaryContexts) {
     for (const action of context.actions) {
       if (offset) {
@@ -118,15 +129,16 @@ function mergeActions(contexts: ContextEntry[]) {
       const key = `${action.apiName}@${action.wallTime}`;
       const existing = map.get(key);
       if (existing && existing.apiName === action.apiName) {
+        nonPrimaryIdToPrimaryId.set(action.callId, existing.callId);
         if (action.error)
           existing.error = action.error;
         if (action.attachments)
           existing.attachments = action.attachments;
         if (action.parentId)
-          existing.parentId = action.parentId;
+          existing.parentId = nonPrimaryIdToPrimaryId.get(action.parentId) ?? action.parentId;
         continue;
       }
-      map.set(key, action);
+      map.set(key, { ...action, context });
     }
   }
 

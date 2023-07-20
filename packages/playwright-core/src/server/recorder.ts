@@ -25,6 +25,7 @@ import { Frame } from './frames';
 import { BrowserContext } from './browserContext';
 import { JavaLanguageGenerator } from './recorder/java';
 import { JavaScriptLanguageGenerator } from './recorder/javascript';
+import { JsonlLanguageGenerator } from './recorder/jsonl';
 import { CSharpLanguageGenerator } from './recorder/csharp';
 import { PythonLanguageGenerator } from './recorder/python';
 import * as recorderSource from '../generated/recorderSource';
@@ -241,7 +242,7 @@ export class Recorder implements InstrumentationListener {
 
   private _refreshOverlay() {
     for (const page of this._context.pages())
-      page.mainFrame().evaluateExpression('window.__pw_refreshOverlay()', false, undefined, 'main').catch(() => {});
+      page.mainFrame().evaluateExpression('window.__pw_refreshOverlay()').catch(() => {});
   }
 
   async onBeforeCall(sdkObject: SdkObject, metadata: CallMetadata) {
@@ -357,7 +358,7 @@ class ContextRecorder extends EventEmitter {
     this._context = context;
     this._params = params;
     this._recorderSources = [];
-    const language = params.language || context._browser.options.sdkLanguage;
+    const language = params.language || context.attribution.playwright.options.sdkLanguage;
     this.setOutput(language, params.outputFile);
     const generator = new CodeGenerator(context._browser.options.name, params.mode === 'recording', params.launchOptions || {}, params.contextOptions || {}, params.device, params.saveStorage);
     generator.on('change', () => {
@@ -406,6 +407,7 @@ class ContextRecorder extends EventEmitter {
       new CSharpLanguageGenerator('mstest'),
       new CSharpLanguageGenerator('nunit'),
       new CSharpLanguageGenerator('library'),
+      new JsonlLanguageGenerator(),
     ]);
     const primaryLanguage = [...languages].find(l => l.id === codegenId);
     if (!primaryLanguage)

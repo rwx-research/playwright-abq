@@ -25,10 +25,10 @@ import { createFileMatcherFromArguments, createFileFiltersFromArguments, createT
 import type { Matcher, TestFileFilter } from '../util';
 import { buildProjectsClosure, collectFilesForProject, filterProjects } from './projectUtils';
 import type { TestRun } from './tasks';
-import { requireOrImport } from '../common/transform';
+import { requireOrImport } from '../transform/transform';
 import { buildFileSuiteForProject, filterByFocusedLine, filterByTestIds, filterOnly, filterTestsRemoveEmptySuites } from '../common/suiteUtils';
 import { createTestGroups, filterForShard, type TestGroup } from './testGroups';
-import { dependenciesForTestFile } from '../common/compilationCache';
+import { dependenciesForTestFile } from '../transform/compilationCache';
 import { sourceMapSupport } from '../utilsBundle';
 import type { RawSourceMap } from 'source-map';
 
@@ -95,6 +95,7 @@ export async function loadFileSuites(testRun: TestRun, mode: 'out-of-process' | 
   // Load test files.
   const fileSuiteByFile = new Map<string, Suite>();
   const loaderHost = mode === 'out-of-process' ? new OutOfProcessLoaderHost(config) : new InProcessLoaderHost(config);
+  await loaderHost.start();
   for (const file of allTestFiles) {
     const fileSuite = await loaderHost.loadTestFile(file, errors);
     fileSuiteByFile.set(file, fileSuite);
@@ -147,8 +148,10 @@ export async function createRootSuite(testRun: TestRun, errors: TestError[], sho
   // Complain about only.
   if (config.config.forbidOnly) {
     const onlyTestsAndSuites = rootSuite._getOnlyItems();
-    if (onlyTestsAndSuites.length > 0)
-      errors.push(...createForbidOnlyErrors(onlyTestsAndSuites));
+    if (onlyTestsAndSuites.length > 0) {
+      const configFilePath = config.config.configFile ? path.relative(config.config.rootDir, config.config.configFile) : undefined;
+      errors.push(...createForbidOnlyErrors(onlyTestsAndSuites, config.configCLIOverrides.forbidOnly, configFilePath));
+    }
   }
 
   // Filter only for top-level projects.
@@ -219,13 +222,15 @@ async function createProjectSuite(fileSuites: Suite[], project: FullProjectInter
   return projectSuite;
 }
 
-function createForbidOnlyErrors(onlyTestsAndSuites: (TestCase | Suite)[]): TestError[] {
+function createForbidOnlyErrors(onlyTestsAndSuites: (TestCase | Suite)[], forbidOnlyCLIFlag: boolean | undefined, configFilePath: string | undefined): TestError[] {
   const errors: TestError[] = [];
   for (const testOrSuite of onlyTestsAndSuites) {
     // Skip root and file.
     const title = testOrSuite.titlePath().slice(2).join(' ');
+    const configFilePathName = configFilePath ? `'${configFilePath}'` : 'the Playwright configuration file';
+    const forbidOnlySource = forbidOnlyCLIFlag ? `'--forbid-only' CLI flag` : `'forbidOnly' option in ${configFilePathName}`;
     const error: TestError = {
-      message: `Error: focused item found in the --forbid-only mode: "${title}"`,
+      message: `Error: item focused with '.only' is not allowed due to the ${forbidOnlySource}: "${title}"`,
       location: testOrSuite.location!,
     };
     errors.push(error);

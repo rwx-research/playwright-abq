@@ -52,6 +52,9 @@ export abstract class BrowserContext extends SdkObject {
     Response: 'response',
     RequestFailed: 'requestfailed',
     RequestFinished: 'requestfinished',
+    RequestAborted: 'requestaborted',
+    RequestFulfilled: 'requestfulfilled',
+    RequestContinued: 'requestcontinued',
     BeforeClose: 'beforeclose',
     VideoStarted: 'videostarted',
   };
@@ -107,11 +110,11 @@ export abstract class BrowserContext extends SdkObject {
   }
 
   selectors(): Selectors {
-    return this._selectors || this._browser.options.selectors;
+    return this._selectors || this.attribution.playwright.selectors;
   }
 
   async _initialize() {
-    if (this.attribution.isInternalPlaywright)
+    if (this.attribution.playwright.options.isInternalPlaywright)
       return;
     // Debugger will pause execution upon page.pause in headed mode.
     this._debugger = new Debugger(this);
@@ -229,9 +232,12 @@ export abstract class BrowserContext extends SdkObject {
       // at the same time.
       return;
     }
+    const gotClosedGracefully = this._closedStatus === 'closing';
     this._closedStatus = 'closed';
-    this._deleteAllDownloads();
-    this._downloads.clear();
+    if (!gotClosedGracefully) {
+      this._deleteAllDownloads();
+      this._downloads.clear();
+    }
     this.tracing.dispose().catch(() => {});
     if (this._isPersistentContext)
       this.onClosePersistent();
@@ -471,7 +477,7 @@ export abstract class BrowserContext extends SdkObject {
         await frame.goto(internalMetadata, origin);
         const storage = await frame.evaluateExpression(`({
           localStorage: Object.keys(localStorage).map(name => ({ name, value: localStorage.getItem(name) })),
-        })`, false, undefined, 'utility');
+        })`, { world: 'utility' });
         originStorage.localStorage = storage.localStorage;
         if (storage.localStorage.length)
           result.origins.push(originStorage);
@@ -536,7 +542,7 @@ export abstract class BrowserContext extends SdkObject {
             originState => {
               for (const { name, value } of (originState.localStorage || []))
                 localStorage.setItem(name, value);
-            }`, true, originState, 'utility');
+            }`, { isFunction: true, world: 'utility' }, originState);
         }
         await page.close(internalMetadata);
       }

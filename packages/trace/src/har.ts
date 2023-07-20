@@ -68,6 +68,10 @@ export type Entry = {
   _monotonicTime?: number;
   _serverPort?: number;
   _securityDetails?: SecurityDetails;
+  _wasAborted?: boolean;
+  _wasFulfilled?: boolean;
+  _wasContinued?: boolean;
+  _apiRequest?: boolean;
 };
 
 export type Request = {

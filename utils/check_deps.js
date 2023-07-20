@@ -20,9 +20,9 @@
 
 const fs = require('fs');
 const ts = require('typescript');
-const path = require('path');
+const path = require('path').posix;
 
-const packagesDir = path.normalize(path.join(__dirname, '..', 'packages'));
+const packagesDir = path.resolve(path.join(__dirname, '..', 'packages'));
 
 const packages = new Map();
 for (const package of fs.readdirSync(packagesDir))
@@ -64,7 +64,7 @@ async function innerCheckDeps(root) {
 
   let packageJSON;
   try {
-    packageJSON = require(path.join(root, 'package.json'));
+    packageJSON = require(path.resolve(path.join(root, 'package.json')));
   } catch {
   }
 
@@ -113,8 +113,14 @@ async function innerCheckDeps(root) {
 
   function visit(node, fileName) {
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
-      if (node.importClause && node.importClause.isTypeOnly)
-        return;
+      if (node.importClause) {
+        if (node.importClause.isTypeOnly)
+          return;
+        if (node.importClause.namedBindings && ts.isNamedImports(node.importClause.namedBindings)) {
+          if (node.importClause.namedBindings.elements.every(e => e.isTypeOnly))
+            return;
+        }
+      }
       const importName = node.moduleSpecifier.text;
       let importPath;
       if (importName.startsWith('.')) {

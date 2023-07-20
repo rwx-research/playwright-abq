@@ -124,7 +124,6 @@ function createPluginSetupTask(plugin: TestRunnerPluginRegistration): Task<TestR
     else
       plugin.instance = plugin.factory;
     await plugin.instance?.setup?.(config.config, config.configDir, reporter);
-    plugin.babelPlugins = await plugin.instance?.babelPlugins?.() || [];
     return () => plugin.instance?.teardown?.();
   };
 }
@@ -151,6 +150,8 @@ function createGlobalSetupTask(): Task<TestRun> {
 
 function createRemoveOutputDirsTask(): Task<TestRun> {
   return async ({ config }) => {
+    if (process.env.PW_TEST_NO_REMOVE_OUTPUT_DIRS)
+      return;
     const outputDirs = new Set<string>();
     for (const p of config.projects) {
       if (!config.cliProjectFilter || config.cliProjectFilter.includes(p.project.name))

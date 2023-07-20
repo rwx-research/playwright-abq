@@ -24,7 +24,7 @@ import { PlaywrightServer } from './remote/playwrightServer';
 
 export class AndroidServerLauncherImpl {
   async launchServer(options: LaunchAndroidServerOptions = {}): Promise<BrowserServer> {
-    const playwright = createPlaywright('javascript');
+    const playwright = createPlaywright({ sdkLanguage: 'javascript', isServer: true });
     // 1. Pre-connect to the device
     let devices = await playwright.android.devices({
       host: options.adbHost,
@@ -49,7 +49,7 @@ export class AndroidServerLauncherImpl {
     const path = options.wsPath ? (options.wsPath.startsWith('/') ? options.wsPath : `/${options.wsPath}`) : `/${createGuid()}`;
 
     // 2. Start the server
-    const server = new PlaywrightServer({ path, maxConnections: 1, preLaunchedAndroidDevice: device });
+    const server = new PlaywrightServer({ mode: 'launchServer', path, maxConnections: 1, preLaunchedAndroidDevice: device });
     const wsEndpoint = await server.listen(options.port);
 
     // 3. Return the BrowserServer interface

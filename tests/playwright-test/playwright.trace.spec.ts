@@ -15,7 +15,7 @@
  */
 
 import { test, expect } from './playwright-test-fixtures';
-import { parseTrace } from '../config/utils';
+import { parseTrace, parseTraceRaw } from '../config/utils';
 import fs from 'fs';
 
 test.describe.configure({ mode: 'parallel' });
@@ -115,12 +115,10 @@ test('should record api trace', async ({ runInlineTest, server }, testInfo) => {
     'tracing.start',
     'apiRequestContext.get',
     'After Hooks',
-    'tracing.stopChunk',
   ]);
   const trace3 = await parseTrace(testInfo.outputPath('test-results', 'a-fail', 'trace.zip'));
   expect(trace3.apiNames).toEqual([
     'Before Hooks',
-    'tracing.startChunk',
     'fixture: request',
     'apiRequest.newContext',
     'tracing.start',
@@ -138,7 +136,6 @@ test('should record api trace', async ({ runInlineTest, server }, testInfo) => {
     'fixture: request',
     'tracing.stopChunk',
     'apiRequestContext.dispose',
-    'tracing.stopChunk',
   ]);
 });
 
@@ -337,6 +334,7 @@ test('should not override trace file in afterAll', async ({ runInlineTest, serve
     'After Hooks',
     'fixture: page',
     'fixture: context',
+    'attach \"trace\"',
     'afterAll hook',
     'fixture: request',
     'apiRequest.newContext',
@@ -345,7 +343,6 @@ test('should not override trace file in afterAll', async ({ runInlineTest, serve
     'fixture: request',
     'tracing.stopChunk',
     'apiRequestContext.dispose',
-    'fixture: browser',
   ]);
 
   const error = await parseTrace(testInfo.outputPath('test-results', 'a-test-2', 'trace.zip')).catch(e => e);
@@ -525,4 +522,89 @@ test(`trace:retain-on-failure should create trace if request context is disposed
   const trace = await parseTrace(tracePath);
   expect(trace.apiNames).toContain('apiRequestContext.get');
   expect(result.failed).toBe(1);
+});
+
+test('should include attachments by default', async ({ runInlineTest, server }, testInfo) => {
+  const result = await runInlineTest({
+    'playwright.config.ts': `
+      module.exports = { use: { trace: 'on' } };
+    `,
+    'a.spec.ts': `
+      import { test, expect } from '@playwright/test';
+
+      test('pass', async ({}, testInfo) => {
+        testInfo.attach('foo', { body: 'bar' });
+      });
+    `,
+  }, { workers: 1 });
+
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(1);
+  const trace = await parseTrace(testInfo.outputPath('test-results', 'a-pass', 'trace.zip'));
+  expect(trace.apiNames).toEqual([
+    'Before Hooks',
+    `attach "foo"`,
+    'After Hooks',
+  ]);
+  expect(trace.actions[1].attachments).toEqual([{
+    name: 'foo',
+    contentType: 'text/plain',
+    sha1: expect.any(String),
+  }]);
+  expect([...trace.resources.keys()].filter(f => f.startsWith('resources/'))).toHaveLength(1);
+});
+
+test('should opt out of attachments', async ({ runInlineTest, server }, testInfo) => {
+  const result = await runInlineTest({
+    'playwright.config.ts': `
+      module.exports = { use: { trace: { mode: 'on', attachments: false } } };
+    `,
+    'a.spec.ts': `
+      import { test, expect } from '@playwright/test';
+
+      test('pass', async ({}, testInfo) => {
+        testInfo.attach('foo', { body: 'bar' });
+      });
+    `,
+  }, { workers: 1 });
+
+  expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(1);
+  const trace = await parseTrace(testInfo.outputPath('test-results', 'a-pass', 'trace.zip'));
+  expect(trace.apiNames).toEqual([
+    'Before Hooks',
+    `attach "foo"`,
+    'After Hooks',
+  ]);
+  expect(trace.actions[1].attachments).toEqual(undefined);
+  expect([...trace.resources.keys()].filter(f => f.startsWith('resources/'))).toHaveLength(0);
+});
+
+test('should record with custom page fixture', async ({ runInlineTest }, testInfo) => {
+  const result = await runInlineTest({
+    'a.spec.ts': `
+      import { test as base, expect } from '@playwright/test';
+
+      const test = base.extend({
+        myPage: async ({ browser }, use) => {
+          await use(await browser.newPage());
+        },
+      });
+
+      test.use({ trace: 'on' });
+
+      test('fails', async ({ myPage }, testInfo) => {
+        await myPage.setContent('hello');
+        throw new Error('failure!');
+      });
+    `,
+  }, { workers: 1 });
+
+  expect(result.exitCode).toBe(1);
+  expect(result.failed).toBe(1);
+  expect(result.output).toContain('failure!');
+  const trace = await parseTraceRaw(testInfo.outputPath('test-results', 'a-fails', 'trace.zip'));
+  expect(trace.events).toContainEqual(expect.objectContaining({
+    type: 'frame-snapshot',
+  }));
 });

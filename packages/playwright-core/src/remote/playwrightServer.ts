@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { debug, wsServer } from '../utilsBundle';
+import { wsServer } from '../utilsBundle';
 import type { WebSocketServer } from '../utilsBundle';
-import http from 'http';
+import type http from 'http';
 import type { Browser } from '../server/browser';
 import type { Playwright } from '../server/playwright';
 import { createPlaywright } from '../server/playwright';
@@ -25,21 +25,17 @@ import type { ClientType } from './playwrightConnection';
 import type  { LaunchOptions } from '../server/types';
 import { ManualPromise } from '../utils/manualPromise';
 import type { AndroidDevice } from '../server/android/android';
-import { type SocksProxy } from '../common/socksProxy';
-
-const debugLog = debug('pw:server');
+import type { SocksProxy } from '../common/socksProxy';
+import { debugLogger } from '../common/debugLogger';
+import { createHttpServer } from '../utils';
 
 let lastConnectionId = 0;
 const kConnectionSymbol = Symbol('kConnection');
 
-function newLogger() {
-  const id = ++lastConnectionId;
-  return (message: string) => debugLog(`[id=${id}] ${message}`);
-}
-
 type ServerOptions = {
   path: string;
   maxConnections: number;
+  mode: 'default' | 'launchServer' | 'extension';
   preLaunchedBrowser?: Browser;
   preLaunchedAndroidDevice?: AndroidDevice;
   preLaunchedSocksProxy?: SocksProxy;
@@ -53,13 +49,15 @@ export class PlaywrightServer {
   constructor(options: ServerOptions) {
     this._options = options;
     if (options.preLaunchedBrowser)
-      this._preLaunchedPlaywright = options.preLaunchedBrowser.options.rootSdkObject as Playwright;
+      this._preLaunchedPlaywright = options.preLaunchedBrowser.attribution.playwright;
     if (options.preLaunchedAndroidDevice)
-      this._preLaunchedPlaywright = options.preLaunchedAndroidDevice._android._playwrightOptions.rootSdkObject as Playwright;
+      this._preLaunchedPlaywright = options.preLaunchedAndroidDevice._android.attribution.playwright;
   }
 
   async listen(port: number = 0): Promise<string> {
-    const server = http.createServer((request: http.IncomingMessage, response: http.ServerResponse) => {
+    debugLogger.log('server', `Server started at ${new Date()}`);
+
+    const server = createHttpServer((request: http.IncomingMessage, response: http.ServerResponse) => {
       if (request.method === 'GET' && request.url === '/json') {
         response.setHeader('Content-Type', 'application/json');
         response.end(JSON.stringify({
@@ -69,7 +67,7 @@ export class PlaywrightServer {
       }
       response.end('Running');
     });
-    server.on('error', error => debugLog(error));
+    server.on('error', error => debugLogger.log('server', String(error)));
 
     const wsEndpoint = await new Promise<string>((resolve, reject) => {
       server.listen(port, () => {
@@ -83,7 +81,7 @@ export class PlaywrightServer {
       }).on('error', reject);
     });
 
-    debugLog('Listening at ' + wsEndpoint);
+    debugLogger.log('server', 'Listening at ' + wsEndpoint);
     this._wsServer = new wsServer({ server, path: this._options.path });
     const browserSemaphore = new Semaphore(this._options.maxConnections);
     const controllerSemaphore = new Semaphore(1);
@@ -101,37 +99,34 @@ export class PlaywrightServer {
       const proxyValue = url.searchParams.get('proxy') || (Array.isArray(proxyHeader) ? proxyHeader[0] : proxyHeader);
 
       const launchOptionsHeader = request.headers['x-playwright-launch-options'] || '';
+      const launchOptionsHeaderValue = Array.isArray(launchOptionsHeader) ? launchOptionsHeader[0] : launchOptionsHeader;
+      const launchOptionsParam = url.searchParams.get('launch-options');
       let launchOptions: LaunchOptions = {};
       try {
-        launchOptions = JSON.parse(Array.isArray(launchOptionsHeader) ? launchOptionsHeader[0] : launchOptionsHeader);
+        launchOptions = JSON.parse(launchOptionsParam || launchOptionsHeaderValue);
       } catch (e) {
       }
 
-      const log = newLogger();
-      log(`serving connection: ${request.url}`);
-      const isDebugControllerClient = !!request.headers['x-playwright-debug-controller'];
-      const shouldReuseBrowser = !!request.headers['x-playwright-reuse-context'];
+      const id = String(++lastConnectionId);
+      debugLogger.log('server', `[${id}] serving connection: ${request.url}`);
 
-      // If we started in the legacy reuse-browser mode, create this._preLaunchedPlaywright.
-      // If we get a debug-controller request, create this._preLaunchedPlaywright.
-      if (isDebugControllerClient || shouldReuseBrowser) {
+      // Instantiate playwright for the extension modes.
+      const isExtension = this._options.mode === 'extension';
+      if (isExtension) {
         if (!this._preLaunchedPlaywright)
-          this._preLaunchedPlaywright = createPlaywright('javascript');
+          this._preLaunchedPlaywright = createPlaywright({ sdkLanguage: 'javascript', isServer: true });
       }
 
-      let clientType: ClientType = 'playwright';
+      let clientType: ClientType = 'launch-browser';
       let semaphore: Semaphore = browserSemaphore;
-      if (isDebugControllerClient) {
+      if (isExtension && url.searchParams.has('debug-controller')) {
         clientType = 'controller';
         semaphore = controllerSemaphore;
-      } else if (shouldReuseBrowser) {
+      } else if (isExtension) {
         clientType = 'reuse-browser';
         semaphore = reuseBrowserSemaphore;
-      } else if (this._options.preLaunchedBrowser || this._options.preLaunchedAndroidDevice) {
+      } else if (this._options.mode === 'launchServer') {
         clientType = 'pre-launched-browser-or-android';
-        semaphore = browserSemaphore;
-      } else if (browserName) {
-        clientType = 'launch-browser';
         semaphore = browserSemaphore;
       }
 
@@ -145,7 +140,7 @@ export class PlaywrightServer {
             androidDevice: this._options.preLaunchedAndroidDevice,
             socksProxy: this._options.preLaunchedSocksProxy,
           },
-          log, () => semaphore.release());
+          id, () => semaphore.release());
       (ws as any)[kConnectionSymbol] = connection;
     });
 
@@ -156,7 +151,7 @@ export class PlaywrightServer {
     const server = this._wsServer;
     if (!server)
       return;
-    debugLog('closing websocket server');
+    debugLogger.log('server', 'closing websocket server');
     const waitForClose = new Promise(f => server.close(f));
     // First disconnect all remaining clients.
     await Promise.all(Array.from(server.clients).map(async ws => {
@@ -169,15 +164,15 @@ export class PlaywrightServer {
       }
     }));
     await waitForClose;
-    debugLog('closing http server');
+    debugLogger.log('server', 'closing http server');
     await new Promise(f => server.options.server!.close(f));
     this._wsServer = undefined;
-    debugLog('closed server');
+    debugLogger.log('server', 'closed server');
 
-    debugLog('closing browsers');
+    debugLogger.log('server', 'closing browsers');
     if (this._preLaunchedPlaywright)
       await Promise.all(this._preLaunchedPlaywright.allBrowsers().map(browser => browser.close()));
-    debugLog('closed browsers');
+    debugLogger.log('server', 'closed browsers');
   }
 }
 
