@@ -15,7 +15,7 @@
  */
 
 import { ManualPromise } from '../../packages/playwright-core/lib/utils/manualPromise';
-import { test, expect } from './ui-mode-fixtures';
+import { test, expect, dumpTestTree } from './ui-mode-fixtures';
 
 test('should update trace live', async ({ runUITest, server }) => {
   const onePromise = new ManualPromise();
@@ -52,7 +52,7 @@ test('should update trace live', async ({ runUITest, server }) => {
   ).toHaveText([
     /browserContext.newPage[\d.]+m?s/,
     /page.gotohttp:\/\/localhost:\d+\/one.html/
-  ], { timeout: 15000 });
+  ]);
 
   await expect(
       listItem.locator(':scope.selected'),
@@ -74,7 +74,7 @@ test('should update trace live', async ({ runUITest, server }) => {
   await expect(
       page.frameLocator('iframe.snapshot-visible[name=snapshot]').locator('body'),
       'verify snapshot'
-  ).toHaveText('One', { timeout: 15000 });
+  ).toHaveText('One');
   await expect(listItem).toHaveText([
     /browserContext.newPage[\d.]+m?s/,
     /page.gotohttp:\/\/localhost:\d+\/one.html[\d.]+m?s/,
@@ -103,9 +103,12 @@ test('should update trace live', async ({ runUITest, server }) => {
   ).toHaveText('Two');
 
   await expect(listItem).toHaveText([
-    /browserContext.newPage[\d.]+m?s/,
-    /page.gotohttp:\/\/localhost:\d+\/one.html[\d.]+m?s/,
-    /page.gotohttp:\/\/localhost:\d+\/two.html[\d.]+m?s/
+    /Before Hooks[\d.]+m?s/,
+    /page.gotohttp:\/\/localhost:\d+\/one.html/,
+    /page.gotohttp:\/\/localhost:\d+\/two.html/,
+    /After Hooks[\d.]+m?s/,
+    /fixture: page[\d.]+m?s/,
+    /fixture: context[\d.]+m?s/,
   ]);
 });
 
@@ -137,7 +140,7 @@ test('should preserve action list selection upon live trace update', async ({ ru
     /browserContext.newPage[\d.]+m?s/,
     /page.gotoabout:blank[\d.]+m?s/,
     /page.setContent[\d.]+m?s/,
-  ], { timeout: 15000 });
+  ]);
 
   // Manually select page.goto.
   await page.getByTestId('action-list').getByText('page.goto').click();
@@ -198,7 +201,7 @@ test('should update tracing network live', async ({ runUITest, server }) => {
     /browserContext.newPage[\d.]+m?s/,
     /page.gotohttp:\/\/localhost:\d+\/one.html[\d.]+m?s/,
     /page.setContent[\d.]+m?s/,
-  ], { timeout: 15000 });
+  ]);
 
   // Once page.setContent is visible, we can be sure that page.goto has all required
   // resources in the trace. Switch to it and check that everything renders.
@@ -207,7 +210,7 @@ test('should update tracing network live', async ({ runUITest, server }) => {
   await expect(
       page.frameLocator('iframe.snapshot-visible[name=snapshot]').locator('body'),
       'verify background'
-  ).toHaveCSS('background-color', 'rgb(255, 0, 0)', { timeout: 15000 });
+  ).toHaveCSS('background-color', 'rgb(255, 0, 0)');
 });
 
 test('should show trace w/ multiple contexts', async ({ runUITest, server, createLatch }) => {
@@ -238,7 +241,51 @@ test('should show trace w/ multiple contexts', async ({ runUITest, server, creat
     /apiRequestContext.get[\d.]+m?s/,
     /browserContext.newPage[\d.]+m?s/,
     /page.gotoabout:blank[\d.]+m?s/,
-  ], { timeout: 15000 });
+  ]);
 
   latch.open();
+});
+
+
+test('should show live trace for serial', async ({ runUITest, server, createLatch }) => {
+  const latch = createLatch();
+
+  const { page } = await runUITest({
+    'a.test.ts': `
+      import { test, expect } from '@playwright/test';
+      let page;
+      test.describe.configure({ mode: 'serial' });
+      test.beforeAll(async ({ browser }) => {
+        page = await browser.newPage();
+      });
+      test('one', async ({ }) => {
+        await page.setContent('<input id=checkbox type=checkbox></input>');
+        await page.locator('input').check();
+        await expect(page.locator('input')).toBeChecked();
+      });
+
+      test('two', async ({ }) => {
+        await page.locator('input').uncheck();
+        await expect(page.locator('input')).not.toBeChecked();
+        ${latch.blockingCode}
+      });
+    `,
+  });
+
+  await expect.poll(dumpTestTree(page)).toBe(`
+    ▼ ◯ a.test.ts
+        ◯ one
+        ◯ two
+  `);
+  await page.getByText('two', { exact: true }).click();
+  await page.getByTitle('Run all').click();
+
+  const listItem = page.getByTestId('action-list').getByRole('listitem');
+  await expect(
+      listItem,
+      'action list'
+  ).toHaveText([
+    /locator.unchecklocator\('input'\)[\d.]+m?s/,
+    /expect.not.toBeCheckedlocator\('input'\)[\d.]/,
+  ]);
 });
