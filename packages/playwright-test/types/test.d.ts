@@ -1151,7 +1151,7 @@ interface TestConfig {
    *
    * Consider the following file structure:
    *
-   * ```
+   * ```txt
    * playwright.config.ts
    * tests/
    * └── page/
@@ -3322,7 +3322,7 @@ export interface TestType<TestArgs extends KeyValue, WorkerArgs extends KeyValue
    * ```js
    * // playwright.config.ts
    * import { defineConfig } from '@playwright/test';
-   * import { Options } from './my-test';
+   * import type { Options } from './my-test';
    *
    * export default defineConfig<Options>({
    *   projects: [
@@ -3518,17 +3518,19 @@ export interface PlaywrightWorkerOptions {
    *   projects: [
    *     {
    *       name: 'chromium',
-   *       use: { ...devices['Desktop Chrome'] },
-   *       launchOptions: {
-   *         args: ['--start-maximized'],
-   *     },
+   *       use: {
+   *         ...devices['Desktop Chrome'],
+   *         launchOptions: {
+   *           args: ['--start-maximized']
+   *         }
+   *       }
    *     }
    *   ]
    * });
    * ```
    *
    */
-  launchOptions: LaunchOptions;
+  launchOptions: Omit<LaunchOptions, 'tracesDir'>;
   /**
    * **Usage**
    *
@@ -4786,12 +4788,11 @@ export type Expect = {
     message?: string,
     timeout?: number,
     soft?: boolean,
-    poll?: boolean | { timeout?: number, intervals?: number[] },
   }) => Expect;
   getState(): {
     expand?: boolean;
-    isNot: boolean;
-    promise: string;
+    isNot?: boolean;
+    promise?: string;
     utils: any;
   };
   not: Omit<AsymmetricMatchers, 'any' | 'anything'>;
@@ -5572,8 +5573,8 @@ interface LocatorAssertions {
    * ```
    *
    * ```js
-   * const locator = page.locator("id=favorite-colors");
-   * await locator.selectOption(["R", "G"]);
+   * const locator = page.locator('id=favorite-colors');
+   * await locator.selectOption(['R', 'G']);
    * await expect(locator).toHaveValues([/R/, /G/]);
    * ```
    *
@@ -6323,7 +6324,7 @@ interface TestProject {
    *
    * Consider the following file structure:
    *
-   * ```
+   * ```txt
    * playwright.config.ts
    * tests/
    * └── page/

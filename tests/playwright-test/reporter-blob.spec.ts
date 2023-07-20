@@ -15,21 +15,19 @@
  */
 
 import * as fs from 'fs';
+import type { PlaywrightTestConfig } from 'packages/playwright-test';
 import path from 'path';
 import url from 'url';
 import type { HttpServer } from '../../packages/playwright-core/src/utils';
 import { startHtmlReportServer } from '../../packages/playwright-test/lib/reporters/html';
-import { type CliRunResult, type RunOptions, stripAnsi } from './playwright-test-fixtures';
-import { cleanEnv, cliEntrypoint, expect as baseExpect, test as baseTest } from './playwright-test-fixtures';
-import type { PlaywrightTestConfig } from 'packages/playwright-test';
+import { expect as baseExpect, test as baseTest, stripAnsi } from './playwright-test-fixtures';
 
 const DOES_NOT_SUPPORT_UTF8_IN_TERMINAL = process.platform === 'win32' && process.env.TERM_PROGRAM !== 'vscode' && !process.env.WT_SESSION;
 const POSITIVE_STATUS_MARK = DOES_NOT_SUPPORT_UTF8_IN_TERMINAL ? 'ok' : '✓ ';
 const NEGATIVE_STATUS_MARK = DOES_NOT_SUPPORT_UTF8_IN_TERMINAL ? 'x ' : '✘ ';
 
 const test = baseTest.extend<{
-  showReport: (reportFolder?: string) => Promise<void>,
-  mergeReports: (reportFolder: string, env?: NodeJS.ProcessEnv, options?: RunOptions) => Promise<CliRunResult>
+  showReport: (reportFolder?: string) => Promise<void>
       }>({
         showReport: async ({ page }, use) => {
           let server: HttpServer | undefined;
@@ -40,22 +38,6 @@ const test = baseTest.extend<{
             await page.goto(location);
           });
           await server?.stop();
-        },
-        mergeReports: async ({ childProcess }, use) => {
-          await use(async (reportFolder: string, env: NodeJS.ProcessEnv = {}, options: RunOptions = {}) => {
-            const command = ['node', cliEntrypoint, 'merge-reports', reportFolder];
-            if (options.additionalArgs)
-              command.push(...options.additionalArgs);
-
-            const cwd = options.cwd ? path.resolve(test.info().outputDir, options.cwd) : test.info().outputDir;
-            const testProcess = childProcess({
-              command,
-              env: cleanEnv(env),
-              cwd,
-            });
-            const { exitCode } = await testProcess.exited;
-            return { exitCode, output: testProcess.output.toString() };
-          });
         }
       });
 
@@ -63,6 +45,8 @@ test.use({ channel: 'chrome' });
 test.slow(!!process.env.CI);
 // Slow tests are 90s.
 const expect = baseExpect.configure({ timeout: process.env.CI ? 75000 : 25000 });
+
+test.describe.configure({ mode: 'parallel' });
 
 const echoReporterJs = `
 class EchoReporter {
@@ -146,7 +130,7 @@ test('should call methods in right order', async ({ runInlineTest, mergeReports 
   await runInlineTest(files, { shard: `3/3` });
   const reportFiles = await fs.promises.readdir(reportDir);
   reportFiles.sort();
-  expect(reportFiles).toEqual([expect.stringMatching(/report-1-of-3.*.jsonl/), expect.stringMatching(/report-3-of-3.*.jsonl/), 'resources']);
+  expect(reportFiles).toEqual([expect.stringMatching(/report-1-of-3.*.zip/), expect.stringMatching(/report-3-of-3.*.zip/), 'resources']);
   const { exitCode, output } = await mergeReports(reportDir, {}, { additionalArgs: ['--reporter', test.info().outputPath('echo-reporter.js')] });
   expect(exitCode).toBe(0);
   const lines = output.split('\n').filter(l => l.trim().length);
@@ -210,7 +194,7 @@ test('should merge into html', async ({ runInlineTest, mergeReports, showReport,
     await runInlineTest(files, { shard: `${i + 1}/${totalShards}` });
   const reportFiles = await fs.promises.readdir(reportDir);
   reportFiles.sort();
-  expect(reportFiles).toEqual([expect.stringMatching(/report-1-of-3.*.jsonl/), expect.stringMatching(/report-2-of-3.*.jsonl/), expect.stringMatching(/report-3-of-3.*.jsonl/), 'resources']);
+  expect(reportFiles).toEqual([expect.stringMatching(/report-1-of-3.*.zip/), expect.stringMatching(/report-2-of-3.*.zip/), expect.stringMatching(/report-3-of-3.*.zip/), 'resources']);
   const { exitCode, output } = await mergeReports(reportDir, { 'PW_TEST_HTML_REPORT_OPEN': 'never' }, { additionalArgs: ['--reporter', 'html'] });
   expect(exitCode).toBe(0);
 
@@ -270,7 +254,7 @@ test('be able to merge incomplete shards', async ({ runInlineTest, mergeReports,
 
   const reportFiles = await fs.promises.readdir(reportDir);
   reportFiles.sort();
-  expect(reportFiles).toEqual([expect.stringMatching(/report-1-of-3.*.jsonl/), expect.stringMatching(/report-3-of-3.*.jsonl/), 'resources']);
+  expect(reportFiles).toEqual([expect.stringMatching(/report-1-of-3.*.zip/), expect.stringMatching(/report-3-of-3.*.zip/), 'resources']);
   const { exitCode } = await mergeReports(reportDir, { 'PW_TEST_HTML_REPORT_OPEN': 'never' }, { additionalArgs: ['--reporter', 'html'] });
   expect(exitCode).toBe(0);
 
@@ -314,7 +298,6 @@ test('total time is from test run not from merge', async ({ runInlineTest, merge
   expect(exitCode).toBe(0);
 
   expect(output).toContain('To open last HTML report run:');
-  // console.log(output);
 
   await showReport();
 
@@ -377,7 +360,7 @@ test('merge into list report by default', async ({ runInlineTest, mergeReports }
     await runInlineTest(files, { shard: `${i + 1}/${totalShards}` });
   const reportFiles = await fs.promises.readdir(reportDir);
   reportFiles.sort();
-  expect(reportFiles).toEqual([expect.stringMatching(/report-1-of-3.*.jsonl/), expect.stringMatching(/report-2-of-3.*.jsonl/), expect.stringMatching(/report-3-of-3.*.jsonl/), 'resources']);
+  expect(reportFiles).toEqual([expect.stringMatching(/report-1-of-3.*.zip/), expect.stringMatching(/report-2-of-3.*.zip/), expect.stringMatching(/report-3-of-3.*.zip/), 'resources']);
   const { exitCode, output } = await mergeReports(reportDir, { PW_TEST_DEBUG_REPORTERS: '1', PW_TEST_DEBUG_REPORTERS_PRINT_STEPS: '1', PWTEST_TTY_WIDTH: '80' }, { additionalArgs: ['--reporter', 'list'] });
   expect(exitCode).toBe(0);
 
@@ -448,7 +431,7 @@ test('preserve attachments', async ({ runInlineTest, mergeReports, showReport, p
 
   const reportFiles = await fs.promises.readdir(reportDir);
   reportFiles.sort();
-  expect(reportFiles).toEqual([expect.stringMatching(/report-1-of-2.*.jsonl/), 'resources']);
+  expect(reportFiles).toEqual([expect.stringMatching(/report-1-of-2.*.zip/), 'resources']);
   const { exitCode } = await mergeReports(reportDir, { 'PW_TEST_HTML_REPORT_OPEN': 'never' }, { additionalArgs: ['--reporter', 'html'] });
   expect(exitCode).toBe(0);
 
@@ -511,7 +494,7 @@ test('generate html with attachment urls', async ({ runInlineTest, mergeReports,
 
   const reportFiles = await fs.promises.readdir(reportDir);
   reportFiles.sort();
-  expect(reportFiles).toEqual([expect.stringMatching(/report-1-of-2.*.jsonl/), 'resources']);
+  expect(reportFiles).toEqual([expect.stringMatching(/report-1-of-2.*.zip/), 'resources']);
   const { exitCode } = await mergeReports(reportDir, { 'PW_TEST_HTML_REPORT_OPEN': 'never' }, { additionalArgs: ['--reporter', 'html', '--attachments', 'missing'] });
   expect(exitCode).toBe(0);
 
@@ -585,7 +568,7 @@ test('resource names should not clash between runs', async ({ runInlineTest, sho
 
   const reportFiles = await fs.promises.readdir(reportDir);
   reportFiles.sort();
-  expect(reportFiles).toEqual([expect.stringMatching(/report-1-of-2.*.jsonl/), expect.stringMatching(/report-2-of-2.*.jsonl/), 'resources']);
+  expect(reportFiles).toEqual([expect.stringMatching(/report-1-of-2.*.zip/), expect.stringMatching(/report-2-of-2.*.zip/), 'resources']);
 
   const { exitCode } = await mergeReports(reportDir, {}, { additionalArgs: ['--reporter', 'html'] });
   expect(exitCode).toBe(0);
@@ -660,8 +643,8 @@ test('multiple output reports', async ({ runInlineTest, mergeReports, showReport
 
   const reportFiles = await fs.promises.readdir(reportDir);
   reportFiles.sort();
-  expect(reportFiles).toEqual([expect.stringMatching(/report-1-of-2.*.jsonl/), 'resources']);
-  const { exitCode, output } = await mergeReports(reportDir, { 'PW_TEST_HTML_REPORT_OPEN': 'never', 'PW_TEST_DEBUG_REPORTERS': '1' }, { additionalArgs: ['--reporter', 'html,line'] });
+  expect(reportFiles).toEqual([expect.stringMatching(/report-1-of-2.*.zip/), 'resources']);
+  const { exitCode, output } = await mergeReports(reportDir, { 'PW_TEST_HTML_REPORT_OPEN': 'never' }, { additionalArgs: ['--reporter', 'html,line'] });
   expect(exitCode).toBe(0);
 
   // Check that line reporter was called.
@@ -721,8 +704,8 @@ test('multiple output reports based on config', async ({ runInlineTest, mergeRep
 
   const reportFiles = await fs.promises.readdir(reportDir);
   reportFiles.sort();
-  expect(reportFiles).toEqual([expect.stringMatching(/report-1-of-2.*.jsonl/), expect.stringMatching(/report-2-of-2.*.jsonl/), 'resources']);
-  const { exitCode, output } = await mergeReports(reportDir, { 'PW_TEST_DEBUG_REPORTERS': '1' }, { additionalArgs: ['--config', test.info().outputPath('merged/playwright.config.ts')] });
+  expect(reportFiles).toEqual([expect.stringMatching(/report-1-of-2.*.zip/), expect.stringMatching(/report-2-of-2.*.zip/), 'resources']);
+  const { exitCode, output } = await mergeReports(reportDir, undefined, { additionalArgs: ['--config', test.info().outputPath('merged/playwright.config.ts')] });
   expect(exitCode).toBe(0);
 
   // Check that line reporter was called.
@@ -736,7 +719,7 @@ test('multiple output reports based on config', async ({ runInlineTest, mergeRep
 
   // Check report presence.
   const mergedBlobReportFiles = await fs.promises.readdir(test.info().outputPath('merged/merged-blob'));
-  expect(mergedBlobReportFiles).toEqual([expect.stringMatching(/report.*.jsonl/), 'resources']);
+  expect(mergedBlobReportFiles).toEqual([expect.stringMatching(/report.*.zip/), 'resources']);
 });
 
 test('onError in the report', async ({ runInlineTest, mergeReports, showReport, page }) => {
@@ -853,8 +836,8 @@ test('preserve config fields', async ({ runInlineTest, mergeReports }) => {
     `
   };
 
-  await runInlineTest(files, { shard: `1/3` });
-  await runInlineTest(files, { shard: `3/3` });
+  await runInlineTest(files, { shard: `1/3`, workers: 1 });
+  await runInlineTest(files, { shard: `3/3`, workers: 1 });
 
   const mergeConfig = {
     reportSlowTests: {
@@ -867,7 +850,7 @@ test('preserve config fields', async ({ runInlineTest, mergeReports }) => {
 
   const reportFiles = await fs.promises.readdir(reportDir);
   reportFiles.sort();
-  expect(reportFiles).toEqual([expect.stringMatching(/report-1-of-3.*.jsonl/), expect.stringMatching(/report-3-of-3.*.jsonl/), 'resources']);
+  expect(reportFiles).toEqual([expect.stringMatching(/report-1-of-3.*.zip/), expect.stringMatching(/report-3-of-3.*.zip/), 'resources']);
   const { exitCode } = await mergeReports(reportDir, {}, { additionalArgs: ['--reporter', test.info().outputPath('echo-reporter.js'), '-c', test.info().outputPath('merge.config.ts')] });
   expect(exitCode).toBe(0);
   const json = JSON.parse(fs.readFileSync(test.info().outputPath('config.json')).toString());
@@ -884,6 +867,121 @@ test('preserve config fields', async ({ runInlineTest, mergeReports }) => {
   expect(json.reportSlowTests).toEqual(mergeConfig.reportSlowTests);
   expect(json.configFile).toEqual(test.info().outputPath('merge.config.ts'));
   expect(json.quiet).toEqual(mergeConfig.quiet);
+});
+
+test('preserve stdout and stderr', async ({ runInlineTest, mergeReports }) => {
+  const reportDir = test.info().outputPath('blob-report');
+  const files = {
+    'echo-reporter.js': `
+      import fs from 'fs';
+
+      class EchoReporter {
+        log = [];
+        onStdOut(chunk, test, result) {
+          this.log.push('onStdOut: ' + chunk);
+          this.log.push('result.stdout: ' + result.stdout);
+        }
+        onStdErr(chunk, test, result) {
+          this.log.push('onStdErr: ' + chunk);
+          this.log.push('result.stderr: ' + result.stderr);
+        }
+        onTestEnd(test, result) {
+          this.log.push('onTestEnd');
+          this.log.push('result.stdout: ' + result.stdout);
+          this.log.push('result.stderr: ' + result.stderr);
+        }
+        onEnd() {
+          fs.writeFileSync('log.txt', this.log.join('\\n'));
+        }
+      }
+      module.exports = EchoReporter;
+    `,
+    'playwright.config.js': `
+      module.exports = {
+        reporter: [['blob']]
+      };
+    `,
+    'a.test.js': `
+      import { test, expect } from '@playwright/test';
+      test('a test', async ({}) => {
+        expect(1 + 1).toBe(2);
+        console.log('stdout text');
+        console.error('stderr text');
+      });
+    `,
+  };
+
+  await runInlineTest(files);
+
+  const { exitCode } = await mergeReports(reportDir, {}, { additionalArgs: ['--reporter', test.info().outputPath('echo-reporter.js')] });
+  expect(exitCode).toBe(0);
+  const log = fs.readFileSync(test.info().outputPath('log.txt')).toString();
+  expect(log).toBe(`onStdOut: stdout text
+
+result.stdout: stdout text
+
+onStdErr: stderr text
+
+result.stderr: stderr text
+
+onTestEnd
+result.stdout: stdout text
+
+result.stderr: stderr text
+`);
+});
+
+test('encode inline attachments', async ({ runInlineTest, mergeReports }) => {
+  const reportDir = test.info().outputPath('blob-report');
+  const files = {
+    'echo-reporter.js': `
+      import fs from 'fs';
+
+      class EchoReporter {
+        onTestEnd(test, result) {
+          const attachmentBodies = result.attachments.map(a => a.body?.toString('base64'));
+          result.attachments.forEach(a => console.log(a.body, 'isBuffer', Buffer.isBuffer(a.body)));
+          fs.writeFileSync('log.txt', attachmentBodies.join(','));
+        }
+      }
+      module.exports = EchoReporter;
+    `,
+    'playwright.config.js': `
+      module.exports = {
+        reporter: [['blob']]
+      };
+    `,
+    'a.test.js': `
+      import { test, expect } from '@playwright/test';
+      test('a test', async ({}) => {
+        expect(1 + 1).toBe(2);
+        test.info().attachments.push({
+          name: 'example.txt',
+          contentType: 'text/plain',
+          body: Buffer.from('foo'),
+        });
+
+        test.info().attachments.push({
+          name: 'example.json',
+          contentType: 'application/json',
+          body: Buffer.from(JSON.stringify({ foo: 1 })),
+        });
+
+        test.info().attachments.push({
+          name: 'example-utf16.txt',
+          contentType: 'text/plain, charset=utf16le',
+          body: Buffer.from('utf16 encoded', 'utf16le'),
+        });
+      });
+    `,
+  };
+
+  await runInlineTest(files);
+
+  const { exitCode } = await mergeReports(reportDir, {}, { additionalArgs: ['--reporter', test.info().outputPath('echo-reporter.js')] });
+  expect(exitCode).toBe(0);
+  const log = fs.readFileSync(test.info().outputPath('log.txt')).toString();
+  expect(log).toBe(`Zm9v,eyJmb28iOjF9,dQB0AGYAMQA2ACAAZQBuAGMAbwBkAGUAZAA=`);
 });
 
 test('preserve steps in html report', async ({ runInlineTest, mergeReports, showReport, page }) => {
@@ -909,7 +1007,7 @@ test('preserve steps in html report', async ({ runInlineTest, mergeReports, show
   await runInlineTest(files);
   const reportFiles = await fs.promises.readdir(reportDir);
   reportFiles.sort();
-  expect(reportFiles).toEqual([expect.stringMatching(/report-.*.jsonl/), 'resources']);
+  expect(reportFiles).toEqual([expect.stringMatching(/report-.*.zip/), 'resources']);
   // Run merger in a different directory to make sure relative paths will not be resolved
   // relative to the current directory.
   const mergeCwd = test.info().outputPath('foo');
@@ -948,7 +1046,7 @@ test('custom project suffix', async ({ runInlineTest, mergeReports }) => {
       class EchoReporter {
         onBegin(config, suite) {
           const projects = suite.suites.map(s => s.project().name);
-          console.log('projects:', projects);
+          console.log('projects:' + projects);
         }
       }
       module.exports = EchoReporter;
@@ -972,7 +1070,7 @@ test('custom project suffix', async ({ runInlineTest, mergeReports }) => {
 
   const { exitCode, output } = await mergeReports(reportDir, {}, { additionalArgs: ['--reporter', test.info().outputPath('echo-reporter.js')] });
   expect(exitCode).toBe(0);
-  expect(output).toContain(`projects: [ 'foo-suffix', 'bar-suffix' ]`);
+  expect(output).toContain(`projects:foo-suffix,bar-suffix`);
 });
 
 test('same project different suffixes', async ({ runInlineTest, mergeReports }) => {
@@ -984,7 +1082,7 @@ test('same project different suffixes', async ({ runInlineTest, mergeReports }) 
         onBegin(config, suite) {
           const projects = suite.suites.map(s => s.project().name);
           projects.sort();
-          console.log('projects:', projects);
+          console.log('projects:' + projects);
         }
       }
       module.exports = EchoReporter;
@@ -1009,7 +1107,7 @@ test('same project different suffixes', async ({ runInlineTest, mergeReports }) 
   const reportDir = test.info().outputPath('blob-report');
   const { exitCode, output } = await mergeReports(reportDir, {}, { additionalArgs: ['--reporter', test.info().outputPath('echo-reporter.js')] });
   expect(exitCode).toBe(0);
-  expect(output).toContain(`projects: [ 'foo-first', 'foo-second' ]`);
+  expect(output).toContain(`projects:foo-first,foo-second`);
 });
 
 test('no reports error', async ({ runInlineTest, mergeReports }) => {

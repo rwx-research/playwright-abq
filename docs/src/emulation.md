@@ -76,19 +76,13 @@ with sync_playwright() as playwright:
 using Microsoft.Playwright;
 using System.Threading.Tasks;
 
-class Program
+using var playwright = await Playwright.CreateAsync();
+await using var browser = await playwright.Chromium.LaunchAsync(new()
 {
-    public static async Task Main()
-    {
-        using var playwright = await Playwright.CreateAsync();
-        await using var browser = await playwright.Chromium.LaunchAsync(new()
-        {
-            Headless: False
-        });
-        var iphone13 = playwright.Devices["iPhone 13"];
-        await using var context = await browser.NewContextAsync(iphone13);
-    }
-}
+    Headless = false
+});
+var iphone13 = playwright.Devices["iPhone 13"];
+await using var context = await browser.NewContextAsync(iphone13);
 ```
 
 
@@ -120,7 +114,7 @@ Test file:
 ```js tab=js-test title="tests/example.spec.ts"
 import { test, expect } from '@playwright/test';
 
-test.use({ 
+test.use({
   viewport: { width: 1600, height: 1200 },
 });
 
@@ -210,6 +204,7 @@ await page.set_viewport_size({"width": 1600, "height": 1200})
 context = browser.new_context(
   viewport={ 'width': 2560, 'height': 1440 },
   device_scale_factor=2,
+)
 ```
 
 ```csharp
@@ -279,7 +274,7 @@ export default defineConfig({
   use: {
     // Emulates the user locale.
     locale: 'en-GB',
-    
+
     // Emulates the user timezone.
     timezoneId: 'Europe/Paris',
   },
@@ -289,7 +284,7 @@ export default defineConfig({
 ```js tab=js-test title="tests/example.spec.ts"
 import { test, expect } from '@playwright/test';
 
-test.use({ 
+test.use({
   locale: 'de-DE',
   timezoneId: 'Europe/Berlin',
 });
@@ -452,7 +447,7 @@ export default defineConfig({
 ```js tab=js-test title="tests/example.spec.ts"
 import { test, expect } from '@playwright/test';
 
-test.use({ 
+test.use({
   geolocation: { longitude: 41.890221, latitude: 12.492348 },
   permissions: ['geolocation'],
 });
@@ -505,8 +500,8 @@ Change the location later:
 ```js tab=js-test title="tests/example.spec.ts"
 import { test, expect } from '@playwright/test';
 
-test.use({ 
-  geolocation: { longitude: 41.890221, latitude: 12.492348},
+test.use({
+  geolocation: { longitude: 41.890221, latitude: 12.492348 },
   permissions: ['geolocation'],
 });
 
@@ -554,7 +549,7 @@ export default defineConfig({
 ```js tab=js-test title="tests/example.spec.ts"
 import { test, expect } from '@playwright/test';
 
-test.use({ 
+test.use({
   colorScheme: 'dark' // or 'light'
 });
 
@@ -667,7 +662,7 @@ The User Agent is included in the device and therefore you  will rarely need to 
 ```js tab=js-test title="tests/example.spec.ts"
 import { test, expect } from '@playwright/test';
 
-test.use({ userAgent: 'My user agent'});
+test.use({ userAgent: 'My user agent' });
 
 test('my user agent test', async ({ page }) => {
   // ...

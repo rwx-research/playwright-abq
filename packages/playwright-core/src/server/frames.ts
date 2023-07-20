@@ -294,7 +294,7 @@ export class FrameManager {
       frame.setPendingDocument({ documentId: request._documentId, request });
     if (request._isFavicon) {
       if (route)
-        route.continue(request, {});
+        route.continue(request, { isFallback: true });
       return;
     }
     this._page.emitOnContext(BrowserContext.Events.Request, request);
@@ -306,7 +306,7 @@ export class FrameManager {
         return;
       if (this._page._browserContext._requestInterceptor?.(r, request))
         return;
-      r.continue();
+      r.continue({ isFallback: true });
     }
   }
 
@@ -682,7 +682,7 @@ export class Frame extends SdkObject {
       if (event.newDocument!.documentId !== navigateResult.newDocumentId) {
         // This is just a sanity check. In practice, new navigation should
         // cancel the previous one and report "request cancelled"-like error.
-        throw new NavigationAbortedError(navigateResult.newDocumentId, 'Navigation interrupted by another one');
+        throw new NavigationAbortedError(navigateResult.newDocumentId, `Navigation to "${url}" is interrupted by another navigation to "${event.url}"`);
       }
       if (event.error)
         throw event.error;
@@ -829,14 +829,14 @@ export class Frame extends SdkObject {
     }, this._page._timeoutSettings.timeout(options));
   }
 
-  async dispatchEvent(metadata: CallMetadata, selector: string, type: string, eventInit: Object = {}, options: types.QueryOnSelectorOptions = {}): Promise<void> {
+  async dispatchEvent(metadata: CallMetadata, selector: string, type: string, eventInit: Object = {}, options: types.QueryOnSelectorOptions = {}, scope?: dom.ElementHandle): Promise<void> {
     await this._callOnElementOnceMatches(metadata, selector, (injectedScript, element, data) => {
       injectedScript.dispatchEvent(element, data.type, data.eventInit);
-    }, { type, eventInit }, { mainWorld: true, ...options });
+    }, { type, eventInit }, { mainWorld: true, ...options }, scope);
   }
 
-  async evalOnSelector(selector: string, strict: boolean, expression: string, isFunction: boolean | undefined, arg: any): Promise<any> {
-    const handle = await this.selectors.query(selector, { strict });
+  async evalOnSelector(selector: string, strict: boolean, expression: string, isFunction: boolean | undefined, arg: any, scope?: dom.ElementHandle): Promise<any> {
+    const handle = await this.selectors.query(selector, { strict }, scope);
     if (!handle)
       throw new Error(`Error: failed to find element matching selector "${selector}"`);
     const result = await handle.evaluateExpression(expression, { isFunction }, arg);
@@ -844,8 +844,8 @@ export class Frame extends SdkObject {
     return result;
   }
 
-  async evalOnSelectorAll(selector: string, expression: string, isFunction: boolean | undefined, arg: any): Promise<any> {
-    const arrayHandle = await this.selectors.queryArrayInMainWorld(selector);
+  async evalOnSelectorAll(selector: string, expression: string, isFunction: boolean | undefined, arg: any, scope?: dom.ElementHandle): Promise<any> {
+    const arrayHandle = await this.selectors.queryArrayInMainWorld(selector, scope);
     const result = await arrayHandle.evaluateExpression(expression, { isFunction }, arg);
     arrayHandle.dispose();
     return result;
@@ -1031,7 +1031,9 @@ export class Frame extends SdkObject {
     const actionPromise = func().then(r => result = r).catch(e => error = e);
     const errorPromise = new Promise<void>(resolve => {
       listeners.push(eventsHelper.addEventListener(this._page._browserContext, BrowserContext.Events.Console, (message: ConsoleMessage) => {
-        if (message.page() === this._page && message.type() === 'error' && message.text().includes('Content Security Policy')) {
+        if (message.page() !== this._page || message.type() !== 'error')
+          return;
+        if (message.text().includes('Content-Security-Policy') || message.text().includes('Content Security Policy')) {
           cspMessage = message;
           resolve();
         }
@@ -1215,33 +1217,33 @@ export class Frame extends SdkObject {
     }, this._page._timeoutSettings.timeout(options));
   }
 
-  async textContent(metadata: CallMetadata, selector: string, options: types.QueryOnSelectorOptions = {}): Promise<string | null> {
-    return this._callOnElementOnceMatches(metadata, selector, (injected, element) => element.textContent, undefined, options);
+  async textContent(metadata: CallMetadata, selector: string, options: types.QueryOnSelectorOptions = {}, scope?: dom.ElementHandle): Promise<string | null> {
+    return this._callOnElementOnceMatches(metadata, selector, (injected, element) => element.textContent, undefined, options, scope);
   }
 
-  async innerText(metadata: CallMetadata, selector: string, options: types.QueryOnSelectorOptions = {}): Promise<string> {
+  async innerText(metadata: CallMetadata, selector: string, options: types.QueryOnSelectorOptions = {}, scope?: dom.ElementHandle): Promise<string> {
     return this._callOnElementOnceMatches(metadata, selector, (injectedScript, element) => {
       if (element.namespaceURI !== 'http://www.w3.org/1999/xhtml')
         throw injectedScript.createStacklessError('Node is not an HTMLElement');
       return (element as HTMLElement).innerText;
-    }, undefined, options);
+    }, undefined, options, scope);
   }
 
-  async innerHTML(metadata: CallMetadata, selector: string, options: types.QueryOnSelectorOptions = {}): Promise<string> {
-    return this._callOnElementOnceMatches(metadata, selector, (injected, element) => element.innerHTML, undefined, options);
+  async innerHTML(metadata: CallMetadata, selector: string, options: types.QueryOnSelectorOptions = {}, scope?: dom.ElementHandle): Promise<string> {
+    return this._callOnElementOnceMatches(metadata, selector, (injected, element) => element.innerHTML, undefined, options, scope);
   }
 
-  async getAttribute(metadata: CallMetadata, selector: string, name: string, options: types.QueryOnSelectorOptions = {}): Promise<string | null> {
-    return this._callOnElementOnceMatches(metadata, selector, (injected, element, data) => element.getAttribute(data.name), { name }, options);
+  async getAttribute(metadata: CallMetadata, selector: string, name: string, options: types.QueryOnSelectorOptions = {}, scope?: dom.ElementHandle): Promise<string | null> {
+    return this._callOnElementOnceMatches(metadata, selector, (injected, element, data) => element.getAttribute(data.name), { name }, options, scope);
   }
 
-  async inputValue(metadata: CallMetadata, selector: string, options: types.TimeoutOptions & types.StrictOptions = {}): Promise<string> {
+  async inputValue(metadata: CallMetadata, selector: string, options: types.TimeoutOptions & types.StrictOptions = {}, scope?: dom.ElementHandle): Promise<string> {
     return this._callOnElementOnceMatches(metadata, selector, (injectedScript, node) => {
       const element = injectedScript.retarget(node, 'follow-label');
       if (!element || (element.nodeName !== 'INPUT' && element.nodeName !== 'TEXTAREA' && element.nodeName !== 'SELECT'))
         throw injectedScript.createStacklessError('Node is not an <input>, <textarea> or <select> element');
       return (element as any).value;
-    }, undefined, options);
+    }, undefined, options, scope);
   }
 
   async highlight(selector: string) {
@@ -1263,25 +1265,25 @@ export class Frame extends SdkObject {
     });
   }
 
-  private async _elementState(metadata: CallMetadata, selector: string, state: ElementStateWithoutStable, options: types.QueryOnSelectorOptions = {}): Promise<boolean> {
+  private async _elementState(metadata: CallMetadata, selector: string, state: ElementStateWithoutStable, options: types.QueryOnSelectorOptions = {}, scope?: dom.ElementHandle): Promise<boolean> {
     const result = await this._callOnElementOnceMatches(metadata, selector, (injected, element, data) => {
       return injected.elementState(element, data.state);
-    }, { state }, options);
+    }, { state }, options, scope);
     return dom.throwRetargetableDOMError(result);
   }
 
-  async isVisible(metadata: CallMetadata, selector: string, options: types.StrictOptions = {}): Promise<boolean> {
+  async isVisible(metadata: CallMetadata, selector: string, options: types.StrictOptions = {}, scope?: dom.ElementHandle): Promise<boolean> {
     const controller = new ProgressController(metadata, this);
     return controller.run(async progress => {
       progress.log(`  checking visibility of ${this._asLocator(selector)}`);
-      const resolved = await this.selectors.resolveInjectedForSelector(selector, options);
+      const resolved = await this.selectors.resolveInjectedForSelector(selector, options, scope);
       if (!resolved)
         return false;
-      return await resolved.injected.evaluate((injected, { info }) => {
-        const element = injected.querySelector(info.parsed, document, info.strict);
+      return await resolved.injected.evaluate((injected, { info, root }) => {
+        const element = injected.querySelector(info.parsed, root || document, info.strict);
         const state = element ? injected.elementState(element, 'visible') : false;
         return state === 'error:notconnected' ? false : state;
-      }, { info: resolved.info });
+      }, { info: resolved.info, root: resolved.frame === this ? scope : undefined });
     }, this._page._timeoutSettings.timeout({})).catch(e => {
       if (js.isJavaScriptErrorInEvaluate(e) || isInvalidSelectorError(e) || isSessionClosedError(e))
         throw e;
@@ -1289,24 +1291,24 @@ export class Frame extends SdkObject {
     });
   }
 
-  async isHidden(metadata: CallMetadata, selector: string, options: types.StrictOptions = {}): Promise<boolean> {
-    return !(await this.isVisible(metadata, selector, options));
+  async isHidden(metadata: CallMetadata, selector: string, options: types.StrictOptions = {}, scope?: dom.ElementHandle): Promise<boolean> {
+    return !(await this.isVisible(metadata, selector, options, scope));
   }
 
-  async isDisabled(metadata: CallMetadata, selector: string, options: types.QueryOnSelectorOptions = {}): Promise<boolean> {
-    return this._elementState(metadata, selector, 'disabled', options);
+  async isDisabled(metadata: CallMetadata, selector: string, options: types.QueryOnSelectorOptions = {}, scope?: dom.ElementHandle): Promise<boolean> {
+    return this._elementState(metadata, selector, 'disabled', options, scope);
   }
 
-  async isEnabled(metadata: CallMetadata, selector: string, options: types.QueryOnSelectorOptions = {}): Promise<boolean> {
-    return this._elementState(metadata, selector, 'enabled', options);
+  async isEnabled(metadata: CallMetadata, selector: string, options: types.QueryOnSelectorOptions = {}, scope?: dom.ElementHandle): Promise<boolean> {
+    return this._elementState(metadata, selector, 'enabled', options, scope);
   }
 
-  async isEditable(metadata: CallMetadata, selector: string, options: types.QueryOnSelectorOptions = {}): Promise<boolean> {
-    return this._elementState(metadata, selector, 'editable', options);
+  async isEditable(metadata: CallMetadata, selector: string, options: types.QueryOnSelectorOptions = {}, scope?: dom.ElementHandle): Promise<boolean> {
+    return this._elementState(metadata, selector, 'editable', options, scope);
   }
 
-  async isChecked(metadata: CallMetadata, selector: string, options: types.QueryOnSelectorOptions = {}): Promise<boolean> {
-    return this._elementState(metadata, selector, 'checked', options);
+  async isChecked(metadata: CallMetadata, selector: string, options: types.QueryOnSelectorOptions = {}, scope?: dom.ElementHandle): Promise<boolean> {
+    return this._elementState(metadata, selector, 'checked', options, scope);
   }
 
   async hover(metadata: CallMetadata, selector: string, options: types.PointerActionOptions & types.PointerActionWaitOptions & types.NavigatingActionWaitOptions = {}) {
@@ -1549,26 +1551,26 @@ export class Frame extends SdkObject {
     this._parentFrame = null;
   }
 
-  private async _callOnElementOnceMatches<T, R>(metadata: CallMetadata, selector: string, body: ElementCallback<T, R>, taskData: T, options: types.TimeoutOptions & types.StrictOptions & { mainWorld?: boolean } = {}): Promise<R> {
+  private async _callOnElementOnceMatches<T, R>(metadata: CallMetadata, selector: string, body: ElementCallback<T, R>, taskData: T, options: types.TimeoutOptions & types.StrictOptions & { mainWorld?: boolean } = {}, scope?: dom.ElementHandle): Promise<R> {
     const callbackText = body.toString();
     const controller = new ProgressController(metadata, this);
     return controller.run(async progress => {
       progress.log(`waiting for ${this._asLocator(selector)}`);
-      return this.retryWithProgressAndTimeouts(progress, [0, 20, 50, 100, 100, 500], async continuePolling => {
-        const resolved = await this.selectors.resolveInjectedForSelector(selector, options);
+      const promise = this.retryWithProgressAndTimeouts(progress, [0, 20, 50, 100, 100, 500], async continuePolling => {
+        const resolved = await this.selectors.resolveInjectedForSelector(selector, options, scope);
         progress.throwIfAborted();
         if (!resolved)
           return continuePolling;
-        const { log, success, value } = await resolved.injected.evaluate((injected, { info, callbackText, taskData, callId }) => {
+        const { log, success, value } = await resolved.injected.evaluate((injected, { info, callbackText, taskData, callId, root }) => {
           const callback = injected.eval(callbackText) as ElementCallback<T, R>;
-          const element = injected.querySelector(info.parsed, document, info.strict);
+          const element = injected.querySelector(info.parsed, root || document, info.strict);
           if (!element)
             return { success: false };
           const log = `  locator resolved to ${injected.previewNode(element)}`;
           if (callId)
             injected.markTargetElements(new Set([element]), callId);
           return { log, success: true, value: callback(injected, element, taskData as T) };
-        }, { info: resolved.info, callbackText, taskData, callId: progress.metadata.id });
+        }, { info: resolved.info, callbackText, taskData, callId: progress.metadata.id, root: resolved.frame === this ? scope : undefined });
 
         if (log)
           progress.log(log);
@@ -1576,6 +1578,7 @@ export class Frame extends SdkObject {
           return continuePolling;
         return value!;
       });
+      return scope ? scope._context._raceAgainstContextDestroyed(promise) : promise;
     }, this._page._timeoutSettings.timeout(options));
   }
 

@@ -27,6 +27,7 @@ import { runWatchModeLoop } from './watchMode';
 import * as Abq from './abq';
 import { runUIMode } from './uiMode';
 import { InternalReporter } from '../reporters/internalReporter';
+import { Multiplexer } from '../reporters/multiplexer';
 
 type ProjectConfigWithFiles = {
   name: string;
@@ -78,12 +79,12 @@ export class Runner {
     // Legacy webServer support.
     webServerPluginsForConfig(config).forEach(p => config.plugins.push({ factory: p }));
 
-    const reporter = new InternalReporter(await createReporters(config, configuredListOnly ? 'list' : 'run'));
+    const reporter = new InternalReporter(new Multiplexer(await createReporters(config, configuredListOnly ? 'list' : 'run')));
     const taskRunner = effectiveListOnly ? createTaskRunnerForList(config, reporter, 'in-process', { failOnLoadErrors: true })
       : createTaskRunner(config, reporter);
 
     const testRun = new TestRun(config, reporter);
-    reporter.onConfigure(config);
+    reporter.onConfigure(config.config);
 
     if (!configuredListOnly && config.ignoreSnapshots) {
       reporter.onStdOut(colors.dim([
@@ -100,7 +101,8 @@ export class Runner {
       status = 'failed';
     if (status === 'passed' && taskStatus !== 'passed')
       status = taskStatus;
-    await reporter.onExit({ status });
+    await reporter.onEnd({ status });
+    await reporter.onExit();
 
     // Calling process.exit() might truncate large stdout/stderr output.
     // See https://github.com/nodejs/node/issues/6456.

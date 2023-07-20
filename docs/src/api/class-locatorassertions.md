@@ -1750,8 +1750,8 @@ For example, given the following element:
 ```
 
 ```js
-const locator = page.locator("id=favorite-colors");
-await locator.selectOption(["R", "G"]);
+const locator = page.locator('id=favorite-colors');
+await locator.selectOption(['R', 'G']);
 await expect(locator).toHaveValues([/R/, /G/]);
 ```
 
@@ -1780,7 +1780,7 @@ expect(locator).to_have_values([re.compile(r"R"), re.compile(r"G")])
 
 ```csharp
 var locator = Page.Locator("id=favorite-colors");
-await locator.SelectOptionAsync(new string[] { "R", "G" })
+await locator.SelectOptionAsync(new string[] { "R", "G" });
 await Expect(locator).ToHaveValuesAsync(new Regex[] { new Regex("R"), new Regex("G") });
 ```
 

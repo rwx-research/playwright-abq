@@ -17,114 +17,89 @@
 import fs from 'fs';
 import { colors } from 'playwright-core/lib/utilsBundle';
 import { codeFrameColumns } from '../transform/babelBundle';
-import type { FullConfig, TestCase, TestError, TestResult, FullResult, TestStep, Reporter } from '../../types/testReporter';
+import type { FullConfig, TestCase, TestError, TestResult, FullResult, TestStep } from '../../types/testReporter';
 import { Suite } from '../common/test';
-import type { FullConfigInternal } from '../common/config';
-import { Multiplexer } from './multiplexer';
 import { prepareErrorStack, relativeFilePath } from './base';
-import { monotonicTime } from 'playwright-core/lib/utils';
+import type { ReporterV2 } from './reporterV2';
 
-type StdIOChunk = {
-  chunk: string | Buffer;
-  test?: TestCase;
-  result?: TestResult;
-};
+export class InternalReporter implements ReporterV2 {
+  private _reporter: ReporterV2;
+  private _didBegin = false;
+  private _config!: FullConfig;
 
-export class InternalReporter {
-  private _multiplexer: Multiplexer;
-  private _deferred: { error?: TestError, stdout?: StdIOChunk, stderr?: StdIOChunk }[] | null = [];
-  private _config!: FullConfigInternal;
-  private _montonicStartTime: number = 0;
-
-  constructor(reporters: Reporter[]) {
-    this._multiplexer = new Multiplexer(reporters);
+  constructor(reporter: ReporterV2) {
+    this._reporter = reporter;
   }
 
-  onConfigure(config: FullConfigInternal) {
+  version(): 'v2' {
+    return 'v2';
+  }
+
+  onConfigure(config: FullConfig) {
     this._config = config;
+    this._reporter.onConfigure(config);
   }
 
-  onBegin(config: FullConfig, suite: Suite) {
-    this._montonicStartTime = monotonicTime();
-    this._multiplexer.onBegin(config, suite);
-
-    const deferred = this._deferred!;
-    this._deferred = null;
-    for (const item of deferred) {
-      if (item.error)
-        this.onError(item.error);
-      if (item.stdout)
-        this.onStdOut(item.stdout.chunk, item.stdout.test, item.stdout.result);
-      if (item.stderr)
-        this.onStdErr(item.stderr.chunk, item.stderr.test, item.stderr.result);
-    }
+  onBegin(suite: Suite) {
+    this._didBegin = true;
+    this._reporter.onBegin(suite);
   }
 
   onTestBegin(test: TestCase, result: TestResult) {
-    this._multiplexer.onTestBegin(test, result);
+    this._reporter.onTestBegin(test, result);
   }
 
   onStdOut(chunk: string | Buffer, test?: TestCase, result?: TestResult) {
-    if (this._deferred) {
-      this._deferred.push({ stdout: { chunk, test, result } });
-      return;
-    }
-    this._multiplexer.onStdOut(chunk, test, result);
+    this._reporter.onStdOut(chunk, test, result);
   }
 
   onStdErr(chunk: string | Buffer, test?: TestCase, result?: TestResult) {
-    if (this._deferred) {
-      this._deferred.push({ stderr: { chunk, test, result } });
-      return;
-    }
-
-    this._multiplexer.onStdErr(chunk, test, result);
+    this._reporter.onStdErr(chunk, test, result);
   }
 
   onTestEnd(test: TestCase, result: TestResult) {
     this._addSnippetToTestErrors(test, result);
-    this._multiplexer.onTestEnd(test, result);
+    this._reporter.onTestEnd(test, result);
   }
 
-  async onEnd() {
-    this._config.config.metadata.totalTime = monotonicTime() - this._montonicStartTime;
-  }
-
-  async onExit(result: FullResult) {
-    if (this._deferred) {
+  async onEnd(result: FullResult) {
+    if (!this._didBegin) {
       // onBegin was not reported, emit it.
-      this.onBegin(this._config.config, new Suite('', 'root'));
+      this.onBegin(new Suite('', 'root'));
     }
-    await this._multiplexer.onEnd(result);
-    await this._multiplexer.onExit();
+    await this._reporter.onEnd(result);
+  }
+
+  async onExit() {
+    await this._reporter.onExit();
   }
 
   onError(error: TestError) {
-    if (this._deferred) {
-      this._deferred.push({ error });
-      return;
-    }
-    addLocationAndSnippetToError(this._config.config, error);
-    this._multiplexer.onError(error);
+    addLocationAndSnippetToError(this._config, error);
+    this._reporter.onError(error);
   }
 
   onStepBegin(test: TestCase, result: TestResult, step: TestStep) {
-    this._multiplexer.onStepBegin(test, result, step);
+    this._reporter.onStepBegin(test, result, step);
   }
 
   onStepEnd(test: TestCase, result: TestResult, step: TestStep) {
     this._addSnippetToStepError(test, step);
-    this._multiplexer.onStepEnd(test, result, step);
+    this._reporter.onStepEnd(test, result, step);
+  }
+
+  printsToStdio() {
+    return this._reporter.printsToStdio();
   }
 
   private _addSnippetToTestErrors(test: TestCase, result: TestResult) {
     for (const error of result.errors)
-      addLocationAndSnippetToError(this._config.config, error, test.location.file);
+      addLocationAndSnippetToError(this._config, error, test.location.file);
   }
 
   private _addSnippetToStepError(test: TestCase, step: TestStep) {
     if (step.error)
-      addLocationAndSnippetToError(this._config.config, step.error, test.location.file);
+      addLocationAndSnippetToError(this._config, step.error, test.location.file);
   }
 }
 

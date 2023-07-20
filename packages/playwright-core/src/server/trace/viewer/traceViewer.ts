@@ -23,7 +23,7 @@ import { installAppIcon, syncLocalStorageWithSettings } from '../../chromium/crA
 import { serverSideCallMetadata } from '../../instrumentation';
 import { createPlaywright } from '../../playwright';
 import { ProgressController } from '../../progress';
-import { open, wsServer } from 'playwright-core/lib/utilsBundle';
+import { open, wsServer } from '../../../utilsBundle';
 import type { Page } from '../../page';
 
 export type Transport = {
@@ -33,25 +33,16 @@ export type Transport = {
   onclose: () => void;
 };
 
-type Options = {
+export type OpenTraceViewerOptions = {
   app?: string;
   headless?: boolean;
   host?: string;
   port?: number;
   isServer?: boolean;
-  openInBrowser?: boolean;
   transport?: Transport;
 };
 
-export async function showTraceViewer(traceUrls: string[], browserName: string, options?: Options): Promise<void> {
-  if (options?.openInBrowser) {
-    await openTraceInBrowser(traceUrls, options);
-    return;
-  }
-  await openTraceViewerApp(traceUrls, browserName, options);
-}
-
-async function startTraceViewerServer(traceUrls: string[], options?: Options): Promise<{ server: HttpServer, url: string }> {
+async function startTraceViewerServer(traceUrls: string[], options?: OpenTraceViewerOptions): Promise<{ server: HttpServer, url: string }> {
   for (const traceUrl of traceUrls) {
     let traceFile = traceUrl;
     // If .json is requested, we'll synthesize it.
@@ -93,7 +84,7 @@ async function startTraceViewerServer(traceUrls: string[], options?: Options): P
     return server.serveFile(request, response, absolutePath);
   });
 
-  const params = traceUrls.map(t => `trace=${t}`);
+  const params = traceUrls.map(t => `trace=${encodeURIComponent(t)}`);
   const transport = options?.transport || (options?.isServer ? new StdinServer() : undefined);
 
   if (transport) {
@@ -125,7 +116,7 @@ async function startTraceViewerServer(traceUrls: string[], options?: Options): P
   const urlPath  = `/trace/${app || 'index.html'}${searchQuery}`;
 
   server.routePath('/', (_, response) => {
-    response.statusCode = 301;
+    response.statusCode = 302;
     response.setHeader('Location', urlPath);
     response.end();
     return true;
@@ -134,7 +125,7 @@ async function startTraceViewerServer(traceUrls: string[], options?: Options): P
   return { server, url };
 }
 
-export async function openTraceViewerApp(traceUrls: string[], browserName: string, options?: Options): Promise<Page> {
+export async function openTraceViewerApp(traceUrls: string[], browserName: string, options?: OpenTraceViewerOptions): Promise<Page> {
   const { url } = await startTraceViewerServer(traceUrls, options);
   const traceViewerPlaywright = createPlaywright({ sdkLanguage: 'javascript', isInternalPlaywright: true });
   const traceViewerBrowser = isUnderTest() ? 'chromium' : browserName;
@@ -171,24 +162,21 @@ export async function openTraceViewerApp(traceUrls: string[], browserName: strin
 
   if (isUnderTest())
     page.on('close', () => context.close(serverSideCallMetadata()).catch(() => {}));
-  else
-    page.on('close', () => process.exit());
 
   await page.mainFrame().goto(serverSideCallMetadata(), url);
   return page;
 }
 
-async function openTraceInBrowser(traceUrls: string[], options?: Options) {
+export async function openTraceInBrowser(traceUrls: string[], options?: OpenTraceViewerOptions) {
   const { url } = await startTraceViewerServer(traceUrls, options);
   // eslint-disable-next-line no-console
   console.log('\nListening on ' + url);
-  await open(url, { wait: true }).catch(() => {});
+  await open(url).catch(() => {});
 }
 
 class StdinServer implements Transport {
   private _pollTimer: NodeJS.Timeout | undefined;
   private _traceUrl: string | undefined;
-  private _page: Page | undefined;
 
   constructor() {
     process.stdin.on('data', data => {

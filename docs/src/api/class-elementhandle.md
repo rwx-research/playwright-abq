@@ -410,13 +410,13 @@ assertEquals("10", tweetHandle.evalOnSelector(".retweets", "node => node.innerTe
 ```python async
 tweet_handle = await page.query_selector(".tweet")
 assert await tweet_handle.eval_on_selector(".like", "node => node.innerText") == "100"
-assert await tweet_handle.eval_on_selector(".retweets", "node => node.innerText") = "10"
+assert await tweet_handle.eval_on_selector(".retweets", "node => node.innerText") == "10"
 ```
 
 ```python sync
 tweet_handle = page.query_selector(".tweet")
 assert tweet_handle.eval_on_selector(".like", "node => node.innerText") == "100"
-assert tweet_handle.eval_on_selector(".retweets", "node => node.innerText") = "10"
+assert tweet_handle.eval_on_selector(".retweets", "node => node.innerText") == "10"
 ```
 
 ```csharp
@@ -984,7 +984,7 @@ To press a special key, like `Control` or `ArrowDown`, use [`method: ElementHand
 
 ```js
 await elementHandle.type('Hello'); // Types instantly
-await elementHandle.type('World', {delay: 100}); // Types slower, like a user
+await elementHandle.type('World', { delay: 100 }); // Types slower, like a user
 ```
 
 ```java

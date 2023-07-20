@@ -46,9 +46,12 @@ function enclosingShadowHost(element: Element): Element | undefined {
   return parentElementOrShadowHost(element);
 }
 
-export function closestCrossShadow(element: Element | undefined, css: string): Element | undefined {
+// Assumption: if scope is provided, element must be inside scope's subtree.
+export function closestCrossShadow(element: Element | undefined, css: string, scope?: Document | Element): Element | undefined {
   while (element) {
     const closest = element.closest(css);
+    if (scope && closest !== scope && closest?.contains(scope))
+      return;
     if (closest)
       return closest;
     element = enclosingShadowHost(element);
@@ -103,7 +106,7 @@ export function isElementVisible(element: Element): boolean {
   return rect.width > 0 && rect.height > 0;
 }
 
-function isVisibleTextNode(node: Text) {
+export function isVisibleTextNode(node: Text) {
   // https://stackoverflow.com/questions/1461059/is-there-an-equivalent-to-getboundingclientrect-for-text-nodes
   const range = node.ownerDocument.createRange();
   range.selectNode(node);

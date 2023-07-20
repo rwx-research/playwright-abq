@@ -80,6 +80,8 @@ SerializedValue:
     d: string?
     # String representation of the URL.
     u: string?
+    # String representation of BigInt.
+    bi: string?
     # Regular expression pattern and flags.
     r:
       type: object?
@@ -3174,6 +3176,7 @@ Electron:
                 height: number
         strictSelectors: boolean?
         timezoneId: string?
+        tracesDir: string?
 
       returns:
         electronApplication: ElectronApplication

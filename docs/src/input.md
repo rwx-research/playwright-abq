@@ -88,7 +88,7 @@ Using [`method: Locator.setChecked`] is the easiest way to check and uncheck a c
 await page.getByLabel('I agree to the terms above').check();
 
 // Assert the checked state
-expect(await page.getByLabel('Subscribe to newsletter').isChecked()).toBeTruthy()
+expect(await page.getByLabel('Subscribe to newsletter').isChecked()).toBeTruthy();
 
 // Select the radio button
 await page.getByLabel('XL').check();
@@ -192,7 +192,7 @@ page.get_by_label('Choose multiple colors').select_option(['red', 'green', 'blue
 await page.GetByLabel("Choose a color").SelectOptionAsync("blue");
 
 // Single selection matching the label
-await page.GetByLabel("Choose a color").SelectOptionAsync(new SelectOptionValue { Label = "blue" }));
+await page.GetByLabel("Choose a color").SelectOptionAsync(new SelectOptionValue { Label = "blue" });
 
 // Multiple selected items
 await page.GetByLabel("Choose multiple colors").SelectOptionAsync(new[] { "blue", "green", "red" });
@@ -219,7 +219,7 @@ await page.getByText('Item').click({ modifiers: ['Shift'] });
 await page.getByText('Item').hover();
 
 // Click the top left corner
-await page.getByText('Item').click({ position: { x: 0, y: 0} });
+await page.getByText('Item').click({ position: { x: 0, y: 0 } });
 ```
 
 ```java
@@ -453,7 +453,7 @@ await page.GetByRole(AriaRole.Textbox).PressAsync("$");
 
 The [`method: Locator.press`] method focuses the selected element and produces a single keystroke. It accepts the logical key names that are emitted in the [keyboardEvent.key](https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key) property of the keyboard events:
 
-```
+```txt
 Backquote, Minus, Equal, Backslash, Backspace, Tab, Delete, Escape,
 ArrowDown, End, Enter, Home, Insert, PageDown, PageUp, ArrowRight,
 ArrowUp, F1 - F12, Digit0 - Digit9, KeyA - KeyZ, etc.

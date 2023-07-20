@@ -16,7 +16,7 @@
 
 import type * as actions from '../recorder/recorderActions';
 import type { InjectedScript } from '../injected/injectedScript';
-import { generateSelector, querySelector } from '../injected/selectorGenerator';
+import { generateSelector } from '../injected/selectorGenerator';
 import type { Point } from '../../common/types';
 import type { UIState } from '@recorder/recorderTypes';
 import { Highlight } from '../injected/highlight';
@@ -241,7 +241,7 @@ export class Recorder {
     // We'd like to ignore this stray event.
     if (userGesture && activeElement === this.document.body)
       return;
-    const result = activeElement ? generateSelector(this._injectedScript, activeElement, this._testIdAttributeName) : null;
+    const result = activeElement ? generateSelector(this._injectedScript, activeElement, { testIdAttributeName: this._testIdAttributeName }) : null;
     this._activeModel = result && result.selector ? result : null;
     if (userGesture)
       this._hoveredElement = activeElement as HTMLElement | null;
@@ -256,7 +256,7 @@ export class Recorder {
       return;
     }
     const hoveredElement = this._hoveredElement;
-    const { selector, elements } = generateSelector(this._injectedScript, hoveredElement, this._testIdAttributeName);
+    const { selector, elements } = generateSelector(this._injectedScript, hoveredElement, { testIdAttributeName: this._testIdAttributeName });
     if ((this._hoveredModel && this._hoveredModel.selector === selector))
       return;
     this._hoveredModel = selector ? { selector, elements } : null;
@@ -315,6 +315,9 @@ export class Recorder {
   }
 
   private _shouldGenerateKeyPressFor(event: KeyboardEvent): boolean {
+    // Enter aka. new line is handled in input event.
+    if (event.key === 'Enter' && (this._deepEventTarget(event).nodeName === 'TEXTAREA' || this._deepEventTarget(event).isContentEditable))
+      return false;
     // Backspace, Delete, AltGraph are changing input, will handle it there.
     if (['Backspace', 'Delete', 'AltGraph'].includes(event.key))
       return false;
@@ -478,6 +481,21 @@ function removeEventListeners(listeners: (() => void)[]) {
   for (const listener of listeners)
     listener();
   listeners.splice(0, listeners.length);
+}
+
+function querySelector(injectedScript: InjectedScript, selector: string, ownerDocument: Document): { selector: string, elements: Element[] } {
+  try {
+    const parsedSelector = injectedScript.parseSelector(selector);
+    return {
+      selector,
+      elements: injectedScript.querySelectorAll(parsedSelector, ownerDocument)
+    };
+  } catch (e) {
+    return {
+      selector,
+      elements: [],
+    };
+  }
 }
 
 interface Embedder {

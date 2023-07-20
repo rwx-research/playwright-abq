@@ -15,9 +15,10 @@
  */
 
 import { cssEscape, escapeForAttributeSelector, escapeForTextSelector, normalizeWhiteSpace } from '../../utils/isomorphic/stringUtils';
+import { closestCrossShadow, isInsideScope, parentElementOrShadowHost } from './domUtils';
 import type { InjectedScript } from './injectedScript';
-import { getAriaRole, getElementAccessibleName } from './roleUtils';
-import { elementText } from './selectorUtils';
+import { getAriaRole, getElementAccessibleName, beginAriaCaches, endAriaCaches } from './roleUtils';
+import { elementText, getElementLabels } from './selectorUtils';
 
 type SelectorToken = {
   engine: string;
@@ -59,36 +60,28 @@ const kCSSTagNameScore = 530;
 const kNthScore = 10000;
 const kCSSFallbackScore = 10000000;
 
-export function querySelector(injectedScript: InjectedScript, selector: string, ownerDocument: Document): { selector: string, elements: Element[] } {
-  try {
-    const parsedSelector = injectedScript.parseSelector(selector);
-    return {
-      selector,
-      elements: injectedScript.querySelectorAll(parsedSelector, ownerDocument)
-    };
-  } catch (e) {
-    return {
-      selector,
-      elements: [],
-    };
-  }
-}
+export type GenerateSelectorOptions = {
+  testIdAttributeName: string;
+  omitInternalEngines?: boolean;
+  root?: Element | Document;
+};
 
-export function generateSelector(injectedScript: InjectedScript, targetElement: Element, testIdAttributeName: string, omitInternalEngines?: boolean): { selector: string, elements: Element[] } {
+export function generateSelector(injectedScript: InjectedScript, targetElement: Element, options: GenerateSelectorOptions): { selector: string, elements: Element[] } {
   injectedScript._evaluator.begin();
+  beginAriaCaches();
   try {
-    targetElement = targetElement.closest('button,select,input,[role=button],[role=checkbox],[role=radio],a,[role=link]') || targetElement;
-    const targetTokens = generateSelectorFor(injectedScript, targetElement, testIdAttributeName, omitInternalEngines);
-    const bestTokens = targetTokens || cssFallback(injectedScript, targetElement);
-    const selector = joinTokens(bestTokens);
+    targetElement = closestCrossShadow(targetElement, 'button,select,input,[role=button],[role=checkbox],[role=radio],a,[role=link]', options.root) || targetElement;
+    const targetTokens = generateSelectorFor(injectedScript, targetElement, options);
+    const selector = joinTokens(targetTokens);
     const parsedSelector = injectedScript.parseSelector(selector);
     return {
       selector,
-      elements: injectedScript.querySelectorAll(parsedSelector, targetElement.ownerDocument)
+      elements: injectedScript.querySelectorAll(parsedSelector, options.root ?? targetElement.ownerDocument)
     };
   } finally {
     cacheAllowText.clear();
     cacheDisallowText.clear();
+    endAriaCaches();
     injectedScript._evaluator.end();
   }
 }
@@ -98,25 +91,29 @@ function filterRegexTokens(textCandidates: SelectorToken[][]): SelectorToken[][]
   return textCandidates.filter(c => c[0].selector[0] !== '/');
 }
 
-function generateSelectorFor(injectedScript: InjectedScript, targetElement: Element, testIdAttributeName: string, omitInternalEngines?: boolean): SelectorToken[] | null {
+function generateSelectorFor(injectedScript: InjectedScript, targetElement: Element, options: GenerateSelectorOptions): SelectorToken[] {
+  if (options.root && !isInsideScope(options.root, targetElement))
+    throw new Error(`Target element must belong to the root's subtree`);
+
+  if (targetElement === options.root)
+    return [{ engine: 'css', selector: ':scope', score: 1 }];
   if (targetElement.ownerDocument.documentElement === targetElement)
     return [{ engine: 'css', selector: 'html', score: 1 }];
 
-  const accessibleNameCache = new Map();
   const calculate = (element: Element, allowText: boolean): SelectorToken[] | null => {
     const allowNthMatch = element === targetElement;
 
-    let textCandidates = allowText ? buildTextCandidates(injectedScript, element, element === targetElement, accessibleNameCache) : [];
+    let textCandidates = allowText ? buildTextCandidates(injectedScript, element, element === targetElement) : [];
     if (element !== targetElement) {
       // Do not use regex for parent elements (for performance).
       textCandidates = filterRegexTokens(textCandidates);
     }
-    const noTextCandidates = buildCandidates(injectedScript, element, testIdAttributeName, accessibleNameCache)
-        .filter(token => !omitInternalEngines || !token.engine.startsWith('internal:'))
+    const noTextCandidates = buildNoTextCandidates(injectedScript, element, options)
+        .filter(token => !options.omitInternalEngines || !token.engine.startsWith('internal:'))
         .map(token => [token]);
 
     // First check all text and non-text candidates for the element.
-    let result = chooseFirstSelector(injectedScript, targetElement.ownerDocument, element, [...textCandidates, ...noTextCandidates], allowNthMatch);
+    let result = chooseFirstSelector(injectedScript, options.root ?? targetElement.ownerDocument, element, [...textCandidates, ...noTextCandidates], allowNthMatch);
 
     // Do not use regex for chained selectors (for performance).
     textCandidates = filterRegexTokens(textCandidates);
@@ -138,7 +135,7 @@ function generateSelectorFor(injectedScript: InjectedScript, targetElement: Elem
       if (!bestPossibleInParent)
         return;
 
-      for (let parent = parentElementOrShadowHost(element); parent; parent = parentElementOrShadowHost(parent)) {
+      for (let parent = parentElementOrShadowHost(element); parent && parent !== options.root; parent = parentElementOrShadowHost(parent)) {
         const parentTokens = calculateCached(parent, allowParentText);
         if (!parentTokens)
           continue;
@@ -173,24 +170,25 @@ function generateSelectorFor(injectedScript: InjectedScript, targetElement: Elem
     return value;
   };
 
-  return calculateCached(targetElement, true);
+  return calculateCached(targetElement, true) || cssFallback(injectedScript, targetElement, options);
 }
 
-function buildCandidates(injectedScript: InjectedScript, element: Element, testIdAttributeName: string, accessibleNameCache: Map<Element, boolean>): SelectorToken[] {
+function buildNoTextCandidates(injectedScript: InjectedScript, element: Element, options: GenerateSelectorOptions): SelectorToken[] {
   const candidates: SelectorToken[] = [];
 
-  // Start of generic candidates which are compatible for Locators and FrameLocators:
+  // CSS selectors are applicale to elements via locator() and iframes via frameLocator().
+  {
+    for (const attr of ['data-testid', 'data-test-id', 'data-test']) {
+      if (attr !== options.testIdAttributeName && element.getAttribute(attr))
+        candidates.push({ engine: 'css', selector: `[${attr}=${quoteAttributeValue(element.getAttribute(attr)!)}]`, score: kOtherTestIdScore });
+    }
 
-  for (const attr of ['data-testid', 'data-test-id', 'data-test']) {
-    if (attr !== testIdAttributeName && element.getAttribute(attr))
-      candidates.push({ engine: 'css', selector: `[${attr}=${quoteAttributeValue(element.getAttribute(attr)!)}]`, score: kOtherTestIdScore });
+    const idAttr = element.getAttribute('id');
+    if (idAttr && !isGuidLike(idAttr))
+      candidates.push({ engine: 'css', selector: makeSelectorForId(idAttr), score: kCSSIdScore });
+
+    candidates.push({ engine: 'css', selector: cssEscape(element.nodeName.toLowerCase()), score: kCSSTagNameScore });
   }
-
-  const idAttr = element.getAttribute('id');
-  if (idAttr && !isGuidLike(idAttr))
-    candidates.push({ engine: 'css', selector: makeSelectorForId(idAttr), score: kCSSIdScore });
-
-  candidates.push({ engine: 'css', selector: cssEscape(element.nodeName.toLowerCase()), score: kCSSTagNameScore });
 
   if (element.nodeName === 'IFRAME') {
     for (const attribute of ['name', 'title']) {
@@ -198,19 +196,17 @@ function buildCandidates(injectedScript: InjectedScript, element: Element, testI
         candidates.push({ engine: 'css', selector: `${cssEscape(element.nodeName.toLowerCase())}[${attribute}=${quoteAttributeValue(element.getAttribute(attribute)!)}]`, score: kIframeByAttributeScore });
     }
 
-    // Get via testIdAttributeName via CSS selector.
-    if (element.getAttribute(testIdAttributeName))
-      candidates.push({ engine: 'css', selector: `[${testIdAttributeName}=${escapeForAttributeSelector(element.getAttribute(testIdAttributeName)!, true!)}]`, score: kTestIdScore });
+    // Locate by testId via CSS selector.
+    if (element.getAttribute(options.testIdAttributeName))
+      candidates.push({ engine: 'css', selector: `[${options.testIdAttributeName}=${quoteAttributeValue(element.getAttribute(options.testIdAttributeName)!)}]`, score: kTestIdScore });
 
     penalizeScoreForLength([candidates]);
     return candidates;
   }
 
-  // Everything after that are candidates that are not applicable to iframes and designed for Locators only(getBy* methods):
-
-  // Get via testIdAttributeName via GetByTestId().
-  if (element.getAttribute(testIdAttributeName))
-    candidates.push({ engine: 'internal:testid', selector: `[${testIdAttributeName}=${escapeForAttributeSelector(element.getAttribute(testIdAttributeName)!, true)}]`, score: kTestIdScore });
+  // Everything below is not applicable to iframes (getBy* methods).
+  if (element.getAttribute(options.testIdAttributeName))
+    candidates.push({ engine: 'internal:testid', selector: `[${options.testIdAttributeName}=${escapeForAttributeSelector(element.getAttribute(options.testIdAttributeName)!, true)}]`, score: kTestIdScore });
 
   if (element.nodeName === 'INPUT' || element.nodeName === 'TEXTAREA') {
     const input = element as HTMLInputElement | HTMLTextAreaElement;
@@ -218,24 +214,18 @@ function buildCandidates(injectedScript: InjectedScript, element: Element, testI
       candidates.push({ engine: 'internal:attr', selector: `[placeholder=${escapeForAttributeSelector(input.placeholder, false)}]`, score: kPlaceholderScore });
       candidates.push({ engine: 'internal:attr', selector: `[placeholder=${escapeForAttributeSelector(input.placeholder, true)}]`, score: kPlaceholderScoreExact });
     }
-    const label = input.labels?.[0];
-    if (label) {
-      const labelText = elementText(injectedScript._evaluator._cacheText, label).full.trim();
-      candidates.push({ engine: 'internal:label', selector: escapeForTextSelector(labelText, false), score: kLabelScore });
-      candidates.push({ engine: 'internal:label', selector: escapeForTextSelector(labelText, true), score: kLabelScoreExact });
-    }
+  }
+
+  const labels = getElementLabels(injectedScript._evaluator._cacheText, element);
+  for (const label of labels) {
+    const labelText = label.full.trim();
+    candidates.push({ engine: 'internal:label', selector: escapeForTextSelector(labelText, false), score: kLabelScore });
+    candidates.push({ engine: 'internal:label', selector: escapeForTextSelector(labelText, true), score: kLabelScoreExact });
   }
 
   const ariaRole = getAriaRole(element);
-  if (ariaRole && !['none', 'presentation'].includes(ariaRole)) {
-    const ariaName = getElementAccessibleName(element, false, accessibleNameCache);
-    if (ariaName) {
-      candidates.push({ engine: 'internal:role', selector: `${ariaRole}[name=${escapeForAttributeSelector(ariaName, false)}]`, score: kRoleWithNameScore });
-      candidates.push({ engine: 'internal:role', selector: `${ariaRole}[name=${escapeForAttributeSelector(ariaName, true)}]`, score: kRoleWithNameScoreExact });
-    } else {
-      candidates.push({ engine: 'internal:role', selector: ariaRole, score: kRoleWithoutNameScore });
-    }
-  }
+  if (ariaRole && !['none', 'presentation'].includes(ariaRole))
+    candidates.push({ engine: 'internal:role', selector: ariaRole, score: kRoleWithoutNameScore });
 
   if (element.getAttribute('alt') && ['APPLET', 'AREA', 'IMG', 'INPUT'].includes(element.nodeName)) {
     candidates.push({ engine: 'internal:attr', selector: `[alt=${escapeForAttributeSelector(element.getAttribute('alt')!, false)}]`, score: kAltTextScore });
@@ -262,57 +252,44 @@ function buildCandidates(injectedScript: InjectedScript, element: Element, testI
   return candidates;
 }
 
-function buildTextCandidates(injectedScript: InjectedScript, element: Element, isTargetNode: boolean, accessibleNameCache: Map<Element, boolean>): SelectorToken[][] {
+function buildTextCandidates(injectedScript: InjectedScript, element: Element, isTargetNode: boolean): SelectorToken[][] {
   if (element.nodeName === 'SELECT')
-    return [];
-  const text = normalizeWhiteSpace(elementText(injectedScript._evaluator._cacheText, element).full).substring(0, 80);
-  if (!text)
     return [];
   const candidates: SelectorToken[][] = [];
 
-  const escaped = escapeForTextSelector(text, false);
-
-  if (isTargetNode) {
-    candidates.push([{ engine: 'internal:text', selector: escaped, score: kTextScore }]);
-    candidates.push([{ engine: 'internal:text', selector: escapeForTextSelector(text, true), score: kTextScoreExact }]);
+  const fullText = normalizeWhiteSpace(elementText(injectedScript._evaluator._cacheText, element).full);
+  const text = fullText.substring(0, 80);
+  if (text) {
+    const escaped = escapeForTextSelector(text, false);
+    if (isTargetNode) {
+      candidates.push([{ engine: 'internal:text', selector: escaped, score: kTextScore }]);
+      candidates.push([{ engine: 'internal:text', selector: escapeForTextSelector(text, true), score: kTextScoreExact }]);
+    }
+    const cssToken: SelectorToken = { engine: 'css', selector: element.nodeName.toLowerCase(), score: kCSSTagNameScore };
+    candidates.push([cssToken, { engine: 'internal:has-text', selector: escaped, score: kTextScore }]);
+    if (fullText.length <= 80)
+      candidates.push([cssToken, { engine: 'internal:has-text', selector: '/^' + escapeRegExp(fullText) + '$/', score: kTextScoreRegex }]);
   }
 
   const ariaRole = getAriaRole(element);
-  const candidate: SelectorToken[] = [];
   if (ariaRole && !['none', 'presentation'].includes(ariaRole)) {
-    const ariaName = getElementAccessibleName(element, false, accessibleNameCache);
+    const ariaName = getElementAccessibleName(element, false);
     if (ariaName) {
-      candidate.push({ engine: 'internal:role', selector: `${ariaRole}[name=${escapeForAttributeSelector(ariaName, false)}]`, score: kRoleWithNameScore });
-      candidate.push({ engine: 'internal:role', selector: `${ariaRole}[name=${escapeForAttributeSelector(ariaName, true)}]`, score: kRoleWithNameScoreExact });
-    } else {
-      candidate.push({ engine: 'internal:role', selector: ariaRole, score: kRoleWithoutNameScore });
+      candidates.push([{ engine: 'internal:role', selector: `${ariaRole}[name=${escapeForAttributeSelector(ariaName, false)}]`, score: kRoleWithNameScore }]);
+      candidates.push([{ engine: 'internal:role', selector: `${ariaRole}[name=${escapeForAttributeSelector(ariaName, true)}]`, score: kRoleWithNameScoreExact }]);
     }
-  } else {
-    candidate.push({ engine: 'css', selector: element.nodeName.toLowerCase(), score: kCSSTagNameScore });
   }
-  candidates.push([...candidate, { engine: 'internal:has-text', selector: escaped, score: kTextScore }]);
-  if (text.length <= 80)
-    candidates.push([...candidate, { engine: 'internal:has-text', selector: '/^' + escapeRegExp(text) + '$/', score: kTextScoreRegex }]);
+
   penalizeScoreForLength(candidates);
   return candidates;
-}
-
-function parentElementOrShadowHost(element: Element): Element | null {
-  if (element.parentElement)
-    return element.parentElement;
-  if (!element.parentNode)
-    return null;
-  if (element.parentNode.nodeType === Node.DOCUMENT_FRAGMENT_NODE && (element.parentNode as ShadowRoot).host)
-    return (element.parentNode as ShadowRoot).host;
-  return null;
 }
 
 function makeSelectorForId(id: string) {
   return /^[a-zA-Z][a-zA-Z0-9\-\_]+$/.test(id) ? '#' + id : `[id="${cssEscape(id)}"]`;
 }
 
-function cssFallback(injectedScript: InjectedScript, targetElement: Element): SelectorToken[] {
-  const root: Node = targetElement.ownerDocument;
+function cssFallback(injectedScript: InjectedScript, targetElement: Element, options: GenerateSelectorOptions): SelectorToken[] {
+  const root: Node = options.root ?? targetElement.ownerDocument;
   const tokens: string[] = [];
 
   function uniqueCSSSelector(prefix?: string): string | undefined {
@@ -321,21 +298,21 @@ function cssFallback(injectedScript: InjectedScript, targetElement: Element): Se
       path.unshift(prefix);
     const selector = path.join(' > ');
     const parsedSelector = injectedScript.parseSelector(selector);
-    const node = injectedScript.querySelector(parsedSelector, targetElement.ownerDocument, false);
+    const node = injectedScript.querySelector(parsedSelector, root, false);
     return node === targetElement ? selector : undefined;
   }
 
   function makeStrict(selector: string): SelectorToken[] {
     const token = { engine: 'css', selector, score: kCSSFallbackScore };
     const parsedSelector = injectedScript.parseSelector(selector);
-    const elements = injectedScript.querySelectorAll(parsedSelector, targetElement.ownerDocument);
+    const elements = injectedScript.querySelectorAll(parsedSelector, root);
     if (elements.length === 1)
       return [token];
     const nth = { engine: 'nth', selector: String(elements.indexOf(targetElement)), score: kNthScore };
     return [token, nth];
   }
 
-  for (let element: Element | null = targetElement; element && element !== root; element = parentElementOrShadowHost(element)) {
+  for (let element: Element | undefined = targetElement; element && element !== root; element = parentElementOrShadowHost(element)) {
     const nodeName = element.nodeName.toLowerCase();
 
     // Element ID is the strongest signal, use it.
