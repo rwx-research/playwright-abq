@@ -27,6 +27,7 @@ import { TaskRunner } from './taskRunner';
 import type { FullConfigInternal, FullProjectInternal } from '../common/config';
 import { collectProjectsAndTestFiles, createRootSuite, loadFileSuites, loadGlobalHook } from './loadUtils';
 import type { Matcher } from '../util';
+import * as Abq from './abq';
 import type { Suite } from '../common/test';
 import { buildDependentProjects, buildTeardownToSetupsMap } from './projectUtils';
 import { monotonicTime } from 'playwright-core/lib/utils';
@@ -110,10 +111,15 @@ export function createTaskRunnerForList(config: FullConfigInternal, reporter: Re
 function createReportBeginTask(): Task<TestRun> {
   return async ({ config, reporter, rootSuite }) => {
     const montonicStartTime = monotonicTime();
-    reporter.onBegin(rootSuite!);
-    return async () => {
+    const completer =  async () => {
       config.config.metadata.totalTime = monotonicTime() - montonicStartTime;
     };
+    if (Abq.shouldGenerateManifest()) {
+      Abq.sendManifest(rootSuite!);
+      return completer;
+    }
+    reporter.onBegin(rootSuite!);
+    return completer;
   };
 }
 
@@ -180,6 +186,11 @@ function createLoadTask(mode: 'out-of-process' | 'in-process', options: { filter
     // Fail when no tests.
     if (options.failOnLoadErrors && !testRun.rootSuite.allTests().length && !testRun.config.cliPassWithNoTests && !testRun.config.config.shard)
       throw new Error(`No tests found`);
+
+    const abqIncompatibilityErrors = Abq.checkForConfigurationIncompatibility(testRun.config, testRun.config.cliProjectFilter ?? []);
+    if (abqIncompatibilityErrors.length) {
+      throw new Error(abqIncompatibilityErrors.join('\n'));
+    }
   };
 }
 
@@ -215,7 +226,8 @@ function createPhasesTask(): Task<TestRun> {
         processed.add(project);
       if (phaseProjects.length) {
         let testGroupsInPhase = 0;
-        const phase: Phase = { dispatcher: new Dispatcher(testRun.config, testRun.reporter), projects: [] };
+        const dispatcher = Abq.enabled() ? new Abq.AbqDispatcher(testRun.config, testRun.reporter) : new Dispatcher(testRun.config, testRun.reporter);
+        const phase: Phase = { dispatcher, projects: [] };
         testRun.phases.push(phase);
         for (const project of phaseProjects) {
           const projectSuite = projectToSuite.get(project)!;

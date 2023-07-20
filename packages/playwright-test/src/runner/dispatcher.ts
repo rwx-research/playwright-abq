@@ -38,14 +38,14 @@ type TestData = {
 export type EnvByProjectId = Map<string, Record<string, string | undefined>>;
 
 export class Dispatcher {
-  private _workerSlots: { busy: boolean, worker?: WorkerHost }[] = [];
-  private _queue: TestGroup[] = [];
+  protected _workerSlots: { busy: boolean, worker?: WorkerHost }[] = [];
+  protected _queue: TestGroup[] = [];
   private _queuedOrRunningHashCount = new Map<string, number>();
   private _finished = new ManualPromise<void>();
-  private _isStopped = true;
+  protected _isStopped = true;
 
   private _testById = new Map<string, TestData>();
-  private _config: FullConfigInternal;
+  protected _config: FullConfigInternal;
   private _reporter: ReporterV2;
   private _hasWorkerErrors = false;
   private _failureCount = 0;
@@ -86,7 +86,7 @@ export class Dispatcher {
     this._checkFinished();
   }
 
-  private async _scheduleJob() {
+  protected async _scheduleJob() {
     this._processFullySkippedJobs();
 
     // 1. Find a job to run.
@@ -115,7 +115,7 @@ export class Dispatcher {
     void this._scheduleJob();
   }
 
-  private async _startJobInWorker(index: number, job: TestGroup) {
+  protected async _startJobInWorker(index: number, job: TestGroup) {
     let worker = this._workerSlots[index].worker;
 
     // 1. Restart the worker if it has the wrong hash or is being stopped already.
@@ -140,7 +140,7 @@ export class Dispatcher {
     await this._runJob(worker, job);
   }
 
-  private _checkFinished() {
+  protected _checkFinished() {
     if (this._finished.isDone())
       return;
 
