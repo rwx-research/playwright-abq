@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { test, expect, stripAnsi } from './playwright-test-fixtures';
+import { test, expect } from './playwright-test-fixtures';
 import fs from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
@@ -42,13 +42,13 @@ test('should respect viewport option', async ({ runInlineTest }) => {
       module.exports = { use: { viewport: { width: 800, height: 800 } } };
     `,
     'a.test.ts': `
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
       test('pass', async ({ page }) => {
         expect(page.viewportSize()).toEqual({ width: 800, height: 800 });
       });
     `,
     'b.test.ts': `
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
       test.use({ viewport: { width: 600, height: 600 } });
       test('pass', async ({ page }) => {
         expect(page.viewportSize()).toEqual({ width: 600, height: 600 });
@@ -66,7 +66,7 @@ test('should run in three browsers with --browser', async ({ runInlineTest }) =>
       module.exports = { use: { viewport: { width: 800, height: 800 } } };
     `,
     'a.test.ts': `
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
       test('pass', async ({ browserName }) => {
         console.log('\\n%%browser=' + browserName);
       });
@@ -75,10 +75,10 @@ test('should run in three browsers with --browser', async ({ runInlineTest }) =>
 
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(3);
-  expect(result.output.split('\n').filter(line => line.startsWith('%%')).sort()).toEqual([
-    '%%browser=chromium',
-    '%%browser=firefox',
-    '%%browser=webkit',
+  expect(result.outputLines.sort()).toEqual([
+    'browser=chromium',
+    'browser=firefox',
+    'browser=webkit',
   ]);
 });
 
@@ -88,7 +88,7 @@ test('should run in one browser with --browser', async ({ runInlineTest }) => {
       module.exports = { use: { viewport: { width: 800, height: 800 } } };
     `,
     'a.test.ts': `
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
       test('pass', async ({ browserName }) => {
         console.log('\\n%%browser=' + browserName);
       });
@@ -97,8 +97,8 @@ test('should run in one browser with --browser', async ({ runInlineTest }) => {
 
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(1);
-  expect(result.output.split('\n').filter(line => line.startsWith('%%')).sort()).toEqual([
-    '%%browser=webkit',
+  expect(result.outputLines.sort()).toEqual([
+    'browser=webkit',
   ]);
 });
 
@@ -108,7 +108,7 @@ test('should complain with projects and --browser', async ({ runInlineTest }) =>
       module.exports = { projects: [ {} ] };
     `,
     'a.test.ts': `
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
       test('pass', async ({ page }) => {
       });
     `,
@@ -127,7 +127,7 @@ test('should override any headless option with --headed', async ({ runInlineTest
       ] };
     `,
     'a.test.ts': `
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
       test('example', async ({ page }) => {
         expect(await page.evaluate(() => navigator.userAgent)).not.toContain('Headless');
       });
@@ -144,7 +144,7 @@ test('should not override use:browserName without projects', async ({ runInlineT
       module.exports = { use: { browserName: 'webkit' } };
     `,
     'a.test.ts': `
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
       test('pass', async ({ browserName }) => {
         console.log('\\n%%browser=' + browserName);
       });
@@ -153,8 +153,8 @@ test('should not override use:browserName without projects', async ({ runInlineT
 
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(1);
-  expect(result.output.split('\n').filter(line => line.startsWith('%%')).sort()).toEqual([
-    '%%browser=webkit',
+  expect(result.outputLines.sort()).toEqual([
+    'browser=webkit',
   ]);
 });
 
@@ -164,7 +164,7 @@ test('should override use:browserName with --browser', async ({ runInlineTest })
       module.exports = { use: { browserName: 'webkit' } };
     `,
     'a.test.ts': `
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
       test('pass', async ({ browserName }) => {
         console.log('\\n%%browser=' + browserName);
       });
@@ -173,8 +173,8 @@ test('should override use:browserName with --browser', async ({ runInlineTest })
 
   expect(result.exitCode).toBe(0);
   expect(result.passed).toBe(1);
-  expect(result.output.split('\n').filter(line => line.startsWith('%%')).sort()).toEqual([
-    '%%browser=firefox',
+  expect(result.outputLines.sort()).toEqual([
+    'browser=firefox',
   ]);
 });
 
@@ -189,7 +189,7 @@ test('should respect context options in various contexts', async ({ runInlineTes
       import path from 'path';
       import rimraf from 'rimraf';
 
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
       test.use({ locale: 'fr-FR' });
 
       let context;
@@ -257,7 +257,7 @@ test('should respect headless in launchPersistent', async ({ runInlineTest }) =>
       import path from 'path';
       import rimraf from 'rimraf';
 
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
 
       test('persistent context', async ({ playwright, browserName }) => {
         const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'user-data-dir-'));
@@ -280,7 +280,7 @@ test('should respect headless in modifiers that run before tests', async ({ runI
       module.exports = { use: { headless: false } };
     `,
     'a.test.ts': `
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
 
       test.skip(({ browser }) => false);
 
@@ -297,7 +297,7 @@ test('should respect headless in modifiers that run before tests', async ({ runI
 test('should call logger from launchOptions config', async ({ runInlineTest }, testInfo) => {
   const result = await runInlineTest({
     'a.test.ts': `
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
       const log = [];
       test.use({
         launchOptions: {
@@ -325,7 +325,7 @@ test('should call logger from launchOptions config', async ({ runInlineTest }, t
 test('should report error and pending operations on timeout', async ({ runInlineTest }, testInfo) => {
   const result = await runInlineTest({
     'a.test.ts': `
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
       test('timedout', async ({ page }) => {
         await page.setContent('<div>Click me</div>');
         await Promise.all([
@@ -340,16 +340,16 @@ test('should report error and pending operations on timeout', async ({ runInline
   expect(result.passed).toBe(0);
   expect(result.failed).toBe(1);
   expect(result.output).toContain('Pending operations:');
-  expect(result.output).toContain('- locator.click at a.test.ts:9:37');
-  expect(result.output).toContain('- locator.textContent at a.test.ts:10:42');
+  expect(result.output).toContain('- locator.click at a.test.ts:6:37');
+  expect(result.output).toContain('- locator.textContent at a.test.ts:7:42');
   expect(result.output).toContain('waiting for');
-  expect(stripAnsi(result.output)).toContain(`10 |           page.getByText('More missing').textContent(),`);
+  expect(result.output).toContain(`7 |           page.getByText('More missing').textContent(),`);
 });
 
 test('should report error on timeout with shared page', async ({ runInlineTest }, testInfo) => {
   const result = await runInlineTest({
     'a.test.ts': `
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
       let page;
       test.beforeAll(async ({ browser }) => {
         page = await browser.newPage();
@@ -367,13 +367,13 @@ test('should report error on timeout with shared page', async ({ runInlineTest }
   expect(result.passed).toBe(1);
   expect(result.failed).toBe(1);
   expect(result.output).toContain('waiting for getByText(\'Missing\')');
-  expect(stripAnsi(result.output)).toContain(`14 |         await page.getByText('Missing').click();`);
+  expect(result.output).toContain(`11 |         await page.getByText('Missing').click();`);
 });
 
 test('should report error from beforeAll timeout', async ({ runInlineTest }, testInfo) => {
   const result = await runInlineTest({
     'a.test.ts': `
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
       test.beforeAll(async ({ browser }) => {
         const page = await browser.newPage();
         await page.setContent('<div>Click me</div>');
@@ -391,13 +391,13 @@ test('should report error from beforeAll timeout', async ({ runInlineTest }, tes
   expect(result.failed).toBe(1);
   expect(result.output).toContain('"beforeAll" hook timeout of 2000ms exceeded.');
   expect(result.output).toContain('waiting for');
-  expect(stripAnsi(result.output)).toContain(`11 |           page.getByText('More missing').textContent(),`);
+  expect(result.output).toContain(`8 |           page.getByText('More missing').textContent(),`);
 });
 
 test('should not report waitForEventInfo as pending', async ({ runInlineTest }, testInfo) => {
   const result = await runInlineTest({
     'a.test.ts': `
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
       test('timedout', async ({ page }) => {
         await page.setContent('<div>Click me</div>');
         await page.waitForLoadState('networkidle');
@@ -410,14 +410,14 @@ test('should not report waitForEventInfo as pending', async ({ runInlineTest }, 
   expect(result.passed).toBe(0);
   expect(result.failed).toBe(1);
   expect(result.output).toContain('Pending operations:');
-  expect(result.output).toContain('- page.click at a.test.ts:9:20');
+  expect(result.output).toContain('- page.click at a.test.ts:6:20');
   expect(result.output).not.toContain('- page.waitForLoadState');
 });
 
 test('should throw when using page in beforeAll', async ({ runInlineTest }, testInfo) => {
   const result = await runInlineTest({
     'a.test.ts': `
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
       test.beforeAll(() => {});
       test.beforeAll(async ({ page }) => {
       });
@@ -436,7 +436,7 @@ test('should report click error on sigint', async ({ runInlineTest }) => {
 
   const result = await runInlineTest({
     'a.test.ts': `
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
       test('timedout', async ({ page }) => {
         await page.setContent('<div>Click me</div>');
         const promise = page.click('text=Missing');
@@ -451,7 +451,7 @@ test('should report click error on sigint', async ({ runInlineTest }) => {
   expect(result.passed).toBe(0);
   expect(result.failed).toBe(0);
   expect(result.interrupted).toBe(1);
-  expect(stripAnsi(result.output)).toContain(`8 |         const promise = page.click('text=Missing');`);
+  expect(result.output).toContain(`5 |         const promise = page.click('text=Missing');`);
 });
 
 test('should work with video: retain-on-failure', async ({ runInlineTest }, testInfo) => {
@@ -460,7 +460,7 @@ test('should work with video: retain-on-failure', async ({ runInlineTest }, test
       module.exports = { use: { video: 'retain-on-failure' }, name: 'chromium' };
     `,
     'a.test.ts': `
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
       test('pass', async ({ page }) => {
         await page.setContent('<div>PASS</div>');
         await page.waitForTimeout(3000);
@@ -492,7 +492,7 @@ test('should work with video: on-first-retry', async ({ runInlineTest }, testInf
       module.exports = { use: { video: 'on-first-retry' }, retries: 1, name: 'chromium' };
     `,
     'a.test.ts': `
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
       test('pass', async ({ page }) => {
         await page.setContent('<div>PASS</div>');
         await page.waitForTimeout(3000);
@@ -538,7 +538,7 @@ test('should work with video size', async ({ runInlineTest }, testInfo) => {
       };
     `,
     'a.test.ts': `
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
       test('pass', async ({ page }) => {
         await page.setContent('<div>PASS</div>');
         await page.waitForTimeout(3000);
@@ -566,7 +566,7 @@ test('should work with video.path() throwing', async ({ runInlineTest }, testInf
       };
     `,
     'a.test.ts': `
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
       test('pass', async ({ page }) => {
         page.video().path = () => { throw new Error('No-no!'); };
         await page.setContent('<div>PASS</div>');
@@ -587,7 +587,7 @@ test('should pass fixture defaults to tests', async ({ runInlineTest }) => {
       module.exports = {};
     `,
     'a.test.ts': `
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
       test('pass', async ({ acceptDownloads, actionTimeout, headless, javaScriptEnabled, navigationTimeout }) => {
         expect(acceptDownloads).toBe(true);
         expect(actionTimeout).toBe(0);
@@ -641,7 +641,7 @@ test('should not throw with many fixtures set to undefined', async ({ runInlineT
       } };
     `,
     'a.spec.ts': `
-      const { test } = pwt;
+      import { test, expect } from '@playwright/test';
       test.use({
         browserName: undefined,
         headless: undefined,
@@ -684,5 +684,67 @@ test('should not throw with many fixtures set to undefined', async ({ runInlineT
   }, { workers: 1 });
 
   expect(result.exitCode).toBe(0);
+  expect(result.passed).toBe(1);
+});
+
+test('should have strict types for options but allow use(undefined)', async ({ runTSC }) => {
+  const result = await runTSC({
+    'a.spec.ts': `
+      import { test, expect } from '@playwright/test';
+      test.use({
+        headless: undefined,
+        acceptDownloads: undefined,
+        bypassCSP: undefined,
+        hasTouch: undefined,
+        ignoreHTTPSErrors: undefined,
+        isMobile: undefined,
+        javaScriptEnabled: undefined,
+        offline: undefined,
+        actionTimeout: undefined,
+        navigationTimeout: undefined,
+        testIdAttribute: undefined,
+      });
+      test('my test', async ({
+          headless, acceptDownloads, bypassCSP,
+          hasTouch, ignoreHTTPSErrors, isMobile, javaScriptEnabled, offline,
+          actionTimeout, navigationTimeout, testIdAttribute }) => {
+        test.skip(headless, 'boolean');
+        test.skip(acceptDownloads, 'boolean');
+        test.skip(bypassCSP, 'boolean');
+        test.skip(hasTouch, 'boolean');
+        test.skip(ignoreHTTPSErrors, 'boolean');
+        test.skip(isMobile, 'boolean');
+        test.skip(javaScriptEnabled, 'boolean');
+        test.skip(offline, 'boolean');
+        test.skip(actionTimeout > 0, 'number');
+        test.skip(navigationTimeout > 0, 'number');
+        test.skip(testIdAttribute.length > 0, 'string');
+      });
+    `,
+  });
+  expect(result.exitCode).toBe(0);
+});
+
+test('should skip on mobile', async ({ runInlineTest }) => {
+  const result = await runInlineTest({
+    'a.spec.ts': `
+      import { test, expect } from '@playwright/test';
+
+      test.describe(() => {
+        test.use({ isMobile: true });
+        test('test 1', async ({ isMobile }) => {
+          test.skip(isMobile, 'desktop only!');
+        });
+      });
+
+      test.describe(() => {
+        test('test 2', async ({ isMobile }) => {
+          test.skip(isMobile, 'desktop only!');
+        });
+      });
+    `,
+  });
+  expect(result.exitCode).toBe(0);
+  expect(result.skipped).toBe(1);
   expect(result.passed).toBe(1);
 });

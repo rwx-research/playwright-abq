@@ -60,6 +60,11 @@ Contains the URL of the WebSocket.
 Waits for event to fire and passes its value into the predicate function. Returns when the predicate returns truthy
 value. Will throw an error if the webSocket is closed before the event is fired. Returns the event data value.
 
+## async method: WebSocket.waitForEvent
+* since: v1.8
+* langs: python
+- returns: <[EventContextManager]>
+
 ### param: WebSocket.waitForEvent.event
 * since: v1.8
 - `event` <[string]>
@@ -75,6 +80,12 @@ Event name, same one would pass into `webSocket.on(event)`.
 
 Either a predicate that receives an event or an options object. Optional.
 
+### option: WebSocket.waitForEvent.predicate = %%-wait-for-event-predicate-%%
+* since: v1.8
+
+### option: WebSocket.waitForEvent.timeout = %%-wait-for-event-timeout-%%
+* since: v1.8
+
 ## async method: WebSocket.waitForFrameReceived
 * since: v1.10
 * langs: java
@@ -83,6 +94,9 @@ Either a predicate that receives an event or an options object. Optional.
 Performs action and waits for a frame to be sent. If predicate is provided, it passes
 [WebSocketFrame] value into the `predicate` function and waits for `predicate(webSocketFrame)` to return a truthy value.
 Will throw an error if the WebSocket or Page is closed before the frame is received.
+
+### param: WebSocket.waitForFrameReceived.callback = %%-java-wait-for-event-callback-%%
+* since: v1.9
 
 ### option: WebSocket.waitForFrameReceived.predicate
 * since: v1.9
@@ -101,6 +115,9 @@ Receives the [WebSocketFrame] object and resolves to truthy value when the waiti
 Performs action and waits for a frame to be sent. If predicate is provided, it passes
 [WebSocketFrame] value into the `predicate` function and waits for `predicate(webSocketFrame)` to return a truthy value.
 Will throw an error if the WebSocket or Page is closed before the frame is sent.
+
+### param: WebSocket.waitForFrameSent.callback = %%-java-wait-for-event-callback-%%
+* since: v1.9
 
 ### option: WebSocket.waitForFrameSent.predicate
 * since: v1.9
