@@ -14,12 +14,19 @@ env:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
-          - node-version: 16
-          - node-version: 18
+          - os: ubuntu-22.04
+            node-version: 18
+            browser: chromium
+          - os: ubuntu-22.04
+            node-version: 20
+            browser: chromium
+          - os: ubuntu-22.04
+            node-version: 22
+            browser: chromium
     env:
       AWS_DEFAULT_REGION: us-east-2
       AWS_DEFAULT_OUTPUT: json
@@ -32,7 +39,7 @@ jobs:
         env:
           DEBUG: pw:install
       - run: npm run build
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
 
       - name: Pull down abq tester harness
         run: |
