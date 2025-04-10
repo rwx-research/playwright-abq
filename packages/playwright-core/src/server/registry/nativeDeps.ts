@@ -614,7 +614,7 @@ export const deps: any = {
     },
   },
 
-  'ubuntu24.04-x64': {
+  'ubuntu24.04': {
     tools: [
       'xvfb',
       'fonts-noto-color-emoji',
@@ -1137,16 +1137,16 @@ deps['ubuntu22.04-arm64'] = {
 };
 
 deps['ubuntu24.04-arm64'] = {
-  tools: [...deps['ubuntu24.04-x64'].tools],
-  chromium: [...deps['ubuntu24.04-x64'].chromium],
+  tools: [...deps['ubuntu24.04'].tools],
+  chromium: [...deps['ubuntu24.04'].chromium],
   firefox: [
-    ...deps['ubuntu24.04-x64'].firefox,
+    ...deps['ubuntu24.04'].firefox,
   ],
   webkit: [
-    ...deps['ubuntu24.04-x64'].webkit,
+    ...deps['ubuntu24.04'].webkit,
   ],
   lib2package: {
-    ...deps['ubuntu24.04-x64'].lib2package,
+    ...deps['ubuntu24.04'].lib2package,
   },
 };
 

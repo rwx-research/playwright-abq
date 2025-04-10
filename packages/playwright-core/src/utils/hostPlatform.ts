@@ -26,6 +26,7 @@ export type HostPlatform = 'win64' |
                            'ubuntu18.04' | 'ubuntu18.04-arm64' |
                            'ubuntu20.04' | 'ubuntu20.04-arm64' |
                            'ubuntu22.04' | 'ubuntu22.04-arm64' |
+                           'ubuntu24.04' | 'ubuntu24.04-arm64' |
                            'debian11' | 'debian11-arm64' |
                            'debian12' | 'debian12-arm64' |
                            'generic-linux' | 'generic-linux-arm64' |
@@ -62,11 +63,16 @@ export const hostPlatform = ((): HostPlatform => {
     // KDE Neon is ubuntu-based and has the same versions.
     // TUXEDO OS is ubuntu-based and has the same versions.
     if (distroInfo?.id === 'ubuntu' || distroInfo?.id === 'pop' || distroInfo?.id === 'neon' || distroInfo?.id === 'tuxedo') {
-      if (parseInt(distroInfo.version, 10) <= 19)
+      const major = parseInt(distroInfo.version, 10);
+      if (major < 20)
         return ('ubuntu18.04' + archSuffix) as HostPlatform;
-      if (parseInt(distroInfo.version, 10) <= 21)
+      if (major < 22)
         return ('ubuntu20.04' + archSuffix) as HostPlatform;
-      return ('ubuntu22.04' + archSuffix) as HostPlatform;
+      if (major < 24)
+        return ('ubuntu22.04' + archSuffix) as HostPlatform;
+      if (major < 26)
+        return ('ubuntu24.04' + archSuffix) as HostPlatform;
+      return ('ubuntu' + distroInfo.version + archSuffix) as HostPlatform;
     }
     if (distroInfo?.id === 'debian' && distroInfo?.version === '11')
       return ('debian11' + archSuffix) as HostPlatform;
