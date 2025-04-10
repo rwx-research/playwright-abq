@@ -19,7 +19,7 @@ import { SpawnedMessageInterface } from "@rwx-research/abq/build/protocol";
 
 export const spawnedMessage: SpawnedMessageInterface = {
   adapterName: "playwright-abq",
-  adapterVersion: "1.36.1",
+  adapterVersion: "1.36.2",
   testFramework: "playwright",
   testFrameworkVersion: "1.36.1",
 };
