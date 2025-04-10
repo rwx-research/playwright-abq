@@ -27,6 +27,15 @@ jobs:
           - os: ubuntu-22.04
             node-version: 22
             browser: chromium
+          - os: ubuntu-24.04
+            node-version: 18
+            browser: chromium
+          - os: ubuntu-24.04
+            node-version: 20
+            browser: chromium
+          - os: ubuntu-24.04
+            node-version: 22
+            browser: chromium
     env:
       AWS_DEFAULT_REGION: us-east-2
       AWS_DEFAULT_OUTPUT: json
