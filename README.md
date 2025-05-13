@@ -1,5 +1,7 @@
 # playwright-abq
 
+ABQ Playwright was deprecated on May 13, 2025. [Reach out to RWX](https://www.rwx.com/support) if you'd need support with it. 
+
 <img src="https://www.rwx.com/abq.svg" height="60" alt="abq">
 
 `playwright-abq` provides an [ABQ](https://www.rwx.com/abq) integration for [Playwright](https://github.com/microsoft/playwright).
